@@ -1,0 +1,175 @@
+{
+    "directed": false,
+    "multigraph": false,
+    "graph": {
+        "name": ""
+    },
+    "nodes": [
+        {
+            "betweenness": 0.0,
+            "id": "Voltaire [Fran\u00e7ois Marie Arouet]"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Cosimo Alessandro Collini"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Marie Louise Denis"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Marie Louise Nicole \u00c9lisabeth de La Rochefoucauld"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "duchesse d'Anville"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Pierre Michel Hennin"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Christophle de Laffrusse de Seynas"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "\u00c9tienne Fran\u00e7ois de Choiseul-Stainville"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "duc de Choiseul"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Philibert Commerson"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Charles L\u00e9opold de Jaucourt"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "seigneur de Chazelles"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Conseil de r\u00e9gence de Montb\u00e9liard"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Charlotte Sophia van Aldenburg"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "countess of Bentinck"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "conte Giuseppe Gorani"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Baron Albrecht von Haller"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Frederick II"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "king of Prussia"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Claire Cramer"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Louis Dupan"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Fran\u00e7ois Rigollet"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Pierre Le Resche"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "[unknown]"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Fran\u00e7ois Tronchin"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Alexis Piron"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Caroline Louise von Hessen-Darmstadt"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "margravine of Baden-Durlach"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Fran\u00e7ois Sellon"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "S\u00e9bastien Dupont"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Le Rond d'Alembert"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Dominique Vivant Denon"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Marie Jean Antoine Nicolas de Caritat"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "marquis de Condorcet"
+        }
+    ],
+    "links": [
+        {
+            "source": 3,
+            "target": 4
+        },
+        {
+            "source": 7,
+            "target": 8
+        },
+        {
+            "source": 10,
+            "target": 11
+        },
+        {
+            "source": 13,
+            "target": 14
+        },
+        {
+            "source": 17,
+            "target": 18
+        },
+        {
+            "source": 26,
+            "target": 27
+        },
+        {
+            "source": 32,
+            "target": 33
+        }
+    ]
+}

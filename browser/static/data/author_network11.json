@@ -1,0 +1,239 @@
+{
+    "directed": false,
+    "multigraph": false,
+    "graph": {
+        "name": ""
+    },
+    "nodes": [
+        {
+            "betweenness": 0.0,
+            "id": "Voltaire [Fran\u00e7ois Marie Arouet]"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Frederick II"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "king of Prussia"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Basile Polianski"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Nicolas Ren\u00e9 Berryer de Ravenoville"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Marie Louise Denis"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Louis Bernard de La Taste"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "\u00e9v\u00eaque de Bethl\u00e9em"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Fr\u00e9d\u00e9ric Herrenschwand"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "George Keith"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "10th Earl Marischal"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Martin de Prades"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Louis Ph\u00e9lypeaux"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "duc de La Vrilli\u00e8re"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Baptiste Simon Sauv\u00e9"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Marie Th\u00e9r\u00e8se Geoffrin"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Louis XVI"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "king of France"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Gabrielle \u00c9milie Le Tonnelier de Breteuil"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "marquise Du Ch\u00e2telet-Lomont"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Pierre Michel Hennin"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "\u00c9tienne Fran\u00e7ois de Choiseul-Stainville"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "duc de Choiseul"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Louis Fran\u00e7ois Armand Du Plessis"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "duc de Richelieu"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jacques Pineau de Viennay"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "baron de Luc\u00e9"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Henri L\u00e9onard Jean Baptiste Bertin"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "\u00c9lie Catherine Fr\u00e9ron"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Graf Franz von Freytag"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Fr\u00e9d\u00e9ric Ph\u00e9lypeaux"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "comte de Maurepas"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Pierre Robert Le Cornier de Cideville"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Count Andrei Petrovich Shuvalov"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "\u2014 Dantan"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Nicolas Claude Thieriot"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "David Louis Constant de Rebecque"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "seigneur d'Hermenches"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Louis \u00c9lisabeth de La Vergne"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "comte de Tressan"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Ivan Ivanovich Betzky"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Fran\u00e7ois Augustin Paradis de Moncrif"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Laurent Angliviel de La Beaumelle"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Charles Nicolas de La Touche"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Charlotte Bourette"
+        }
+    ],
+    "links": [
+        {
+            "source": 1,
+            "target": 2
+        },
+        {
+            "source": 6,
+            "target": 7
+        },
+        {
+            "source": 9,
+            "target": 10
+        },
+        {
+            "source": 12,
+            "target": 13
+        },
+        {
+            "source": 16,
+            "target": 17
+        },
+        {
+            "source": 18,
+            "target": 19
+        },
+        {
+            "source": 21,
+            "target": 22
+        },
+        {
+            "source": 23,
+            "target": 24
+        },
+        {
+            "source": 25,
+            "target": 26
+        },
+        {
+            "source": 30,
+            "target": 31
+        },
+        {
+            "source": 36,
+            "target": 37
+        },
+        {
+            "source": 38,
+            "target": 39
+        }
+    ]
+}

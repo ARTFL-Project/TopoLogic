@@ -1,0 +1,431 @@
+{
+    "directed": false,
+    "multigraph": false,
+    "graph": {
+        "name": ""
+    },
+    "nodes": [
+        {
+            "betweenness": 0.0,
+            "id": "Gr\u00e4fin Sabina von Bassewitz"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Voltaire [Fran\u00e7ois Marie Arouet]"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Louis Labat"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "baron de Grandcour"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Gabrielle \u00c9milie Le Tonnelier de Breteuil"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "marquise Du Ch\u00e2telet-Lomont"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Marie Louise Denis"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Jacques Rousseau"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "\u00c9tienne La Font de Saint-Yenne"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "comte Nicolas Louis Fran\u00e7ois de Neufch\u00e2teau"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Aaron Hill"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Frederick II"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "king of Prussia"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "conte Francesco Algarotti"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Charles Joseph"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "prince de Ligne"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Fran\u00e7ois Rigollet"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Marc Pierre de Voyer de Paulmy"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "comte d'Argenson"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Pierre Biord"
+        },
+        {
+            "betweenness": 0.0002938583602703497,
+            "id": "\u00e9v\u00eaque de Gen\u00e8ve-Annecy"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Louisa Dorothea von Meiningen"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "duchess of Saxe-Gotha"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Paul Claude Moultou"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "\u00c9tienne Fran\u00e7ois de Choiseul-Stainville"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "duc de Choiseul"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Pierre Michel Hennin"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Nicolas Claude Thieriot"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Charles Jean Fran\u00e7ois H\u00e9nault"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Robert Tronchin"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Marie Jean Antoine Nicolas de Caritat"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "marquis de Condorcet"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Fran\u00e7ois Joachim de Pierres"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "cardinal de Bernis"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Anne Marie Fiquet Du Boccage"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "James Marriott"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Michel Paul Guy de Chabanon"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Louis Nicolas Le Tonnelier de Breteuil"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "baron de Preuilly"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Antoine Jean Amelot de Chaillou"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "marquis de Combrande"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Louis Wagni\u00e8re"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Fran\u00e7ois Antoine Pierre Alliot"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Claude Brossette"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Louis de Laus de Boissy"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Cosimo Alessandro Collini"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Georges Louis Le Sage"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "fils"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Guillaume Amfrye de Chaulieu"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Alexandre d'Adh\u00e9mar de Monteil de Brunier"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "comte de Marsanne"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "J\u00e9r\u00e9mie Witel"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Pierre Robert Le Cornier de Cideville"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Louis Delorme"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "George Keate"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Ponce Denis Ecouchard Lebrun"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Baptiste Nicolas Formont"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Marie Roland"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "vicomte de La Plati\u00e8re"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "\u00c9tienne Jules Gastebois Desnoyers"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Benedict XIV"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Antoine Yart"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Henry"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "prince of Prussia"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Pierre Rousseau"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Gal"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Carlo Goldoni"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "William Hewett"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Richard Rolt"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Le Rond d'Alembert"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Pierre Louis Moreau de Maupertuis"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "B\u00e9n\u00e9dict Andr\u00e9 de Rodon"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "[unknown]"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Horace Walpole"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "4th earl of Orford"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Baptiste de Boyer"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "marquis d'Argens"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Madur Du Lac"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Maria Anna Louisa Jablonowska"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "princesse de Talmont"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Baptiste Rousseau"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Joseph Nicolas Deschamps de Chaumont"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jacques Antoine Hippolyte de Guibert"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "comte de Guibert"
+        }
+    ],
+    "links": [
+        {
+            "source": 2,
+            "target": 3
+        },
+        {
+            "source": 4,
+            "target": 5
+        },
+        {
+            "source": 11,
+            "target": 12
+        },
+        {
+            "source": 14,
+            "target": 15
+        },
+        {
+            "source": 17,
+            "target": 18
+        },
+        {
+            "source": 19,
+            "target": 20
+        },
+        {
+            "source": 20,
+            "target": 81
+        },
+        {
+            "source": 21,
+            "target": 22
+        },
+        {
+            "source": 24,
+            "target": 25
+        },
+        {
+            "source": 30,
+            "target": 31
+        },
+        {
+            "source": 32,
+            "target": 33
+        },
+        {
+            "source": 37,
+            "target": 38
+        },
+        {
+            "source": 39,
+            "target": 40
+        },
+        {
+            "source": 46,
+            "target": 47
+        },
+        {
+            "source": 49,
+            "target": 50
+        },
+        {
+            "source": 57,
+            "target": 58
+        },
+        {
+            "source": 62,
+            "target": 63
+        },
+        {
+            "source": 73,
+            "target": 74
+        },
+        {
+            "source": 75,
+            "target": 76
+        },
+        {
+            "source": 78,
+            "target": 79
+        },
+        {
+            "source": 82,
+            "target": 83
+        }
+    ]
+}

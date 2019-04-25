@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Type" content="text/html">
+  <title>Details about article {{ doc_id }}</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename = 'css/style.css') }}" />
+  <link href="../static/css/jquery.dataTables.min.css" rel="stylesheet" type="text/css">
+  <script src="../static/js/jquery-1.12.0.min.js" charset="utf-8"></script>
+  <script src="../static/js/jquery.dataTables.min.js" charset="utf-8"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.8.0/Chart.bundle.min.js" charset="utf-8"></script>
+  <script>
+    function loadFile(file) {
+      fr = new FileReader();
+      fr.onload = receivedText;
+      console.log(file)
+      var f = new File([""], "http://anomander.uchicago.edu:8080/" + file);
+      console.log(f)
+      fr.readAsText(f);
+
+      function receivedText(e) {
+        let lines = e.target.result;
+        var newArr = JSON.parse(lines);
+        console.log(newArr)
+      }
+      return fr
+    }
+
+    function loadJSON(file, callback) {
+      var rawFile = new XMLHttpRequest();
+      rawFile.overrideMimeType("application/json");
+      rawFile.open("GET", file, true);
+      rawFile.onreadystatechange = function() {
+        if (rawFile.readyState === 4 && rawFile.status == "200") {
+          callback(rawFile.responseText);
+        }
+      }
+      rawFile.send(null);
+    }
+  </script>
+
+</head>
+<style>
+  .axis path,
+  .axis line {
+    fill: none;
+    stroke: #000;
+    shape-rendering: crispEdges;
+  }
+
+  .bar {
+    fill: #3DC9FF;
+  }
+
+  .bar:hover {
+    fill: #34aad8;
+  }
+
+  .x.axis path {
+    display: none;
+  }
+
+  .node {
+    stroke: #666;
+    stroke-width: 1.5px;
+  }
+
+  .node:hover {
+    stroke: #222;
+    stroke-width: 3px;
+  }
+
+  text {
+    font: 14px;
+    color: #bbb;
+    pointer-events: none;
+  }
+
+  .line {
+    fill: none;
+    stroke: #ff5611;
+    stroke-width: 1.5px;
+  }
+
+  .link {
+    stroke: #999;
+    stroke-opacity: 2;
+  }
+</style>
+
+<body>
+  <div class="card text-center m-3 shadow-sm">
+    <div class="card-body">
+      <h3>Topic Model Browser</h3>
+      <p class="card-text">
+        <select onChange="window.location.href=((this.value == 'topics') ? '../topic_cloud.html' : '../vocabulary.html')">
+          <option selected="selected" disabled="disabled">Overview</option>
+          <option>topics</option>
+          <option>vocabulary</option>
+        </select>
+        -
+        <select onChange="window.location.href='../topic/'+this.value+'.html'">
+          <option selected="selected" disabled="disabled">Details about a topic</option>
+          {% for i in topic_ids %}
+          <option>{{ i }}</option>
+          {% endfor %}
+        </select>
+      </p>
+    </div>
+  </div>
+  {% block container %}{% endblock %}

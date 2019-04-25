@@ -1,0 +1,63 @@
+{
+    "directed": false,
+    "multigraph": false,
+    "graph": {
+        "name": ""
+    },
+    "nodes": [
+        {
+            "betweenness": 0.0,
+            "id": "Voltaire [Fran\u00e7ois Marie Arouet]"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "conte Francesco Algarotti"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Gabrielle \u00c9milie Le Tonnelier de Breteuil"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "marquise Du Ch\u00e2telet-Lomont"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Charles Augustin Feriol"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "comte d'Argental"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Marie Fran\u00e7oise Corneille"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Henri Lambert d'Herbigny"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "marquis de Thibouville"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Marie Louise Denis"
+        }
+    ],
+    "links": [
+        {
+            "source": 2,
+            "target": 3
+        },
+        {
+            "source": 4,
+            "target": 5
+        },
+        {
+            "source": 7,
+            "target": 8
+        }
+    ]
+}

@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+
+{% block container %}
+<div class="container-fluid">
+  <div class="card shadow-sm">
+    <div class="card-header">
+      <h3>{{ title }}</h3>
+    </div>
+    <div class="card-body">
+      <h5 class="card-title">Overall frequency : {{ frequency }}%</h5>
+      <div class="card-text" style="font-size: 90%">
+        <div class="row">
+          <div class="col-6">
+            <div class="row">
+              <div id="bar-chart" class="col-12">
+                <div class="card shadow-sm p-2">
+                  <h4>Most relevant words</h4>
+                  <canvas id="relevant-words" width="400" max-height="400"></canvas>
+                </div>
+              </div>
+              <div id="line-chart" class="col-12 mt-4">
+                <div class="card shadow-sm p-2">
+                  <h4>Topic frequency</h4>
+                  <canvas id="topic-frequency" width="400" max-height="400"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="card shadow-sm p-2">
+              <h4>Related documents ({{documents|length}})</h4>
+              <table id="documents" class="display" cellspacing="0">
+                <thead>
+                  <tr>
+                    <th>Title</th>
+                    <th>Author(s)</th>
+                    <th>Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for doc in documents %}
+                  <tr>
+                    <td><a href="/document/{{ doc[3] }}.html">{{ doc[0] }}</a></td>
+                    <td>{{ doc[1] }}</td>
+                    <td>{{ doc[2] }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+<script>
+  $(document).ready(function() {
+    $('#documents').DataTable();
+  });
+</script>
+<script src="{{ url_for('static', filename = 'js/d3.min.js' )}}"></script>
+<script>
+  var ctx = document.getElementById('relevant-words')
+  var topicData = loadJSON("{{ url_for('static', filename = 'data/word_distribution'+topic_id+'.json') }}", function(text) {
+    var topicData = JSON.parse(text);
+    Chart.defaults.global.responsive = true;
+    Chart.defaults.global.animation.duration = 400;
+    Chart.defaults.global.tooltipCornerRadius = 0;
+    Chart.defaults.bar.scales.xAxes[0].gridLines.display = false;
+    var myChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: topicData.labels,
+        datasets: [{
+          label: "weight",
+          data: topicData.data,
+          backgroundColor: "#55acee"
+        }]
+      },
+      options: {
+        legend: {
+          display: false,
+        }
+      }
+    });
+    ctx.addEventListener('click', function(e) {
+      let target = myChart.getElementAtEvent(e)
+      if (typeof(target[0]) !== 'undefined') {
+        let word = target[0]._view.label
+        window.location.href = "../word/" + word + ".html"
+      }
+    }, false);
+  });
+</script>
+<script>
+  var ctx2 = document.getElementById('topic-frequency')
+  var topicData = loadJSON("{{ url_for('static', filename = 'data/frequency'+topic_id+'.json') }}", function(text) {
+    var topicData = JSON.parse(text);
+    Chart.defaults.global.responsive = true;
+    Chart.defaults.global.animation.duration = 400;
+    Chart.defaults.global.tooltipCornerRadius = 0;
+    // Chart.defaults.global.maintainAspectRatio = false;
+    Chart.defaults.bar.scales.xAxes[0].gridLines.display = false;
+    var myChart = new Chart(ctx2, {
+      type: 'line',
+      data: {
+        labels: topicData.labels,
+        datasets: [{
+          data: topicData.data,
+          borderColor: "#55acee",
+          fill: false,
+          borderWidth: 1,
+          pointRadius: 0,
+          pointTension: 0
+        }]
+      },
+      options: {
+        legend: {
+          display: false,
+        }
+      }
+    });
+  });
+</script>
+{% endblock %}

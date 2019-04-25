@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block container %}
+<div class="container-fluid">
+  <div class="card shadow-sm">
+    <div class="card-header">
+      <h4>Details about "{{ word }}"</h4>
+    </div>
+    <div class="row mt-4 p-2">
+      <div class="col-6">
+        <div class="card shadow-sm p-2">
+          <h5 class="mb-2">Word distribution of "{{ word }}" across topics</h5>
+          <canvas id="word-distribution" width="400" max-height="400"></canvas>
+        </div>
+      </div>
+      <div class="col-6">
+        <div class="card shadow-sm p-2">
+          <h5>Related documents ({{documents|length}})</h5>
+          <ul class="list-group">
+            {% for doc in documents %}
+            <li class="list-group-item" style="padding: .5rem 1rem; font-size: 90%">
+              <strong><a href="../document/{{ doc[3] }}.html">{{ doc[0] }}</a></strong>
+              <br>
+              {{ doc[1] }}
+              <br>
+              <i>EGC {{ doc[2] }}</i>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+<script>
+  var ctx = document.getElementById('word-distribution')
+  var topicData = loadJSON("{{ url_for('static', filename = 'data/topic_distribution_w'+word_id+'.json') }}", function(text) {
+    var topicData = JSON.parse(text);
+    Chart.defaults.global.responsive = true;
+    Chart.defaults.global.animation.duration = 400;
+    Chart.defaults.global.tooltipCornerRadius = 0;
+    // Chart.defaults.global.maintainAspectRatio = false;
+    Chart.defaults.bar.scales.xAxes[0].gridLines.display = false;
+    var myChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: topicData.labels,
+        datasets: [{
+          label: "weight",
+          data: topicData.data,
+          backgroundColor: "#55acee"
+        }]
+      },
+      options: {
+        legend: {
+          display: false,
+        },
+        tooltips: {
+          callbacks: {
+            title: function(tooltipItem) {
+              return "Topic " + tooltipItem[0].xLabel
+            }
+          }
+        },
+        scales: {
+          yAxes: {
+            scaleLabel: {
+              display: true,
+              labelString: 'weight'
+            }
+          },
+          yAxes: {
+            scaleLabel: {
+              display: true,
+              labelString: 'topics'
+            }
+          }
+        }
+      }
+    });
+    ctx.addEventListener('click', function(e) {
+      let target = myChart.getElementAtEvent(e)
+      if (typeof(target[0]) !== 'undefined') {
+        let topic = target[0]._view.label
+        window.location.href = "../topic/" + topic + ".html"
+      }
+    }, false);
+  });
+</script>
+{% endblock %}

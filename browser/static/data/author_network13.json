@@ -1,0 +1,315 @@
+{
+    "directed": false,
+    "multigraph": false,
+    "graph": {
+        "name": ""
+    },
+    "nodes": [
+        {
+            "betweenness": 0.0,
+            "id": "Voltaire [Fran\u00e7ois Marie Arouet]"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Louis Ph\u00e9lypeaux"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "duc de La Vrilli\u00e8re"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Jacques Dortous de Mairan"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Fran\u00e7ois Joachim de Pierres"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "cardinal de Bernis"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Chr\u00e9tien Guillaume de Lamoignon de Malesherbes"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Nicolas Claude Thieriot"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Le Rond d'Alembert"
+        },
+        {
+            "betweenness": 0.0005120327700972862,
+            "id": "Frederick II"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "king of Prussia"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Saverio Bettinelli"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jacob Vernet"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Count Ivan Ivanovich Shuvalov"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Gabriel Cramer"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Gr\u00e4fin Sabina von Bassewitz"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Count Aleksandr Gavrilovich Golovkin"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Graf Johann Hartwig Ernst von Bernstorff"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Charles Theodore von Sulzbach"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Elector Palatine"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Nicolas Charles Joseph Trublet"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Nicolas Ren\u00e9 Berryer de Ravenoville"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "S\u00e9bastien Dupont"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Joseph Audra"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Philip Dormer Stanhope"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "4th earl of Chesterfield"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Baptiste Claude Delisle de Sales"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Pierre Robert Le Cornier de Cideville"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Baptiste Dubos"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Albrecht Friedrich von Erlach"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Pierre Louis Moreau de Maupertuis"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Louise Honorine Crozat Du Ch\u00e2tel"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "duchesse de Choiseul"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Gabriel Henri Gaillard"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "[unknown]"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Charles Ir\u00e9n\u00e9e Castel"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "abb\u00e9 de Saint-Pierre"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Marie Anne de Vichy-Chamrond"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "marquise Du Deffand"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Ren\u00e9 Nicolas Charles Augustin de Maupeou"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "marquis de Morangles"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Laurent Angliviel de La Beaumelle"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Cosimo Alessandro Collini"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Charles Guillaume Loys de Bochat"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Achille Pierre Dionis Du S\u00e9jour"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Michel Lambert"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Fran\u00e7ois Pierre Pictet"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Marc Duval"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "\u2014 de Valbene"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "landgrave of Hesse-Cassel"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Paul Philippe Gudin de La Brenellerie"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Moreau de S\u00e9chelles"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Charles Michel de Villette"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "marquis Du Plessis-Villette"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "\u00c9tienne No\u00ebl Damilaville"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jacques Mallet Du Pan"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Marc Pierre de Voyer de Paulmy"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "comte d'Argenson"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Henri Louis Lekain"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "\u2014 Maigrot"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Anne Charles de Lorry"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "conte Francesco Algarotti"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Charles Jean Fran\u00e7ois H\u00e9nault"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Huber"
+        }
+    ],
+    "links": [
+        {
+            "source": 1,
+            "target": 2
+        },
+        {
+            "source": 4,
+            "target": 5
+        },
+        {
+            "source": 9,
+            "target": 10
+        },
+        {
+            "source": 9,
+            "target": 49
+        },
+        {
+            "source": 18,
+            "target": 19
+        },
+        {
+            "source": 24,
+            "target": 25
+        },
+        {
+            "source": 31,
+            "target": 32
+        },
+        {
+            "source": 35,
+            "target": 36
+        },
+        {
+            "source": 37,
+            "target": 38
+        },
+        {
+            "source": 39,
+            "target": 40
+        },
+        {
+            "source": 52,
+            "target": 53
+        },
+        {
+            "source": 56,
+            "target": 57
+        }
+    ]
+}

@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block container %}
+<div class="container-fluid">
+  <div class="card shadow-sm">
+    <div class="card-header">
+      <h4>{{ title }}</h4>
+    </div>
+    <div class="card-body">
+      <h5 class="card-title">Number of tokens : {{ vocabulary_size }}</h5>
+      <div class="card-text" style="font-size: 90%">
+        <div class="row">
+          {% for vocabulary in splitted_vocabulary %}
+          <div class="col">
+            <ul class="list-group">
+              {% for indexed_word in vocabulary %}
+              <li class="list-group-item" style="padding: .5rem 1rem"><a href="word/{{ indexed_word[0] }}.html">{{ indexed_word[1] }}</a></li>
+              {% endfor %}
+            </ul>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</body>
+{% endblock %}

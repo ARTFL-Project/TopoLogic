@@ -1,0 +1,383 @@
+{
+    "directed": false,
+    "multigraph": false,
+    "graph": {
+        "name": ""
+    },
+    "nodes": [
+        {
+            "betweenness": 0.0,
+            "id": "Voltaire [Fran\u00e7ois Marie Arouet]"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Louis Joseph de Bourbon"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "prince de Cond\u00e9"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Dominique Audibert"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Georges Auzi\u00e8re"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Bartholomew Henry Himeli"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Gabriel Cramer"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Soci\u00e9t\u00e9 typographique de Neuch\u00e2tel"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Caroline Louise von Hessen-Darmstadt"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "margravine of Baden-Durlach"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Charles Bonnet"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Louis Wagni\u00e8re"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Frederick II"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "king of Prussia"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Cosimo Alessandro Collini"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "comtesse de Vidampierre"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Graf Heinrich von Br\u00fchl"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Henri Fran\u00e7ois de Paule Le F\u00e8vre d'Ormesson"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Louis \u00c9lisabeth de La Vergne"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "comte de Tressan"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Louisa Dorothea von Meiningen"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "duchess of Saxe-Gotha"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Pierre Michel Hennin"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Andr\u00e9 Morellet"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Henri Louis Lekain"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Fran\u00e7ois Farg\u00e8s de Polizy"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Louis de Durfort"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "duc de Lorges"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Count Ivan Ivanovich Shuvalov"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Paul Claude Moultou"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Charles Michel de Villette"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "marquis Du Plessis-Villette"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Le Rond d'Alembert"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Fran\u00e7ois Louis Allamand"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Louise Suzanne Necker"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Conseil de r\u00e9gence de Montb\u00e9liard"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Emmanuel Friedrich von Fischer"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Samuel Pechell"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Marie Louise Denis"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Fran\u00e7ois Dufour"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "seigneur de Villevieille"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Baptiste Joseph Damarzit de Sahuguet"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "baron d'Espagnac"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "S\u00e9bastien Dupont"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Gal"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Marie Anne de Vichy-Chamrond"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "marquise Du Deffand"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Louise Honorine Crozat Du Ch\u00e2tel"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "duchesse de Choiseul"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Luigi Riccoboni"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Fran\u00e7ois Ren\u00e9 Tabareau"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Joseph Fran\u00e7ois Gallier de Saint-G\u00e9rand"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Fran\u00e7ois Tronchin"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Geoffroy de Limon"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "marquis de Limon"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Catherine II"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "czarina of Russia"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Johann Christian B\u00f6hm"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Johann Rudolf Sinner"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Augustus"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "prince of Saxe-Gotha"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Paul Fran\u00e7ois de Qu\u00e9len-Stuer de Caussade"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "duc de Saint-M\u00e9grin"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Fran\u00e7ois de La Harpe"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Charles Jean Fran\u00e7ois H\u00e9nault"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Pierre Gros"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Ren\u00e9 H\u00e9rault"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "inhabitants of Ferney"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Pierre Antoine de La Place"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Laurent Angliviel de La Beaumelle"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Claude Brossette"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Hugues Maret"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Ren\u00e9 Nicolas Charles Augustin de Maupeou"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "marquis de Morangles"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean de Vaines"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Abraham Trembley"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Joseph Marie Terray"
+        }
+    ],
+    "links": [
+        {
+            "source": 1,
+            "target": 2
+        },
+        {
+            "source": 8,
+            "target": 9
+        },
+        {
+            "source": 12,
+            "target": 13
+        },
+        {
+            "source": 18,
+            "target": 19
+        },
+        {
+            "source": 20,
+            "target": 21
+        },
+        {
+            "source": 26,
+            "target": 27
+        },
+        {
+            "source": 30,
+            "target": 31
+        },
+        {
+            "source": 39,
+            "target": 40
+        },
+        {
+            "source": 41,
+            "target": 42
+        },
+        {
+            "source": 45,
+            "target": 46
+        },
+        {
+            "source": 47,
+            "target": 48
+        },
+        {
+            "source": 53,
+            "target": 54
+        },
+        {
+            "source": 55,
+            "target": 56
+        },
+        {
+            "source": 59,
+            "target": 60
+        },
+        {
+            "source": 61,
+            "target": 62
+        },
+        {
+            "source": 72,
+            "target": 73
+        }
+    ]
+}

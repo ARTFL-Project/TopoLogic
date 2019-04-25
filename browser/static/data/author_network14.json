@@ -1,0 +1,347 @@
+{
+    "directed": false,
+    "multigraph": false,
+    "graph": {
+        "name": ""
+    },
+    "nodes": [
+        {
+            "betweenness": 0.0,
+            "id": "Anne Robert Jacques Turgot"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Voltaire [Fran\u00e7ois Marie Arouet]"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Pierre Michel Hennin"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Greve Carl Fredrik Scheffer"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Louis Ph\u00e9lypeaux"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "duc de La Vrilli\u00e8re"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Claude Charles de Brosses"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "comte de Tournay"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Pierre Jacques Claude Dupuits"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Edward Gibbon"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Fran\u00e7ois Joly de Fleury"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Fran\u00e7ois Louis Allamand"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Marie Louise Denis"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Louis Gaspard Fabry"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Daniel Charles de Trudaine"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Alexandre Marie Fran\u00e7ois de Paule de Dompierre d'Hornoy"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "James Francis Edward Keith"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Charles de Brosses"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "baron de Montfalcon"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Fran\u00e7ois Dufour de Villeneuve"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Charles Philibert Trudaine de Montigny"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "\u2014 Malfin"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Baptiste Fran\u00e7ois de La Michodi\u00e8re"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Ren\u00e9 Nicolas Charles Augustin de Maupeou"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "marquis de Morangles"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Antoine Jean Amelot de Chaillou"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "marquis de Combrande"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "C\u00e9sar Gabriel de Choiseul"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "duc de Praslin"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Anne Louise B\u00e9n\u00e9dicte de Bourbon-Cond\u00e9"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "duchesse Du Maine"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Pierre Crommelin"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Marie Jean Antoine Nicolas de Caritat"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "marquis de Condorcet"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Pierre Robert Le Cornier de Cideville"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Frederick II"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "king of Prussia"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Guillaume Joseph Dupleix de Bacquencourt"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Louis Joseph de Bourbon"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "prince de Cond\u00e9"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Gilbert de La Forest"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "comte de La Forest-Divonne"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Dominique Jacques Barberie"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "marquis de Courteille"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Jacques Amelot de Chaillou"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "[unknown]"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Johann Rudolf Sinner"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Albrecht Friedrich von Erlach"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Marie Louise Nicole \u00c9lisabeth de La Rochefoucauld"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "duchesse d'Anville"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Joseph Michel Antoine Servan"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Dominique Audibert"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Fran\u00e7ois Bouret d'Erigny"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Franz Thormann"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "\u00c9tienne Fran\u00e7ois de Choiseul-Stainville"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "duc de Choiseul"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Louis Wagni\u00e8re"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Conseil de r\u00e9gence de Montb\u00e9liard"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Louis Gabriel Taboureau Des R\u00e9aux"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Jacques Rousseau"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "marchese Andrea Alamanni"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Paul Desforges-Maillard"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Pierre Lullin"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Joseph Nicolas Deschamps de Chaumont"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "\u00e9v\u00eaque de Gen\u00e8ve-Annecy"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Emmanuel Armand de Vignerod Du Plessis de Richelieu"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "duc d'Aiguillon"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Louis Amable Deprez de Crassier"
+        }
+    ],
+    "links": [
+        {
+            "source": 4,
+            "target": 5
+        },
+        {
+            "source": 6,
+            "target": 7
+        },
+        {
+            "source": 17,
+            "target": 18
+        },
+        {
+            "source": 23,
+            "target": 24
+        },
+        {
+            "source": 25,
+            "target": 26
+        },
+        {
+            "source": 27,
+            "target": 28
+        },
+        {
+            "source": 29,
+            "target": 30
+        },
+        {
+            "source": 32,
+            "target": 33
+        },
+        {
+            "source": 35,
+            "target": 36
+        },
+        {
+            "source": 38,
+            "target": 39
+        },
+        {
+            "source": 40,
+            "target": 41
+        },
+        {
+            "source": 42,
+            "target": 43
+        },
+        {
+            "source": 48,
+            "target": 49
+        },
+        {
+            "source": 54,
+            "target": 55
+        },
+        {
+            "source": 63,
+            "target": 64
+        },
+        {
+            "source": 65,
+            "target": 66
+        }
+    ]
+}

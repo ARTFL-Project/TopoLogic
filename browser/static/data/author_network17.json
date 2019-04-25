@@ -1,0 +1,231 @@
+{
+    "directed": false,
+    "multigraph": false,
+    "graph": {
+        "name": ""
+    },
+    "nodes": [
+        {
+            "betweenness": 0.0,
+            "id": "Voltaire [Fran\u00e7ois Marie Arouet]"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Le Rond d'Alembert"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Hugues Maret"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Marie Anne de Vichy-Chamrond"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "marquise Du Deffand"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Fran\u00e7ois Marmontel"
+        },
+        {
+            "betweenness": 0.0011074197120708748,
+            "id": "Frederick II"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "king of Prussia"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Charles Palissot de Montenoy"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Bernard Louis Verlac de La Bastide"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Gabriel Cramer"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Charles Bonnet"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Marie Jean Antoine Nicolas de Caritat"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "marquis de Condorcet"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Sophia Friderika Wilhelmina von Preussen"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "margravine of Bayreuth"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "landgrave of Hesse-Cassel"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Fran\u00e7ois Georges Fouques Desfontaines"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Baptiste Nicolas Formont"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Louise Florence P\u00e9tronille La Live"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "marquise d'\u00c9pinay"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Paul Claude Moultou"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "\u00c9tienne Fran\u00e7ois de Choiseul-Stainville"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "duc de Choiseul"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Baptiste de Boyer"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "marquis d'Argens"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "\u00c9tienne Maurice Falconet"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Adrien Michel Hyacinthe Blin de Sainmore"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Nicolas Claude Thieriot"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Joseph Michel Antoine Servan"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jacques Abram Elie Daniel Clavel de Brenles"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Gabriel de Seigneux"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "seigneur de Correvon"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "\u00c9tienne No\u00ebl Damilaville"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Andr\u00e9 Morellet"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Heinrich August Ottokar Reichard"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "\u00c9tienne Jean de Guimard des Rocheretz"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "baron de Montp\u00e9roux"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Louise Honorine Crozat Du Ch\u00e2tel"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "duchesse de Choiseul"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jacob Vernet"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Louis Wagni\u00e8re"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Fran\u00e7ois Louis Claude Marin"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Denis Diderot"
+        }
+    ],
+    "links": [
+        {
+            "source": 3,
+            "target": 4
+        },
+        {
+            "source": 6,
+            "target": 7
+        },
+        {
+            "source": 6,
+            "target": 16
+        },
+        {
+            "source": 12,
+            "target": 13
+        },
+        {
+            "source": 14,
+            "target": 15
+        },
+        {
+            "source": 19,
+            "target": 20
+        },
+        {
+            "source": 22,
+            "target": 23
+        },
+        {
+            "source": 24,
+            "target": 25
+        },
+        {
+            "source": 31,
+            "target": 32
+        },
+        {
+            "source": 36,
+            "target": 37
+        },
+        {
+            "source": 38,
+            "target": 39
+        }
+    ]
+}

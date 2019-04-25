@@ -1,0 +1,245 @@
+{
+    "nodes": [
+        {
+            "name": 0,
+            "frequency": 0.00848290487767029,
+            "description": "idee, matiere, force",
+            "group": 0
+        },
+        {
+            "name": 1,
+            "frequency": 0.009672580561733805,
+            "description": "conseil, citoyen, magistrat",
+            "group": 1
+        },
+        {
+            "name": 2,
+            "frequency": 0.005948378420317583,
+            "description": "affaire, procez, chose",
+            "group": 2
+        },
+        {
+            "name": 3,
+            "frequency": 0.03000051725029735,
+            "description": "piece, acte, tragedie",
+            "group": 3
+        },
+        {
+            "name": 4,
+            "frequency": 0.036466145968033846,
+            "description": "plaisir, amitie, voyage",
+            "group": 4
+        },
+        {
+            "name": 5,
+            "frequency": 0.03005224228003924,
+            "description": "prusse, roi prusse, roi",
+            "group": 5
+        },
+        {
+            "name": 6,
+            "frequency": 0.03206951843997303,
+            "description": "honneur, bonte, reconnaissance",
+            "group": 6
+        },
+        {
+            "name": 7,
+            "frequency": 0.028034966120105455,
+            "description": "geneve, delice, lausanne",
+            "group": 7
+        },
+        {
+            "name": 8,
+            "frequency": 0.022086587699787878,
+            "description": "altesse, monseigneur, serenissime",
+            "group": 8
+        },
+        {
+            "name": 9,
+            "frequency": 0.019034810945016252,
+            "description": "auteur, nom, ouvrage",
+            "group": 9
+        },
+        {
+            "name": 10,
+            "frequency": 0.028603941447266266,
+            "description": "argent, somme, mois",
+            "group": 10
+        },
+        {
+            "name": 11,
+            "frequency": 0.022190037759271662,
+            "description": "majeste, sire, pied",
+            "group": 11
+        },
+        {
+            "name": 12,
+            "frequency": 0.016448559457921653,
+            "description": "pere, fils, fille",
+            "group": 12
+        },
+        {
+            "name": 13,
+            "frequency": 0.015620958982051382,
+            "description": "histoire, siecle, ouvrage",
+            "group": 13
+        },
+        {
+            "name": 14,
+            "frequency": 0.020690011896756795,
+            "description": "pays, ge, pays ge",
+            "group": 14
+        },
+        {
+            "name": 15,
+            "frequency": 0.013241607613924351,
+            "description": "empereur, excellence, pierre",
+            "group": 15
+        },
+        {
+            "name": 16,
+            "frequency": 0.024931464335591937,
+            "description": "chatelet, ammi, marquis",
+            "group": 16
+        },
+        {
+            "name": 17,
+            "frequency": 0.02529353954378518,
+            "description": "philosophe, philosophie, maitre",
+            "group": 17
+        },
+        {
+            "name": 18,
+            "frequency": 0.01763823514198517,
+            "description": "guerre, paix, armee",
+            "group": 18
+        },
+        {
+            "name": 19,
+            "frequency": 0.021672787461852742,
+            "description": "livre, auteur, rente",
+            "group": 19
+        },
+        {
+            "name": 20,
+            "frequency": 0.02498318936533383,
+            "description": "corneille, academie, cinna",
+            "group": 20
+        },
+        {
+            "name": 21,
+            "frequency": 0.02032793668856355,
+            "description": "dieu, saint, merci",
+            "group": 21
+        },
+        {
+            "name": 22,
+            "frequency": 0.036414420938291954,
+            "description": "frere, exemplaire, jesuite",
+            "group": 22
+        },
+        {
+            "name": 23,
+            "frequency": 0.04655252676770278,
+            "description": "edition, exemplaire, volume",
+            "group": 23
+        },
+        {
+            "name": 24,
+            "frequency": 0.02741426576320275,
+            "description": "paquet, poste, adresse",
+            "group": 24
+        },
+        {
+            "name": 25,
+            "frequency": 0.028034966120105455,
+            "description": "art, genie, gout",
+            "group": 25
+        },
+        {
+            "name": 26,
+            "frequency": 0.025448714633010856,
+            "description": "duc, comte, villar",
+            "group": 26
+        },
+        {
+            "name": 27,
+            "frequency": 0.022293487818755446,
+            "description": "ami, adieu, adieu ami",
+            "group": 27
+        },
+        {
+            "name": 28,
+            "frequency": 0.02394868877049599,
+            "description": "oncle, niece, ferne",
+            "group": 28
+        },
+        {
+            "name": 29,
+            "frequency": 0.011845031810893268,
+            "description": "welche, sache, ordre",
+            "group": 29
+        },
+        {
+            "name": 30,
+            "frequency": 0.023017638235141934,
+            "description": "terre, droit, tournay",
+            "group": 30
+        },
+        {
+            "name": 31,
+            "frequency": 0.029897067190813566,
+            "description": "ange, aile, divin",
+            "group": 31
+        },
+        {
+            "name": 32,
+            "frequency": 0.02425903894894734,
+            "description": "memoire, avocat, usage",
+            "group": 32
+        },
+        {
+            "name": 33,
+            "frequency": 0.050069828790151434,
+            "description": "heure, soir, matin",
+            "group": 33
+        },
+        {
+            "name": 34,
+            "frequency": 0.015724409041535166,
+            "description": "coeur, amour, bonheur",
+            "group": 34
+        },
+        {
+            "name": 35,
+            "frequency": 0.05265608027724603,
+            "description": "notre, ferney, colonie",
+            "group": 35
+        },
+        {
+            "name": 36,
+            "frequency": 0.028862566595975726,
+            "description": "parlement, juge, toulouse",
+            "group": 36
+        },
+        {
+            "name": 37,
+            "frequency": 0.04050069828790142,
+            "description": "sante, vie, consolation",
+            "group": 37
+        },
+        {
+            "name": 38,
+            "frequency": 0.01955206124243517,
+            "description": "france, nation, angleterre",
+            "group": 38
+        },
+        {
+            "name": 39,
+            "frequency": 0.0200175865101122,
+            "description": "prince, ministre, souverain",
+            "group": 39
+        }
+    ],
+    "links": []
+}

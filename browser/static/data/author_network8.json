@@ -1,0 +1,195 @@
+{
+    "directed": false,
+    "multigraph": false,
+    "graph": {
+        "name": ""
+    },
+    "nodes": [
+        {
+            "betweenness": 0.0,
+            "id": "Voltaire [Fran\u00e7ois Marie Arouet]"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Charles Henry Chr\u00e9tien Ros\u00e9"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Charles Fran\u00e7ois Joseph Petitcuenot"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Fr\u00e9d\u00e9ric Flachsland"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Laurent Angliviel de La Beaumelle"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Pierre Bruyset-Ponthus"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "S\u00e9bastien Dupont"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Louise Suzanne Gallatin"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Claude Joseph"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Conseil de r\u00e9gence de Montb\u00e9liard"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Frederick II"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "king of Prussia"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Gabrielle \u00c9milie Le Tonnelier de Breteuil"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "marquise Du Ch\u00e2telet-Lomont"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "\u00c9tienne Jean de Guimard des Rocheretz"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "baron de Montp\u00e9roux"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "\u00c9tienne Louis Millet"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jacques Auguste Rousseau"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Fran\u00e7ois Joseph Meiner"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Fran\u00e7ois Arouet"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Louis Gaspard Fabry"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "\u2014 Pioche"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Aim\u00e9 de Lamballe"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Georg Christoph W\u00e4chter"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Anthelme Castin"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Pierre Louis de La Roche Du Maine"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "marquis de Luchet"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Fran\u00e7ois Collomb de Battine"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "seigneur de Copponex"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Charles Girod"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Mme Claude Bienvenue"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Mme \u2014 Ph\u00e9lizot"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Soci\u00e9t\u00e9 typographique de Neuch\u00e2tel"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Philippe II"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "duc d'Orl\u00e9ans"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Freiherr Karl Ludwig von P\u00f6llnitz"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Fran\u00e7ois Achard Joumard Tison"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "marquis d'Argence"
+        },
+        {
+            "betweenness": 0.0,
+            "id": "Jean Fran\u00e7ois de La Harpe"
+        }
+    ],
+    "links": [
+        {
+            "source": 10,
+            "target": 11
+        },
+        {
+            "source": 12,
+            "target": 13
+        },
+        {
+            "source": 14,
+            "target": 15
+        },
+        {
+            "source": 25,
+            "target": 26
+        },
+        {
+            "source": 27,
+            "target": 28
+        },
+        {
+            "source": 33,
+            "target": 34
+        },
+        {
+            "source": 36,
+            "target": 37
+        }
+    ]
+}
