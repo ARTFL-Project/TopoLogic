@@ -42,7 +42,7 @@ def get_text(start_byte: int, end_byte: int, filename: str) -> str:
 
 
 def main():
-    with open("/shared/philomine/texts_NOUN.pickle", "rb") as pickled_texts:
+    with open(sys.argv[3], "rb") as pickled_texts:
         texts = pickle.load(pickled_texts)
 
     with open("input/texts.csv", "w") as csv_output:
