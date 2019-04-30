@@ -8,7 +8,7 @@
     </div>
     <div class="card-body">
       <h5 class="card-title">Each bubble represents a topic. Double-click one to get more details</h5>
-      <div class="card-text">
+      <div class="card-text p-4">
         <topic-graph></topic-graph>
       </div>
     </div>
@@ -20,14 +20,12 @@
   var width = window.innerWidth ||
     document.documentElement.clientWidth ||
     document.body.clientWidth;
-  var height = window.innerHeight ||
-    document.documentElement.clientHeight ||
-    document.body.clientHeight;
-  height = height - 40
+  var height = window.innerHeight
+  height = height - 100
   var color = d3.scale.category20();
 
   var force = d3.layout.force()
-    .charge(-900)
+    .charge(-500)
     .linkDistance(100)
     .size([width, height]);
 
@@ -69,7 +67,7 @@
       .attr("r", function(d) {
         return d.frequency * 500;
       })
-      .style("fill", "#bbb")
+      .style("fill", "#55acee")
       .call(force.drag)
       .on("dblclick", show_details)
       .on("mouseover", focus_topic)
@@ -80,6 +78,8 @@
         return d.name;
       });
 
+    // d3.select("svg").style("max-height", "800px")
+
     function show_details() {
       window.location = "topic/" + d3.select(this).select("title").text() + ".html";
     }
@@ -89,7 +89,7 @@
     }
 
     function unfocus_topic() {
-      d3.select(this).style("fill", "#bbb");
+      d3.select(this).style("fill", "#55acee");
     }
 
     var texts = svg.selectAll("text.label")

@@ -1,4 +1,6 @@
-# coding: utf-8
+#!/usr/bin/env python3
+
+import os
 import itertools
 from abc import ABCMeta, abstractmethod
 
@@ -11,8 +13,6 @@ from sklearn.decomposition import LatentDirichletAllocation as LDA
 
 import tom_lib.stats
 from tom_lib.structure.corpus import Corpus
-
-# import lda
 
 
 __author__ = "Adrien Guille, Pavel Soriano"
@@ -38,7 +38,7 @@ class TopicModel(object):
         topic_document = self.model.transform(corpus.sklearn_vector_space)
         self.topic_word_matrix = []
         self.document_topic_matrix = []
-        vocabulary_size = len(self.corpus.vocabulary)
+        vocabulary_size = len(self.corpus.vectorizer.vocabulary_)
         row = []
         col = []
         data = []
@@ -48,7 +48,7 @@ class TopicModel(object):
                 col.append(i)
                 data.append(topic[i])
         self.topic_word_matrix = coo_matrix(
-            (data, (row, col)), shape=(self.nb_topics, len(self.corpus.vocabulary))
+            (data, (row, col)), shape=(self.nb_topics, len(self.corpus.vectorizer.vocabulary_))
         ).tocsr()
         row = []
         col = []
@@ -184,21 +184,23 @@ class TopicModel(object):
     def top_words(self, topic_id, num_words):
         vector = self.topic_word_matrix[topic_id]
         cx = vector.tocoo()
-        weighted_words = [()] * len(self.corpus.vocabulary)
-        words_found = set()
+        weighted_words = [()] * len(self.corpus.vectorizer.vocabulary_)
         for row, word_id, weight in itertools.zip_longest(cx.row, cx.col, cx.data):
             weighted_words[word_id] = (self.corpus.word_for_id(word_id), weight)
         weighted_words.sort(key=lambda x: x[1], reverse=True)
         return weighted_words[:num_words]
 
-    def top_documents(self, topic_id, num_docs):
+    def top_documents(self, topic_id, num_docs=None):
         vector = self.document_topic_matrix[:, topic_id]
         cx = vector.tocoo()
         weighted_docs = [()] * self.corpus.size
         for doc_id, topic_id, weight in itertools.zip_longest(cx.row, cx.col, cx.data):
             weighted_docs[doc_id] = (doc_id, weight)
         weighted_docs.sort(key=lambda x: x[1], reverse=True)
-        return weighted_docs[:num_docs]
+        if num_docs is not None:
+            return weighted_docs[:num_docs]
+        else:
+            return [d for d in weighted_docs if d[1] > 0][:1000]
 
     def word_distribution_for_topic(self, topic_id):
         vector = self.topic_word_matrix[topic_id].toarray()
@@ -299,7 +301,7 @@ class LatentDirichletAllocation(TopicModel):
             raise ValueError("algorithm must be either 'variational' or 'gibbs', got '%s'" % algorithm)
         self.topic_word_matrix = []
         self.document_topic_matrix = []
-        vocabulary_size = len(self.corpus.vocabulary)
+        vocabulary_size = len(self.corpus.vectorizer.vocabulary_)
         row = []
         col = []
         data = []
@@ -309,7 +311,7 @@ class LatentDirichletAllocation(TopicModel):
                 col.append(i)
                 data.append(topic[i])
         self.topic_word_matrix = coo_matrix(
-            (data, (row, col)), shape=(self.nb_topics, len(self.corpus.vocabulary))
+            (data, (row, col)), shape=(self.nb_topics, len(self.corpus.vectorizer.vocabulary_))
         ).tocsr()
         row = []
         col = []
@@ -333,7 +335,7 @@ class NonNegativeMatrixFactorization(TopicModel):
         topic_document = self.model.fit_transform(self.corpus.sklearn_vector_space)
         self.topic_word_matrix = []
         self.document_topic_matrix = []
-        vocabulary_size = len(self.corpus.vocabulary)
+        vocabulary_size = len(self.corpus.vectorizer.vocabulary_)
         row = []
         col = []
         data = []
@@ -343,7 +345,7 @@ class NonNegativeMatrixFactorization(TopicModel):
                 col.append(i)
                 data.append(topic[i])
         self.topic_word_matrix = coo_matrix(
-            (data, (row, col)), shape=(self.nb_topics, len(self.corpus.vocabulary))
+            (data, (row, col)), shape=(self.nb_topics, len(self.corpus.vectorizer.vocabulary_))
         ).tocsr()
         row = []
         col = []
@@ -360,8 +362,8 @@ class NonNegativeMatrixFactorization(TopicModel):
         self.document_topic_matrix = coo_matrix((data, (row, col)), shape=(self.corpus.size, self.nb_topics)).tocsr()
 
 
-def save_model(model):
-    with open("input/model", "wb") as output_file:
+def save_model(path, model):
+    with open(os.path.join(path, "model"), "wb") as output_file:
         dump(model, output_file)
 
 

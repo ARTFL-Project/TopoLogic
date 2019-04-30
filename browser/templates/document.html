@@ -23,7 +23,7 @@
                 <div>
                   {% for weighted_word in words %}
                   {% if weighted_word[1] > 0 %}
-                  <a href="../word/{{ weighted_word[2] }}.html" style="font-size: {{ 1+weighted_word[1] }}rem; color: {{ weighted_word[3] }}">{{weighted_word[0]}}</a> <!-- <li class="list-group-item" style="padding: .5rem 1rem"><strong><a href="../word/{{ weighted_word[2] }}.html">{{ weighted_word[0] }}</a></strong> ({{ weighted_word[1] }})</li> -->
+                  <a href="../word/{{ weighted_word[2] }}.html" style="display:inline-block; padding: 5px; font-size: {{ 1+weighted_word[1] }}rem; color: {{ weighted_word[3] }}">{{weighted_word[0]}}</a> <!-- <li class="list-group-item" style="padding: .5rem 1rem"><strong><a href="../word/{{ weighted_word[2] }}.html">{{ weighted_word[0] }}</a></strong> ({{ weighted_word[1] }})</li> -->
                   {% endif %}
                   {% endfor %}
                 </div>

@@ -1,9 +1,36 @@
 {% extends 'base.html' %}
 
 {% block container %}
-<div id="header">
-  <h1>Topic and document browser</h1>
-  <a href="https://github.com/AdrienGuille/TopicModeling">Built with https://github.com/AdrienGuille/TopicModeling</a>
+<div class="container-fluid">
+  <div class="card shadow-sm">
+    <div class="card-header">
+      <h5>Corpus Statistics: {{ corpus_size }} documents with <a href="/vocabulary.html">{{ vocabulary_size }} unique tokens</a></h5>
+    </div>
+    <div class="card-text p-4">
+      <div class="row">
+        <div class="col-6">
+          <div class="card shadow-sm p-4">
+            <h6>Vectorization parameters:</h6>
+            <ul>
+              <li style="padding: 5px">Corpus using {{ vectorization.upper() }} weighting.</li>
+              <li style="padding: 5px">Tokens include unigrams and bigrams</li>
+              <li style="padding: 5px">The top {{ max_tf * 100 }}% and bottom {{ min_tf*100 }}% of tokens were filtered out.</li>
+            </ul>
+
+          </div>
+        </div>
+        <div class="col-6">
+          <div class="card shadow-sm p-4">
+            <h6 class="mt-4">Topic Modeling parameters:</h6>
+            <ul>
+              <li style="padding: 5px">The {{ method }} algorithm was used to generate the topic model.</li>
+              <li style="padding: 5px">The topic model contains <a href="/topic_cloud.html">{{topic_ids[-1]+1}} topics</a>.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 </body>
 {% endblock %}

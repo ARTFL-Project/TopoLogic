@@ -1,6 +1,8 @@
-# coding: utf-8
+#!/usr/bin/env python3`
 import itertools
+import os
 
+import numpy as np
 from dill import dump, load
 from scipy import spatial
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
@@ -11,7 +13,6 @@ import networkx as nx
 import pandas
 from networkx.readwrite import json_graph
 from nltk.corpus import stopwords
-import numpy as np
 
 __author__ = "Adrien Guille, Pavel Soriano"
 __email__ = "adrien.guille@univ-lyon2.fr"
@@ -78,8 +79,7 @@ class Corpus:
         else:
             self.vectorizer = vectorizer
             self.sklearn_vector_space = self.vectorizer.transform(t for t in self.data_frame["text"])
-        vocab = self.vectorizer.get_feature_names()
-        self.vocabulary = dict([(i, s) for i, s in enumerate(vocab)])
+        self.feature_names = self.vectorizer.get_feature_names()
         self.similarity_matrix = pairwise_distances(self.sklearn_vector_space, metric="cosine", n_jobs=1)
 
     def export(self, file_path):
@@ -124,7 +124,7 @@ class Corpus:
     def docs_for_word(self, word_id):
         ids = []
         for i in range(self.size):
-            vector = self.vector_for_document(i)
+            vector = self.sklearn_vector_space[i].toarray()[0]
             if vector[word_id] > 0:
                 ids.append(i)
         return ids
@@ -135,19 +135,19 @@ class Corpus:
     def vector_for_document(self, doc_id):
         vector = self.sklearn_vector_space[doc_id]
         cx = vector.tocoo()
-        weights = [0.0] * len(self.vocabulary)
+        weights = [0.0] * len(self.vectorizer.vocabulary_)
         for row, word_id, weight in itertools.zip_longest(cx.row, cx.col, cx.data):
             weights[word_id] = weight
         return weights
 
-    def word_for_id(self, word_id):
-        return self.vocabulary.get(word_id)
+    def word_for_id(self, word):
+        return self.feature_names[word]
 
-    def id_for_word(self, word):
-        for i, s in self.vocabulary.items():
-            if s == word:
-                return i
-        return -1
+    def id_for_word(self, word_id):
+        try:
+            return self.vectorizer.vocabulary_[word_id]
+        except KeyError:
+            return -1
 
     def similar_documents(self, doc_id, num_docs):
         similarities = [
@@ -175,8 +175,8 @@ class Corpus:
             return json_graph.node_link_data(nx_graph)
 
 
-def save_corpus(corpus):
-    with open("input/corpus", "wb") as output_file:
+def save_corpus(path, corpus):
+    with open(os.path.join(path, "corpus"), "wb") as output_file:
         dump(corpus, output_file)
 
 

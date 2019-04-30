@@ -1,31 +1,40 @@
 # coding: utf-8
+import argparse
 import os
 import pickle
 import random
 import shutil
-from numpy import NaN
 
 from flask import Flask, render_template
+from numpy import NaN, any
 
 import tom_lib.utils as utils
 from tom_lib.nlp.topic_model import load_model
 from tom_lib.structure.corpus import load_corpus
 
-__author__ = "Adrien Guille"
-__email__ = "adrien.guille@univ-lyon2.fr"
+__author__ = "Clovis Gladstone"
+__email__ = "clovisgladstone@uchicago.edu"
 
-# Flask Web server
-app = Flask(__name__, static_folder="browser/static", template_folder="browser/templates")
 
-corpus = load_corpus("input/corpus")
+parser = argparse.ArgumentParser(description="Define files to process")
+parser.add_argument("--path", dest="path", type=str, default="")
+
+args = parser.parse_args()
+
+corpus = load_corpus(os.path.join(args.path, "corpus"))
 vectorization = corpus._vectorization
 max_tf = corpus._max_relative_frequency
 min_tf = corpus._min_absolute_frequency
 
-topic_model = load_model("input/model")
+topic_model = load_model(os.path.join(args.path, "model"))
 num_topics = topic_model.nb_topics
 # Associate documents with topics
 topic_associations = topic_model.documents_per_topic()
+data_path = args.path.replace("browser/static", "")
+
+
+# Flask Web server
+app = Flask(__name__, static_folder="browser/static", template_folder="browser/templates")
 
 
 @app.route("/")
@@ -36,7 +45,7 @@ def index():
         doc_ids=range(corpus.size),
         method=type(topic_model).__name__,
         corpus_size=corpus.size,
-        vocabulary_size=len(corpus.vocabulary),
+        vocabulary_size=len(corpus.vectorizer.vocabulary_),
         max_tf=max_tf,
         min_tf=min_tf,
         vectorization=vectorization,
@@ -47,17 +56,21 @@ def index():
 @app.route("/topic_cloud.html")
 def topic_cloud():
     return render_template(
-        "topic_cloud.html", title="Topic Cloud", topic_ids=range(topic_model.nb_topics), doc_ids=range(corpus.size)
+        "topic_cloud.html",
+        title="Topic Cloud",
+        topic_ids=range(topic_model.nb_topics),
+        doc_ids=range(corpus.size),
+        data_path=data_path,
     )
 
 
 @app.route("/vocabulary.html")
 def vocabulary():
     word_list = []
-    for i in range(len(corpus.vocabulary)):
+    for i in range(len(corpus.vectorizer.vocabulary_)):
         word_list.append((i, corpus.word_for_id(i)))
     splitted_vocabulary = []
-    words_per_column = int(len(corpus.vocabulary) / 5)
+    words_per_column = int(len(corpus.vectorizer.vocabulary_) / 5)
     for j in range(5):
         sub_vocabulary = []
         for l in range(j * words_per_column, (j + 1) * words_per_column):
@@ -75,17 +88,21 @@ def vocabulary():
 
 @app.route("/topic/<tid>.html")
 def topic_details(tid):
-    ids = topic_associations[int(tid)]
+    ids = topic_model.top_documents(int(tid))
     documents = []
-    for document_id in ids:
-        documents.append(
-            (
-                corpus.title(document_id).capitalize(),
-                ", ".join(corpus.author(document_id)),
-                corpus.date(document_id),
-                document_id,
+    for document_id, weight in ids:
+        document_array = corpus.sklearn_vector_space[document_id]
+        positive_values = any(document_array.todense() > 0)
+        if positive_values:
+            documents.append(
+                (
+                    corpus.title(document_id).capitalize(),
+                    ", ".join(corpus.author(document_id)),
+                    corpus.date(document_id),
+                    document_id,
+                    weight,
+                )
             )
-        )
     return render_template(
         "topic.html",
         title="Topic Details",
@@ -94,22 +111,25 @@ def topic_details(tid):
         documents=documents,
         topic_ids=range(topic_model.nb_topics),
         doc_ids=range(corpus.size),
+        data_path=data_path,
     )
 
 
 @app.route("/document/<did>.html")
 def document_details(did):
-    vector = topic_model.corpus.vector_for_document(int(did))
+    vector = corpus.sklearn_vector_space[int(did)].toarray()[0]
     word_list = []
-    for a_word_id in range(len(vector)):
-        if vector[a_word_id] > 0:
-            word_list.append((corpus.word_for_id(a_word_id), vector[a_word_id] * 10, a_word_id))
-            print(vector[a_word_id])
+    for word_id, weight in enumerate(vector):
+        if weight > 0:
+            word_list.append((corpus.word_for_id(word_id), weight * 10, word_id))
     word_list.sort(key=lambda x: x[1])
     word_list.reverse()
     word_list = [w for w in word_list[:21] if w[1] > 0]
     highest_value = word_list[0][1]
-    lowest_value = word_list[-1][1]
+    if len(word_list) > 1:
+        lowest_value = word_list[-1][1]
+    else:
+        lowest_value = 0
     coeff = (highest_value - lowest_value) / 10
 
     def adjust_weight(weight):
@@ -121,19 +141,18 @@ def document_details(did):
         return adjusted_weight
 
     adjusted_word_list = [(w[0], adjust_weight(w[1]), w[2]) for w in word_list]
-    print(highest_value, lowest_value, coeff)
     color_codes = {
-        10: "#2A90DC",
-        9: "#2AA9DC",
-        8: "#2ABCDC",
-        7: "#2ACCDC",
-        6: "#2ADCCC",
-        5: "#2ADCB6",
-        4: "#2ADC93",
-        3: "#2ADC7E",
-        2: "#2ADC70",
-        1: "#2ADC50",
-        0: "#2ACB40",
+        10: "rgb(26, 114, 159)",
+        9: "rgba(26,114,159, .95)",
+        8: "rgba(26,114,159, .9)",
+        7: "rgba(26,114,159, .85)",
+        6: "rgba(26,114,159, .8)",
+        5: "rgba(26,114,159, .75)",
+        4: "rgba(26,114,159, .7)",
+        3: "rgba(26,114,159, .65)",
+        2: "rgba(26,114,159, .6)",
+        1: "rgba(26,114,159, .55)",
+        0: "rgba(26,114,159, .5)",
     }
 
     weighted_word_list = [(w[0], w[1] / 10, w[2], color_codes[w[1]]) for w in adjusted_word_list]
@@ -163,6 +182,7 @@ def document_details(did):
         short_content=corpus.title(int(did)),
         text=text,
         title="Document Composition",
+        data_path=data_path,
     )
 
 
@@ -172,7 +192,7 @@ def word_details(wid):
     try:
         wid = int(wid)
     except ValueError:
-        wid = corpus.id_for_word(wid)
+        wid = corpus.vectorizer.vocabulary_[wid]
     for document_id in corpus.docs_for_word(wid):
         documents.append(
             (
@@ -190,6 +210,7 @@ def word_details(wid):
         doc_ids=range(corpus.size),
         documents=documents,
         title="Word Distribution",
+        data_path=data_path,
     )
 
 
