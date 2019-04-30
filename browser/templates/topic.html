@@ -10,44 +10,42 @@
       <h5 class="card-title">Overall frequency : {{ frequency }}%</h5>
       <div class="card-text" style="font-size: 90%">
         <div class="row">
-          <div class="col-6">
-            <div class="row">
-              <div id="bar-chart" class="col-12">
-                <div class="card shadow-sm p-2">
-                  <h4>Most relevant words</h4>
-                  <canvas id="relevant-words" width="400" max-height="400"></canvas>
-                </div>
-              </div>
-              <div id="line-chart" class="col-12 mt-4">
-                <div class="card shadow-sm p-2">
-                  <h4>Topic frequency</h4>
-                  <canvas id="topic-frequency" width="400" max-height="400"></canvas>
-                </div>
-              </div>
+          <div class="col-4">
+            <div class="card shadow-sm p-2">
+              <h5>Most relevant words</h5>
+              <canvas id="relevant-words" style="max-height: {{num_topics * 10}}px !important;"></canvas>
             </div>
           </div>
-          <div class="col-6">
+          <div class="col-8">
             <div class="card shadow-sm p-2">
-              <h4>Related documents ({{documents|length}})</h4>
-              <table id="documents" class="display" cellspacing="0">
-                <thead>
-                  <tr>
-                    <th>Title</th>
-                    <th>Author(s)</th>
-                    <th>Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for doc in documents %}
-                  <tr>
-                    <td><a href="/document/{{ doc[3] }}.html">{{ doc[0] }}</a></td>
-                    <td>{{ doc[1] }}</td>
-                    <td>{{ doc[2] }}</td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
+              <h5>Topic frequency</h5>
+              <canvas id="topic-frequency" style="max-height: {{num_topics * 10}}px !important;"></canvas>
             </div>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-12">
+          <div class="card shadow-sm mt-4 p-2">
+            <h5>Related documents ({{documents|length}})</h5>
+            <table id="documents" class="display" cellspacing="0">
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Author(s)</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for doc in documents %}
+                <tr>
+                  <td><a href="/document/{{ doc[3] }}.html">{{ doc[0] }}</a></td>
+                  <td>{{ doc[1] }}</td>
+                  <td>{{ doc[2] }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -63,28 +61,73 @@
 <script src="{{ url_for('static', filename = 'js/d3.min.js' )}}"></script>
 <script>
   var ctx = document.getElementById('relevant-words')
-  var topicData = loadJSON("{{ url_for('static', filename = 'data/word_distribution'+topic_id+'.json') }}", function(text) {
+  var topicData = loadJSON("{{ url_for('static', filename = data_path + '/word_distribution'+topic_id+'.json') }}", function(text) {
     var topicData = JSON.parse(text);
     Chart.defaults.global.responsive = true;
     Chart.defaults.global.animation.duration = 400;
     Chart.defaults.global.tooltipCornerRadius = 0;
     Chart.defaults.bar.scales.xAxes[0].gridLines.display = false;
+    Chart.defaults.global.defaultFontSize = "14"
     var myChart = new Chart(ctx, {
-      type: 'bar',
+      type: 'horizontalBar',
       data: {
         labels: topicData.labels,
         datasets: [{
           label: "weight",
           data: topicData.data,
-          backgroundColor: "#55acee"
+          backgroundColor: "rgba(85,172,238, .6)"
         }]
       },
       options: {
+        maintainAspectRatio: false,
+        tooltips: {
+          enabled: false
+        },
         legend: {
           display: false,
+        },
+        scales: {
+          xAxes: [{
+            display: false,
+            gridLines: {
+              display: false,
+              offsetGridLines: false
+            },
+          }],
+          yAxes: [{
+            display: false,
+            gridLines: {
+              barThickness: 20,
+              display: false
+            }
+          }]
+        },
+        hover: {
+          animationDuration: 0
+        },
+        animation: {
+          duration: 1,
+          onComplete() {
+            const chartInstance = this.chart;
+            const ctx2 = chartInstance.ctx;
+            const dataset = this.data.datasets[0];
+            const meta = chartInstance.controller.getDatasetMeta(0);
+
+            Chart.helpers.each(meta.data.forEach((bar, index) => {
+              const label = topicData.labels[index];
+              const labelPositionX = 10;
+              const labelWidth = ctx2.measureText(label).width + labelPositionX;
+
+              ctx2.textBaseline = 'middle';
+              ctx2.textAlign = 'left';
+              ctx2.fillStyle = '#444';
+              ctx2.fillText(label, labelPositionX, bar._model.y);
+            }));
+          }
         }
       }
     });
+
     ctx.addEventListener('click', function(e) {
       let target = myChart.getElementAtEvent(e)
       if (typeof(target[0]) !== 'undefined') {
@@ -96,7 +139,7 @@
 </script>
 <script>
   var ctx2 = document.getElementById('topic-frequency')
-  var topicData = loadJSON("{{ url_for('static', filename = 'data/frequency'+topic_id+'.json') }}", function(text) {
+  var topicData = loadJSON("{{ url_for('static', filename = data_path + '/frequency'+topic_id+'.json') }}", function(text) {
     var topicData = JSON.parse(text);
     Chart.defaults.global.responsive = true;
     Chart.defaults.global.animation.duration = 400;
@@ -117,6 +160,7 @@
         }]
       },
       options: {
+        maintainAspectRatio: false,
         legend: {
           display: false,
         }

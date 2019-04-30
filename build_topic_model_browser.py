@@ -7,6 +7,7 @@ import shutil
 
 from flask import Flask, render_template
 from numpy import NaN, any
+import numpy as np
 
 import tom_lib.utils as utils
 from tom_lib.nlp.topic_model import load_model
@@ -30,7 +31,8 @@ topic_model = load_model(os.path.join(args.path, "model"))
 num_topics = topic_model.nb_topics
 # Associate documents with topics
 topic_associations = topic_model.documents_per_topic()
-data_path = args.path.replace("browser/static", "")
+data_path = args.path.replace("browser/static/", "")
+print(data_path)
 
 
 # Flask Web server
@@ -61,6 +63,7 @@ def topic_cloud():
         topic_ids=range(topic_model.nb_topics),
         doc_ids=range(corpus.size),
         data_path=data_path,
+        num_topics=topic_model.nb_topics,
     )
 
 
@@ -110,6 +113,7 @@ def topic_details(tid):
         frequency=round(topic_model.topic_frequency(int(tid)) * 100, 2),
         documents=documents,
         topic_ids=range(topic_model.nb_topics),
+        num_topics=topic_model.nb_topics,
         doc_ids=range(corpus.size),
         data_path=data_path,
     )
@@ -168,6 +172,22 @@ def document_details(did):
                 round(score, 3),
             )
         )
+    sim_docs_by_word = []
+    doc_id = int(did)
+    for another_doc, score in [
+        (d, 1.0 - corpus.similarity_matrix[doc_id][d])
+        for d in np.argsort(corpus.similarity_matrix[doc_id])
+        if d != doc_id
+    ][:5]:
+        sim_docs_by_word.append(
+            (
+                corpus.title(another_doc).capitalize(),
+                ", ".join(corpus.author(another_doc)),
+                corpus.date(another_doc),
+                another_doc,
+                round(score, 3),
+            )
+        )
     with open(f"browser/static/text/{did}.txt") as input_text:
         text = input_text.read()
     return render_template(
@@ -183,6 +203,7 @@ def document_details(did):
         text=text,
         title="Document Composition",
         data_path=data_path,
+        sim_docs_by_word=sim_docs_by_word,
     )
 
 

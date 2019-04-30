@@ -147,14 +147,13 @@ def main(args):
     save_model(data_path, topic_model)
 
     # Export topic cloud
-    utils.save_topic_cloud(topic_model, f"{data_path}/topic_cloud_{args.algo}_{args.topics}.json")
+    utils.save_topic_cloud(topic_model, f"{data_path}/topic_cloud.json")
 
     # Export details about topics
     print("Saving word distributions...")
     for topic_id in range(topic_model.nb_topics):
         utils.save_word_distribution(
-            topic_model.top_words(topic_id, 20),
-            f"{data_path}/word_distribution" + str(topic_id) + f"_{args.algo}_{args.topics}.json",
+            topic_model.top_words(topic_id, 20), f"{data_path}/word_distribution" + str(topic_id) + f".json"
         )
         utils.save_affiliation_repartition(
             topic_model.affiliation_repartition(topic_id),
@@ -163,16 +162,14 @@ def main(args):
         evolution = []
         for i in range(1711, 1778):
             evolution.append((i, topic_model.topic_frequency(topic_id, date=i)))
-        utils.save_topic_evolution(
-            evolution, f"{data_path}/frequency" + str(topic_id) + f"_{args.algo}_{args.topics}.json"
-        )
+        utils.save_topic_evolution(evolution, f"{data_path}/frequency" + str(topic_id) + f".json")
 
     # Export details about documents
     print("Saving topic distributions...")
     for doc_id in range(topic_model.corpus.size):
         utils.save_topic_distribution(
             topic_model.topic_distribution_for_document(doc_id),
-            f"{data_path}/topic_distribution_d" + str(doc_id) + f"_{args.algo}_{args.topics}.json",
+            f"{data_path}/topic_distribution_d" + str(doc_id) + f".json",
         )
 
     # Export details about words
@@ -180,7 +177,7 @@ def main(args):
     for word_id in range(len(topic_model.corpus.vectorizer.vocabulary_)):
         utils.save_topic_distribution(
             topic_model.topic_distribution_for_word(word_id),
-            f"{data_path}/topic_distribution_w" + str(word_id) + f"_{args.algo}_{args.topics}.json",
+            f"{data_path}/topic_distribution_w" + str(word_id) + f".json",
         )
 
     # Associate documents with topics
@@ -190,7 +187,7 @@ def main(args):
     for topic_id in range(topic_model.nb_topics):
         utils.save_json_object(
             full_corpus.collaboration_network(topic_associations[topic_id]),
-            f"{data_path}/author_network" + str(topic_id) + f"_{args.algo}_{args.topics}.json",
+            f"{data_path}/author_network" + str(topic_id) + f".json",
         )
 
 
