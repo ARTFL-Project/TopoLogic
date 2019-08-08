@@ -60,8 +60,7 @@
 <script src="{{ url_for('static', filename = 'js/d3.min.js' )}}"></script>
 <script>
   var ctx = document.getElementById('relevant-words')
-  var topicData = loadJSON("{{ url_for('static', filename = data_path + '/word_distribution'+topic_id+'.json') }}", function(text) {
-    var topicData = JSON.parse(text);
+    var topicData = {{ word_distribution|tojson }}
     Chart.defaults.global.responsive = true;
     Chart.defaults.global.animation.duration = 400;
     Chart.defaults.global.tooltipCornerRadius = 0;
@@ -113,7 +112,7 @@
             const meta = chartInstance.controller.getDatasetMeta(0);
 
             Chart.helpers.each(meta.data.forEach((bar, index) => {
-              const label = topicData.labels[index];
+              const label = this.data.labels[index];
               const labelPositionX = 10;
               const labelWidth = ctx2.measureText(label).width + labelPositionX;
 
@@ -134,12 +133,10 @@
         window.location.href = "../word/" + word + ".html"
       }
     }, false);
-  });
 </script>
 <script>
   var ctx2 = document.getElementById('topic-frequency')
-  var topicData = loadJSON("{{ url_for('static', filename = data_path + '/frequency'+topic_id+'.json') }}", function(text) {
-    var topicData = JSON.parse(text);
+    var topicData = {{ topic_evolution|tojson }};
     Chart.defaults.global.responsive = true;
     Chart.defaults.global.animation.duration = 400;
     Chart.defaults.global.tooltipCornerRadius = 0;
@@ -165,6 +162,5 @@
         }
       }
     });
-  });
 </script>
 {% endblock %}

@@ -17,11 +17,10 @@
 </body>
 <script>
   var ctx = document.getElementById('topic-weights')
-  var topicData = loadJSON("{{ url_for('static', filename = data_path + '/topic_cloud.json') }}", function(text) {
     var labels = []
     var weights = []
     var descriptions = []
-    var topicData = JSON.parse(text).nodes;
+    var topicData = {{ topics|tojson }};
     for (var i = 0; i < topicData.length; i += 1) {
       labels.push("Topic " + topicData[i].name)
       weights.push(topicData[i].frequency)
@@ -102,6 +101,5 @@
         window.location.href = "../topic/" + topic + ".html"
       }
     }, false);
-  })
 </script>
 {% endblock %}

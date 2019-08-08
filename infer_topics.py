@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import configparser
 import os
 import re
 import shutil
@@ -9,10 +10,11 @@ from html import unescape as unescape_html
 from xml.sax.saxutils import unescape as unescape_xml
 
 import dill as pickle
-
+from tqdm import tqdm
 import tom_lib.utils as utils
 from tom_lib.nlp.topic_model import LatentDirichletAllocation, NonNegativeMatrixFactorization, save_model
 from tom_lib.structure.corpus import Corpus, save_corpus
+from tom_lib.utils import DBHandler
 
 TAGS = re.compile(r"<[^>]+>")
 START_TAG = re.compile(r"^[^<]*?>")
@@ -23,6 +25,8 @@ def parse_args():
     parser.add_argument("--corpus", dest="corpus", type=str, default="")
     parser.add_argument("--topics", help="number of topics for topic model", type=int, default=100)
     parser.add_argument("--algo", help="Choose TM algo: lda, nmf", default="nmf", type=str)
+    parser.add_argument("--max_freq", help="Choose max frequency of words in corpus", default=0.5, type=float)
+    parser.add_argument("--min_freq", help="Choose min frequency of words in corpus", default=0.01, type=float)
     args = parser.parse_args()
     return args
 
@@ -51,7 +55,7 @@ def get_text(start_byte: int, end_byte: int, filename: str) -> str:
     return text
 
 
-def main(args):
+def old_main(args):
     with open(args.corpus, "rb") as pickled_texts:
         texts = pickle.load(pickled_texts)
 
@@ -61,7 +65,7 @@ def main(args):
             print("id\ttitle\ttext\tauthor\tdate\taffiliation", file=csv_partial_output)
             partial_id = 0
             full_id = 0
-            for text in texts:
+            for text in tqdm(texts):
                 if len(text) > 50:
                     print(
                         "\t".join(
@@ -91,9 +95,7 @@ def main(args):
                         ),
                         file=csv_output,
                     )
-                    full_text = get_text(
-                        text.metadata["start_byte"], text.metadata["end_byte"], text.metadata["filename"]
-                    )
+                    full_text = get_text(text.metadata["start_byte"], text.metadata["end_byte"], text.metadata["filename"])
 
                     with open(f"browser/static/text/{full_id}.txt", "w") as text_output:
                         text_output.write(full_text)
@@ -152,12 +154,9 @@ def main(args):
     # Export details about topics
     print("Saving word distributions...")
     for topic_id in range(topic_model.nb_topics):
-        utils.save_word_distribution(
-            topic_model.top_words(topic_id, 20), f"{data_path}/word_distribution" + str(topic_id) + f".json"
-        )
+        utils.save_word_distribution(topic_model.top_words(topic_id, 20), f"{data_path}/word_distribution" + str(topic_id) + f".json")
         utils.save_affiliation_repartition(
-            topic_model.affiliation_repartition(topic_id),
-            f"{data_path}/affiliation_repartition" + str(topic_id) + ".tsv",
+            topic_model.affiliation_repartition(topic_id), f"{data_path}/affiliation_repartition" + str(topic_id) + ".tsv"
         )
         evolution = []
         for i in range(1711, 1778):
@@ -168,16 +167,14 @@ def main(args):
     print("Saving topic distributions...")
     for doc_id in range(topic_model.corpus.size):
         utils.save_topic_distribution(
-            topic_model.topic_distribution_for_document(doc_id),
-            f"{data_path}/topic_distribution_d" + str(doc_id) + f".json",
+            topic_model.topic_distribution_for_document(doc_id), f"{data_path}/topic_distribution_d" + str(doc_id) + f".json"
         )
 
     # Export details about words
     print("Saving word distributions across topics...")
     for word_id in range(len(topic_model.corpus.vectorizer.vocabulary_)):
         utils.save_topic_distribution(
-            topic_model.topic_distribution_for_word(word_id),
-            f"{data_path}/topic_distribution_w" + str(word_id) + f".json",
+            topic_model.topic_distribution_for_word(word_id), f"{data_path}/topic_distribution_w" + str(word_id) + f".json"
         )
 
     # Associate documents with topics
@@ -186,9 +183,163 @@ def main(args):
     # Export per-topic author network
     for topic_id in range(topic_model.nb_topics):
         utils.save_json_object(
-            full_corpus.collaboration_network(topic_associations[topic_id]),
-            f"{data_path}/author_network" + str(topic_id) + f".json",
+            full_corpus.collaboration_network(topic_associations[topic_id]), f"{data_path}/author_network" + str(topic_id) + f".json"
         )
+
+
+def main(args):
+    if args.algo == "nmf":
+        vectorization = "tfidf"
+    else:
+        vectorization = "tf"
+
+    config = configparser.ConfigParser()
+    config["PARAMETERS"] = {
+        "number_of_topics": args.topics,
+        "algorithm": args.algo,
+        "vectorization": vectorization,
+        "max_freq": args.max_freq,
+        "min_freq": args.min_freq,
+    }
+
+    with open(args.corpus, "rb") as pickled_texts:
+        texts = pickle.load(pickled_texts)
+
+    db = DBHandler("./")
+    full_id = 0
+    doc_metadata = {}
+    metadata_fields_names = set()
+    years = set()
+    with open("input/texts.csv", "w") as csv_output:
+        with open("input/texts_partial.csv", "w") as csv_partial_output:
+            print("id\ttitle\ttext\tauthor\tdate\taffiliation\tfull_text", file=csv_output)
+            print("id\ttitle\ttext\tauthor\tdate\taffiliation", file=csv_partial_output)
+            partial_id = 0
+            for text in tqdm(texts, leave=False):
+                if len(text) > 50:
+                    print(
+                        "\t".join(
+                            [
+                                str(partial_id),
+                                text.metadata["title"] + f""" ({text.metadata["pub_date"]})""",
+                                " ".join(text),
+                                text.metadata["author"],
+                                text.metadata["year"],
+                                text.metadata["author"],
+                            ]
+                        ),
+                        file=csv_partial_output,
+                    )
+                    partial_id += 1
+                if len(text) >= 10:
+                    print(
+                        "\t".join(
+                            [
+                                str(full_id),
+                                text.metadata["title"] + f""" ({text.metadata["pub_date"]})""",
+                                " ".join(text),
+                                text.metadata["author"],
+                                text.metadata["year"],
+                                text.metadata["author"],
+                            ]
+                        ),
+                        file=csv_output,
+                    )
+                    full_text = get_text(text.metadata["start_byte"], text.metadata["end_byte"], text.metadata["filename"])
+
+                    with open(f"browser/static/text/{full_id}.txt", "w") as text_output:
+                        text_output.write(full_text)
+
+                    doc_metadata[full_id] = text.metadata
+                    years.add(int(text.metadata["year"]))
+                    for field in text.metadata.keys():
+                        if field not in metadata_fields_names:
+                            metadata_fields_names.add(field)
+
+                    full_id += 1
+
+    # Load and prepare a corpus
+    print("Load documents from CSV", flush=True)
+    partial_corpus = Corpus(
+        source_file_path="input/texts_partial.csv",
+        vectorization=vectorization,  # 'tf' (term-frequency) or 'tfidf' (term-frequency inverse-document-frequency)
+        max_relative_frequency=0.5,  # ignore words which relative frequency is > than max_relative_frequency
+        min_absolute_frequency=0.01,
+        n_gram=2,
+    )  # ignore words which absolute frequency is < than min_absolute_frequency
+    print("corpus size:", partial_corpus.size)
+    print("vocabulary size:", len(partial_corpus.vectorizer.vocabulary_))
+
+    full_corpus = Corpus(
+        source_file_path="input/texts.csv",
+        vectorizer=partial_corpus.vectorizer,
+        max_relative_frequency=partial_corpus._max_relative_frequency,
+        min_absolute_frequency=partial_corpus._min_absolute_frequency,
+        n_gram=partial_corpus._n_gram,
+    )
+
+    config["DATA"] = {
+        "num_docs": full_corpus.size,
+        "num_tokens": len(full_corpus.vectorizer.vocabulary_),
+        "metadata": ",".join(metadata_fields_names),
+    }
+
+    with open("config.ini", "w") as configfile:
+        config.write(configfile)
+
+    # Instantiate a topic model
+    if args.algo == "nmf":
+        topic_model = NonNegativeMatrixFactorization(partial_corpus)
+    else:
+        topic_model = LatentDirichletAllocation(partial_corpus)
+
+    # Infer topics
+    print("Inferring topics...", flush=True)
+    topic_model.infer_topics(num_topics=args.topics)
+    topic_model.infer_and_replace(full_corpus)
+
+    data_path = f"browser/static/data_{args.algo}_{args.topics}"
+    if os.path.exists(data_path):
+        shutil.rmtree(data_path)
+    os.makedirs(data_path)
+
+    print("Compute document similarity...", flush=True)
+    full_corpus.similar_documents_by_topic_distribution(topic_model)
+
+    print("Saving words...", flush=True)
+    db.save_words(topic_model, full_corpus)
+
+    print("Saving docs...", flush=True)
+    db.save_docs(topic_model, full_corpus, doc_metadata)
+
+    print("Saving topics...", flush=True)
+    db.save_topic_cloud(topic_model, f"{data_path}/topic_cloud.json")
+    db.save_topics(topic_model, full_corpus, min(years), max(years), step=1)
+
+    # # Export details about topics
+    # print("Saving word distributions...", flush=True)
+    # db.save_word_distributions(topic_model)
+
+    # print("Saving word distributions across topics...", flush=True)
+    # db.save_word_distribution_across_topics(topic_model, full_corpus)
+
+    # print("Saving word weights across docs", flush=True)
+    # db.save_word_weights_across_docs(full_corpus)
+
+    # print("Saving topic evolution...", flush=True)
+    # db.save_topic_evolution(1711, 1778, topic_model)
+
+    # print("Saving topic distributions...", flush=True)
+    # db.save_topic_distribution(topic_model)
+
+    # print("Saving doc similarities...", flush=True)
+    # db.save_similarities(full_corpus, topic_model)
+
+    # print("Saving doc vectors...", flush=True)
+    # db.save_doc_vectors(full_corpus)
+
+    # print("Saving top docs per topic...", flush=True)
+    # db.save_top_docs_per_topic(topic_model, full_corpus)
 
 
 if __name__ == "__main__":

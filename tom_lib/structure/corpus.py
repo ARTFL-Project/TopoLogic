@@ -151,9 +151,9 @@ class Corpus:
 
     def similar_documents(self, doc_id, num_docs):
         similarities = [
-            (d, 1.0 - self.topic_distances[doc_id][d]) for d in np.argsort(self.topic_distances[doc_id]) if d != doc_id
+            (d, 1.0 - self.topic_distances[doc_id][d]) for d in np.argsort(self.topic_distances[doc_id])[: num_docs + 1] if d != doc_id
         ]
-        return similarities[:num_docs]
+        return similarities
 
     def similar_documents_by_topic_distribution(self, topic_model):
         self.topic_distances = pairwise_distances(topic_model.document_topic_matrix, metric="cosine")

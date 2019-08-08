@@ -1,15 +1,17 @@
 # coding: utf-8
 import argparse
+import configparser
 import os
 import pickle
 import random
 import shutil
+import json
 
+import numpy as np
+import tom_lib.utils as utils
 from flask import Flask, render_template
 from numpy import NaN, any
-import numpy as np
-
-import tom_lib.utils as utils
+from tom_lib.utils import DBHandler
 from tom_lib.nlp.topic_model import load_model
 from tom_lib.structure.corpus import load_corpus
 
@@ -22,15 +24,12 @@ parser.add_argument("--path", dest="path", type=str, default="")
 
 args = parser.parse_args()
 
-corpus = load_corpus(os.path.join(args.path, "corpus"))
-vectorization = corpus._vectorization
-max_tf = corpus._max_relative_frequency
-min_tf = corpus._min_absolute_frequency
+config = configparser.ConfigParser()
+config.read("config.ini")
 
-topic_model = load_model(os.path.join(args.path, "model"))
-num_topics = topic_model.nb_topics
-# Associate documents with topics
-topic_associations = topic_model.documents_per_topic()
+NUM_TOPICS = int(config["PARAMETERS"]["number_of_topics"])
+NUM_DOCS = int(config["DATA"]["num_docs"])
+METATADA_FIELDS = config["DATA"]["metadata"].split(",")
 data_path = args.path.replace("browser/static/", "")
 print(data_path)
 
@@ -43,37 +42,33 @@ app = Flask(__name__, static_folder="browser/static", template_folder="browser/t
 def index():
     return render_template(
         "index.html",
-        topic_ids=range(topic_model.nb_topics),
-        doc_ids=range(corpus.size),
-        method=type(topic_model).__name__,
-        corpus_size=corpus.size,
-        vocabulary_size=len(corpus.vectorizer.vocabulary_),
-        max_tf=max_tf,
-        min_tf=min_tf,
-        vectorization=vectorization,
-        num_topics=num_topics,
+        topic_ids=range(NUM_TOPICS),
+        doc_ids=range(NUM_DOCS),
+        method=config["PARAMETERS"]["algorithm"],
+        corpus_size=NUM_DOCS,
+        vocabulary_size=config["DATA"]["num_tokens"],
+        max_tf=float(config["PARAMETERS"]["max_freq"]),
+        min_tf=float(config["PARAMETERS"]["min_freq"]),
+        vectorization=config["PARAMETERS"]["vectorization"],
+        num_topics=NUM_TOPICS,
     )
 
 
 @app.route("/topic_cloud.html")
 def topic_cloud():
+    with open("topic_cloud.json") as input_file:
+        topics = json.load(input_file)
     return render_template(
-        "topic_cloud.html",
-        title="Topic Cloud",
-        topic_ids=range(topic_model.nb_topics),
-        doc_ids=range(corpus.size),
-        data_path=data_path,
-        num_topics=topic_model.nb_topics,
+        "topic_cloud.html", title="Topic Cloud", topic_ids=range(NUM_TOPICS), topics=topics["nodes"], num_topics=NUM_TOPICS
     )
 
 
 @app.route("/vocabulary.html")
 def vocabulary():
-    word_list = []
-    for i in range(len(corpus.vectorizer.vocabulary_)):
-        word_list.append((i, corpus.word_for_id(i)))
+    db = DBHandler("./")
+    word_list = db.get_vocabulary()
     splitted_vocabulary = []
-    words_per_column = int(len(corpus.vectorizer.vocabulary_) / 5)
+    words_per_column = int(len(word_list) / 5)
     for j in range(5):
         sub_vocabulary = []
         for l in range(j * words_per_column, (j + 1) * words_per_column):
@@ -82,53 +77,44 @@ def vocabulary():
     return render_template(
         "vocabulary.html",
         title="Vocabulary",
-        topic_ids=range(topic_model.nb_topics),
-        doc_ids=range(corpus.size),
+        topic_ids=range(NUM_TOPICS),
+        doc_ids=range(NUM_DOCS),
         splitted_vocabulary=splitted_vocabulary,
         vocabulary_size=len(word_list),
     )
 
 
-@app.route("/topic/<tid>.html")
-def topic_details(tid):
-    ids = topic_model.top_documents(int(tid))
+@app.route("/topic/<topic_id>.html")
+def topic_details(topic_id):
+    db = DBHandler("./")
+    topic_data = db.get_topic_data(int(topic_id))
+    doc_ids = json.loads(topic_data["docs"])
     documents = []
-    for document_id, weight in ids:
-        document_array = corpus.sklearn_vector_space[document_id]
-        positive_values = any(document_array.todense() > 0)
-        if positive_values:
-            documents.append(
-                (
-                    corpus.title(document_id).capitalize(),
-                    ", ".join(corpus.author(document_id)),
-                    corpus.date(document_id),
-                    document_id,
-                    weight,
-                )
-            )
+    for document_id, weight in doc_ids:
+        metadata = db.get_metadata(document_id, METATADA_FIELDS)
+        documents.append((metadata["title"].capitalize(), metadata["author"], metadata["year"], document_id, weight))
+
     return render_template(
         "topic.html",
         title="Topic Details",
-        topic_id=tid,
-        frequency=round(topic_model.topic_frequency(int(tid)) * 100, 2),
+        topic_id=topic_id,
+        frequency=topic_data["frequency"],
         documents=documents,
-        topic_ids=range(topic_model.nb_topics),
-        num_topics=topic_model.nb_topics,
-        doc_ids=range(corpus.size),
+        topic_ids=range(NUM_TOPICS),
+        num_topics=NUM_TOPICS,
+        doc_ids=range(NUM_DOCS),
         data_path=data_path,
+        word_distribution=json.loads(topic_data["word_distribution"]),
+        topic_evolution=json.loads(topic_data["topic_evolution"]),
     )
 
 
 @app.route("/document/<did>.html")
 def document_details(did):
-    vector = corpus.sklearn_vector_space[int(did)].toarray()[0]
-    word_list = []
-    for word_id, weight in enumerate(vector):
-        if weight > 0:
-            word_list.append((corpus.word_for_id(word_id), weight * 10, word_id))
-    word_list.sort(key=lambda x: x[1])
-    word_list.reverse()
-    word_list = [w for w in word_list[:21] if w[1] > 0]
+    db = DBHandler("./")
+    doc_data = db.get_doc_data(int(did))
+    word_list = json.loads(doc_data["word_list"])
+    word_list = [(w[0], w[1] * 10, w[2]) for w in word_list[:21] if w[1] > 0]
     highest_value = word_list[0][1]
     if len(word_list) > 1:
         lowest_value = word_list[-1][1]
@@ -161,74 +147,53 @@ def document_details(did):
 
     weighted_word_list = [(w[0], w[1] / 10, w[2], color_codes[w[1]]) for w in adjusted_word_list]
     weighted_word_list.sort(key=lambda x: x[0])
-    documents = []
-    for another_doc, score in corpus.similar_documents(int(did), 5):
-        documents.append(
-            (
-                corpus.title(another_doc).capitalize(),
-                ", ".join(corpus.author(another_doc)),
-                corpus.date(another_doc),
-                another_doc,
-                round(score, 3),
-            )
-        )
-    sim_docs_by_word = []
-    doc_id = int(did)
-    for another_doc, score in [
-        (d, 1.0 - corpus.similarity_matrix[doc_id][d])
-        for d in np.argsort(corpus.similarity_matrix[doc_id])
-        if d != doc_id
-    ][:5]:
-        sim_docs_by_word.append(
-            (
-                corpus.title(another_doc).capitalize(),
-                ", ".join(corpus.author(another_doc)),
-                corpus.date(another_doc),
-                another_doc,
-                round(score, 3),
-            )
-        )
+
+    topic_similarity = json.loads(doc_data["topic_similarity"])
+    vector_similarity = json.loads(doc_data["vector_similarity"])
+    # topic_similarity, vector_similarity = db.get_doc_similiarities(int(did))
+
     with open(f"browser/static/text/{did}.txt") as input_text:
         text = input_text.read()
+
+    metadata = {field: doc_data[field] for field in METATADA_FIELDS}
+    topic_distribution = json.loads(doc_data["topic_distribution"])
+
     return render_template(
         "document.html",
         doc_id=did,
         words=weighted_word_list,
-        topic_ids=range(topic_model.nb_topics),
-        doc_ids=range(corpus.size),
-        documents=documents,
-        authors=", ".join(corpus.author(int(did))),
-        year=corpus.date(int(did)),
-        short_content=corpus.title(int(did)),
+        topic_ids=range(NUM_TOPICS),
+        doc_ids=range(NUM_DOCS),
+        documents=topic_similarity,
+        authors=metadata["author"],
+        year=metadata["year"],
+        short_content=metadata["title"],
         text=text,
         title="Document Composition",
         data_path=data_path,
-        sim_docs_by_word=sim_docs_by_word,
+        sim_docs_by_word=vector_similarity,
+        topic_distribution=topic_distribution,
     )
 
 
-@app.route("/word/<wid>.html")
-def word_details(wid):
+@app.route("/word/<word_id>.html")
+def word_details(word_id):
+    db = DBHandler("./")
+    word_data = db.get_word_data(int(word_id))
+    sorted_docs = json.loads(word_data["docs"])
+    print(sorted_docs)
     documents = []
-    try:
-        wid = int(wid)
-    except ValueError:
-        wid = corpus.vectorizer.vocabulary_[wid]
-    for document_id in corpus.docs_for_word(wid):
-        documents.append(
-            (
-                corpus.title(document_id).capitalize(),
-                ", ".join(corpus.author(document_id)),
-                corpus.date(document_id),
-                document_id,
-            )
-        )
+    for document_id, _ in sorted_docs:
+        metadata = db.get_metadata(document_id, METATADA_FIELDS)
+        documents.append((metadata, document_id))
+
     return render_template(
         "word.html",
-        word_id=str(wid),
-        word=topic_model.corpus.word_for_id(wid),
-        topic_ids=range(topic_model.nb_topics),
-        doc_ids=range(corpus.size),
+        word_id=word_id,
+        word=word_data["word"],
+        topic_ids=range(NUM_TOPICS),
+        doc_ids=range(NUM_DOCS),
+        topic_distribution=json.loads(word_data["distribution_across_topics"]),
         documents=documents,
         title="Word Distribution",
         data_path=data_path,
