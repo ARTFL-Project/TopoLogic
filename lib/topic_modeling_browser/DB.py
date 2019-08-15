@@ -10,10 +10,6 @@ from math import log
 from tqdm import trange
 
 
-__author__ = "Adrien Guille, Pavel Soriano"
-__email__ = "adrien.guille@univ-lyon2.fr"
-
-
 def print_matrix(matrix):
     n_r = len(matrix[:, 0])
     for i in range(n_r):
@@ -22,7 +18,7 @@ def print_matrix(matrix):
 
 class DBHandler:
     def __init__(self, db_path):
-        self.db = sqlite3.connect(os.path.join(db_path, "topic_model_data.db"))
+        self.db = sqlite3.connect(db_path)
         self.db.row_factory = lambda c, r: dict(zip([col[0] for col in c.description], r))
         self.cursor = self.db.cursor()
 
@@ -35,7 +31,14 @@ class DBHandler:
             description = []
             for weighted_word in topic_model.top_words(i, 10):
                 description.append(weighted_word[0])
-            json_nodes.append({"name": i, "frequency": topic_model.topic_frequency(i), "description": ", ".join(description), "group": i})
+            json_nodes.append(
+                {
+                    "name": i,
+                    "frequency": topic_model.topic_frequency(i),
+                    "description": ", ".join(description),
+                    "group": i,
+                }
+            )
         json_graph["nodes"] = json_nodes
         json_graph["links"] = json_links
         with open("./", "w") as out_file:
@@ -112,7 +115,9 @@ class DBHandler:
                 )
             vector_similarity = []
             for another_doc, score in (
-                (d, 1.0 - corpus.similarity_matrix[doc_id][d]) for d in np.argsort(corpus.similarity_matrix[doc_id])[:21] if d != doc_id
+                (d, 1.0 - corpus.similarity_matrix[doc_id][d])
+                for d in np.argsort(corpus.similarity_matrix[doc_id])[:21]
+                if d != doc_id
             ):
                 another_doc = int(another_doc)
                 score = float(score)
@@ -149,7 +154,9 @@ class DBHandler:
 
     def save_words(self, topic_model, corpus):
         self.cursor.execute("DROP TABLE IF EXISTS words")
-        self.cursor.execute("CREATE TABLE words(word_id INTEGER, word TEXT, distribution_across_topics TEXT, docs TEXT)")
+        self.cursor.execute(
+            "CREATE TABLE words(word_id INTEGER, word TEXT, distribution_across_topics TEXT, docs TEXT)"
+        )
 
         # Get word weights across docs
         word_weights = {}
@@ -166,7 +173,9 @@ class DBHandler:
         for word_id, docs in word_weights.items():
             word = corpus.word_for_id(word_id)
             idf = log(corpus.size / len(docs))
-            sorted_docs = sorted([(doc_id, float(weight * idf)) for doc_id, weight in docs], key=lambda x: x[1], reverse=True)
+            sorted_docs = sorted(
+                [(doc_id, float(weight * idf)) for doc_id, weight in docs], key=lambda x: x[1], reverse=True
+            )
             word_distribution = topic_model.topic_distribution_for_word(word_id)
             topics = []
             weights = []
@@ -178,6 +187,7 @@ class DBHandler:
                 (int(word_id), word, json.dumps({"labels": topics, "data": weights}), json.dumps(sorted_docs)),
             )
         self.cursor.execute("CREATE INDEX word_id_index ON words(word_id)")
+        self.cursor.execute("CREATE INDEX word_index ON words(word)")
         self.db.commit()
 
     def get_vocabulary(self):
@@ -199,8 +209,8 @@ class DBHandler:
         self.cursor.execute("SELECT * FROM topics WHERE topic_id=?", (topic_id,))
         return self.cursor.fetchone()
 
-    def get_word_data(self, word_id):
-        self.cursor.execute("SELECT * FROM words WHERE word_id=?", (word_id,))
+    def get_word_data(self, word):
+        self.cursor.execute("SELECT * FROM words WHERE word=?", (word,))
         return self.cursor.fetchone()
 
     def get_word_from_id(self, word_id):

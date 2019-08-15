@@ -14,9 +14,6 @@ import pandas
 from networkx.readwrite import json_graph
 from nltk.corpus import stopwords
 
-__author__ = "Adrien Guille, Pavel Soriano"
-__email__ = "adrien.guille@univ-lyon2.fr"
-
 
 def fast_cosine(X, Y):
     return np.inner(X, Y) / np.sqrt(np.dot(X, X) * np.dot(Y, Y))
@@ -151,7 +148,9 @@ class Corpus:
 
     def similar_documents(self, doc_id, num_docs):
         similarities = [
-            (d, 1.0 - self.topic_distances[doc_id][d]) for d in np.argsort(self.topic_distances[doc_id])[: num_docs + 1] if d != doc_id
+            (d, 1.0 - self.topic_distances[doc_id][d])
+            for d in np.argsort(self.topic_distances[doc_id])[: num_docs + 1]
+            if d != doc_id
         ]
         return similarities
 

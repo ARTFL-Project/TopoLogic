@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-import os
 import itertools
+import os
 from abc import ABCMeta, abstractmethod
 
 import numpy as np
@@ -11,12 +11,8 @@ from scipy.sparse import coo_matrix
 from sklearn.decomposition import NMF
 from sklearn.decomposition import LatentDirichletAllocation as LDA
 
-import tom_lib.stats
-from tom_lib.structure.corpus import Corpus
-
-
-__author__ = "Adrien Guille, Pavel Soriano"
-__email__ = "adrien.guille@univ-lyon2.fr"
+from .corpus import Corpus
+from .stats import agreement_score, symmetric_kl
 
 
 class TopicModel(object):
@@ -96,7 +92,7 @@ class TopicModel(object):
                 tao_model = type(self)(tao_corpus)
                 tao_model.infer_topics(k)
                 tao_rank = [next(zip(*tao_model.top_words(i, top_n_words))) for i in range(k)]
-                agreement_score_list.append(tom_lib.stats.agreement_score(reference_rank, tao_rank))
+                agreement_score_list.append(agreement_score(reference_rank, tao_rank))
             stability.append(np.mean(agreement_score_list))
         print()
         return stability
@@ -126,7 +122,7 @@ class TopicModel(object):
                 c_m2 = l.dot(self.document_topic_matrix.todense())
                 c_m2 += 0.0001  # we need this to prevent components equal to zero
                 c_m2 /= norm
-                kl_list.append(tom_lib.stats.symmetric_kl(c_m1.tolist(), c_m2.tolist()[0]))
+                kl_list.append(symmetric_kl(c_m1.tolist(), c_m2.tolist()[0]))
             kl_matrix.append(kl_list)
         ouput = np.array(kl_matrix)
         return ouput.mean(axis=0)
