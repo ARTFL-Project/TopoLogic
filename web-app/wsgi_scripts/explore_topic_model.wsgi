@@ -151,6 +151,8 @@ def get_doc_data(doc_id):
         text_file.seek(int(metadata["start_byte"]))
         text = text_file.read(length).decode("utf8", "ignore")
         text = clean_text(text)
+        if len(text) > 5000:
+            text = text[:5000] + " [...]"
 
     topic_distribution = json.loads(doc_data["topic_distribution"])
     response = jsonify(

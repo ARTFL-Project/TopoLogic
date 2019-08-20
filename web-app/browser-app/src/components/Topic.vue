@@ -62,18 +62,28 @@ export default {
         };
     },
     mounted() {
-        this.$http
-            .get(
-                `${this.$globalConfig.apiServer}/get_topic_data/${this.$route.params.topic}?table=${this.$globalConfig.databaseName}`
-            )
-            .then(response => {
-                this.documents = response.data.documents;
-                this.frequency = response.data.frequency;
-                this.buildWordDistribution(response.data.word_distribution);
-                this.buildTopicEvolution(response.data.topic_evolution);
-            });
+        this.fetchData();
+    },
+    beforeDestroy() {
+        this.destroyChart();
+    },
+    watch: {
+        // call again the method if the route changes
+        $route: "loadNewData"
     },
     methods: {
+        fetchData() {
+            this.$http
+                .get(
+                    `${this.$globalConfig.apiServer}/get_topic_data/${this.$route.params.topic}?table=${this.$globalConfig.databaseName}`
+                )
+                .then(response => {
+                    this.documents = response.data.documents;
+                    this.frequency = response.data.frequency;
+                    this.buildWordDistribution(response.data.word_distribution);
+                    this.buildTopicEvolution(response.data.topic_evolution);
+                });
+        },
         buildWordDistribution(wordDistribution) {
             var ctx = document.getElementById("relevant-words");
 
@@ -83,7 +93,7 @@ export default {
             Chart.defaults.bar.scales.xAxes[0].gridLines.display = false;
             Chart.defaults.global.defaultFontSize = "14";
             var vm = this;
-            var myChart = new Chart(ctx, {
+            vm.wordChart = new Chart(ctx, {
                 type: "horizontalBar",
                 data: {
                     labels: wordDistribution.labels,
@@ -162,7 +172,7 @@ export default {
             ctx.addEventListener(
                 "click",
                 function(e) {
-                    let target = myChart.getElementAtEvent(e);
+                    let target = vm.wordChart.getElementAtEvent(e);
                     if (typeof target[0] !== "undefined") {
                         let word = target[0]._view.label;
                         vm.$router.push(`../word/${word}`);
@@ -178,7 +188,7 @@ export default {
             Chart.defaults.global.tooltipCornerRadius = 0;
             // Chart.defaults.global.maintainAspectRatio = false;
             Chart.defaults.bar.scales.xAxes[0].gridLines.display = false;
-            var myChart = new Chart(ctx2, {
+            this.topicChart = new Chart(ctx2, {
                 type: "line",
                 data: {
                     labels: topicEvolution.labels,
@@ -200,6 +210,14 @@ export default {
                     }
                 }
             });
+        },
+        loadNewData() {
+            this.destroyChart();
+            this.fetchData();
+        },
+        destroyChart() {
+            this.wordChart.destroy();
+            this.topicChart.destroy();
         }
     }
 };

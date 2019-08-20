@@ -46,17 +46,29 @@ export default {
         };
     },
     mounted() {
-        this.$http
-            .get(
-                `${this.$globalConfig.apiServer}/get_word_data/${this.$route.params.word}?table=${this.$globalConfig.databaseName}`
-            )
-            .then(response => {
-                this.word = response.data.word;
-                this.documents = response.data.documents;
-                this.build_topic_distribution(response.data.topic_distribution);
-            });
+        this.fetchData();
+    },
+    watch: {
+        // call again the method if the route changes
+        $route: "loadNewData"
+    },
+    beforeDestroy() {
+        this.destroyChart();
     },
     methods: {
+        fetchData() {
+            this.$http
+                .get(
+                    `${this.$globalConfig.apiServer}/get_word_data/${this.$route.params.word}?table=${this.$globalConfig.databaseName}`
+                )
+                .then(response => {
+                    this.word = response.data.word;
+                    this.documents = response.data.documents;
+                    this.build_topic_distribution(
+                        response.data.topic_distribution
+                    );
+                });
+        },
         build_topic_distribution(topicDistribution) {
             var ctx = document.getElementById("word-distribution");
             Chart.defaults.global.responsive = true;
@@ -65,7 +77,7 @@ export default {
             // Chart.defaults.global.maintainAspectRatio = false;
             Chart.defaults.bar.scales.xAxes[0].gridLines.display = false;
             var vm = this;
-            var myChart = new Chart(ctx, {
+            vm.topicChart = new Chart(ctx, {
                 type: "bar",
                 data: {
                     labels: topicDistribution.labels,
@@ -107,7 +119,7 @@ export default {
             ctx.addEventListener(
                 "click",
                 function(e) {
-                    let target = myChart.getElementAtEvent(e);
+                    let target = vm.topicChart.getElementAtEvent(e);
                     if (typeof target[0] !== "undefined") {
                         let topic = target[0]._view.label;
                         vm.$router.push(`../topic/${topic}`);
@@ -115,6 +127,13 @@ export default {
                 },
                 false
             );
+        },
+        loadNewData() {
+            this.destroyChart();
+            this.fetchData();
+        },
+        destroyChart() {
+            this.topicChart.destroy();
         }
     }
 };

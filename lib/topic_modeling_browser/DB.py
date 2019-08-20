@@ -130,7 +130,12 @@ class DBHandler:
             word_list.reverse()
             word_list = json.dumps(word_list)
 
-            field_values = [metadata[doc_id][field] for field in field_names]
+            field_values = []
+            for field in field_names:
+                try:
+                    field_values.append(metadata[doc_id][field])
+                except KeyError:
+                    field_values.append("")
             values = tuple([doc_id, topic_distribution, topic_similarity, vector_similarity, word_list] + field_values)
             self.cursor.execute(
                 f"INSERT INTO {self.table}_docs (doc_id, topic_distribution, topic_similarity, vector_similarity, word_list, {', '.join(field_names)}) VALUES (%s, %s, %s, %s, %s, {', '.join(['%s' for _ in range(len(field_names))])})",

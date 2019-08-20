@@ -25,6 +25,9 @@ export default {
             topicData: topics
         };
     },
+    beforeDestroy() {
+        this.topicChart.destroy();
+    },
     mounted() {
         var ctx = document.getElementById("topic-weights");
         var labels = [];
@@ -42,7 +45,7 @@ export default {
         Chart.defaults.global.tooltips.enabled = false;
         Chart.defaults.global.defaultFontSize = "16";
         var vm = this;
-        var myChart = new Chart(ctx, {
+        vm.topicChart = new Chart(ctx, {
             type: "horizontalBar",
             data: {
                 labels: labels,
@@ -121,7 +124,7 @@ export default {
         ctx.addEventListener(
             "click",
             function(e) {
-                let target = myChart.getElementAtEvent(e);
+                let target = vm.topicChart.getElementAtEvent(e);
                 if (typeof target[0] !== "undefined") {
                     let topic = target[0]._view.label.replace("Topic ", "");
                     vm.$router.push(`/topic/${topic}`);

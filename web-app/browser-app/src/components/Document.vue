@@ -22,7 +22,7 @@
                                 <div class="card">
                                     <h5
                                         class="card-title p-3"
-                                    >Documents with most similar topic distribution (top 5)</h5>
+                                    >Documents with most similar topic distribution (top {{topicSimDocs.length}})</h5>
                                     <ol class="list-group">
                                         <li
                                             v-for="doc in topicSimDocs"
@@ -42,7 +42,7 @@
                                 <div class="card">
                                     <h5
                                         class="card-title p-3"
-                                    >Documents with most similar vocabulary (top 5)</h5>
+                                    >Documents with most similar vocabulary (top {{vectorSimDocs.length}})</h5>
                                     <ol class="list-group">
                                         <li
                                             v-for="doc in vectorSimDocs"
@@ -110,7 +110,10 @@ export default {
     },
     watch: {
         // call again the method if the route changes
-        $route: "fetchData"
+        $route: "loadNewData"
+    },
+    beforeDestroy() {
+        this.destroyChart();
     },
     methods: {
         fetchData() {
@@ -137,7 +140,7 @@ export default {
             // Chart.defaults.global.maintainAspectRatio = false;
             Chart.defaults.bar.scales.xAxes[0].gridLines.display = false;
             var vm = this;
-            var myChart = new Chart(ctx, {
+            vm.myChart = new Chart(ctx, {
                 type: "bar",
                 data: {
                     labels: topicDistribution.labels,
@@ -180,7 +183,7 @@ export default {
             ctx.addEventListener(
                 "click",
                 function(e) {
-                    let target = myChart.getElementAtEvent(e);
+                    let target = vm.myChart.getElementAtEvent(e);
                     if (typeof target[0] !== "undefined") {
                         console.log(target[0]._view.label);
                         let topic = target[0]._view.label;
@@ -189,6 +192,13 @@ export default {
                 },
                 false
             );
+        },
+        loadNewData() {
+            this.destroyChart();
+            this.fetchData();
+        },
+        destroyChart() {
+            this.myChart.destroy();
         }
     }
 };

@@ -19,13 +19,14 @@ def fast_cosine(X, Y):
 
 
 class savedTexts:
-    def __init__(self, text_path, min_tokens_per_doc=0):
+    def __init__(self, text_path, number_of_texts, min_tokens_per_doc=0):
         self.text_path = text_path
+        self.number_of_texts = number_of_texts
         self.min_tokens = min_tokens_per_doc
 
     def __iter__(self):
-        for file in os.scandir(self.text_path):
-            with open(file.path) as input_file:
+        for file in range(self.number_of_texts):
+            with open(os.path.join(self.text_path, str(file))) as input_file:
                 text = input_file.read()
                 if len(text) >= self.min_tokens:
                     yield text
@@ -41,7 +42,7 @@ class Corpus:
         vectorization="tfidf",
         max_relative_frequency=1.0,
         min_absolute_frequency=0,
-        max_features=2000,
+        max_features=None,
         sample=None,
         vectorizer=None,
         min_tokens_per_doc=0,
@@ -57,7 +58,7 @@ class Corpus:
 
         self.max_features = max_features
         self.size = len(os.listdir(source_files_path))
-        texts_to_vectorize = savedTexts(source_files_path, min_tokens_per_doc)
+        texts_to_vectorize = savedTexts(source_files_path, self.size, min_tokens_per_doc)
 
         if vectorizer is None:
             stop_words = []
