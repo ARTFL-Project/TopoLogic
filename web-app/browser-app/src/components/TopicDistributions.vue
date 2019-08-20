@@ -15,7 +15,7 @@
 </template>
 
 <script>
-import topics from "../../topic_cloud.json";
+import topics from "../../topic_words.json";
 import Chart from "chart.js/dist/Chart.js";
 
 export default {

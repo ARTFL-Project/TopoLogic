@@ -14,7 +14,7 @@ if [ -d /web-app/browser-app/node_modules ]
 fi
 
 sudo cp -Rf web-app /var/lib/topic-modeling-browser
-# sudo cp -Rf config /var/lib/topic-modeling-browser
+sudo cp -Rf config /var/lib/topic-modeling-browser
 
 echo "\nMoving global configuration into place..."
 sudo mkdir -p /etc/topic-modeling-browser
@@ -32,6 +32,12 @@ if [ ! -f /etc/topic-modeling-browser/global_settings.ini ]
         echo "## WEB APPLICATION SETTINGS ##" | sudo tee -a /etc/topic-modeling-browser/global_settings.ini > /dev/null
         echo "[WEB_APP]" | sudo tee -a /etc/topic-modeling-browser/global_settings.ini > /dev/null
         echo "web_app_path =" | sudo tee -a /etc/topic-modeling-browser/global_settings.ini > /dev/null
+        echo "apiServer = http://localhost/topic-modeling-browser-api/" | sudo tee -a /etc/topic-modeling-browser/global_settings.ini > /dev/null
+        echo "[DATABASE]" | sudo tee -a /etc/topic-modeling-browser/global_settings.ini > /dev/null
+        echo "database_name =" | sudo tee -a /etc/topic-modeling-browser/global_settings.ini > /dev/null
+        echo "database_user =" | sudo tee -a /etc/topic-modeling-browser/global_settings.ini > /dev/null
+        echo "database_password =" | sudo tee -a /etc/topic-modeling-browser/global_settings.ini > /dev/null
+        echo "Make sure you create a PostgreSQL database with a user with read/write access to that database and configure /etc/topic-modeling-browser/global_settings.ini accordingly."
 else
     echo "/etc/topic-modeling-browser/global_settings.ini already exists, not modifying..."
 fi

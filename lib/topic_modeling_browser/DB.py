@@ -3,7 +3,8 @@
 import codecs
 import json
 import pickle
-import sqlite3
+from psycopg2.extras import RealDictCursor
+import psycopg2
 import os
 import numpy as np
 from math import log
@@ -17,21 +18,23 @@ def print_matrix(matrix):
 
 
 class DBHandler:
-    def __init__(self, db_path):
-        self.db = sqlite3.connect(db_path)
-        self.db.row_factory = lambda c, r: dict(zip([col[0] for col in c.description], r))
-        self.cursor = self.db.cursor()
+    def __init__(self, config, table):
+        self.db = psycopg2.connect(
+            user=config["DATABASE"]["database_user"],
+            password=config["DATABASE"]["database_password"],
+            database=config["DATABASE"]["database_name"],
+        )
+        self.cursor = self.db.cursor(cursor_factory=RealDictCursor)
+        self.table = table
 
-    def save_topics(self, topic_model, corpus, start_date, end_date, step=1):
+    def save_topics(self, topic_words_path, topic_model, corpus, start_date, end_date, metadata, step=1):
         # Save topics
-        json_graph = {}
-        json_nodes = []
-        json_links = []
+        topic_words = []
         for i in range(topic_model.nb_topics):
             description = []
             for weighted_word in topic_model.top_words(i, 10):
                 description.append(weighted_word[0])
-            json_nodes.append(
+            topic_words.append(
                 {
                     "name": i,
                     "frequency": topic_model.topic_frequency(i),
@@ -39,14 +42,12 @@ class DBHandler:
                     "group": i,
                 }
             )
-        json_graph["nodes"] = json_nodes
-        json_graph["links"] = json_links
-        with open("./", "w") as out_file:
-            json.dump(json_graph, out_file)
+        with open(topic_words_path, "w") as out_file:
+            json.dump(topic_words, out_file)
 
         self.cursor.execute("DROP TABLE IF EXISTS topics")
         self.cursor.execute(
-            "CREATE TABLE topics(topic_id INTEGER, word_distribution TEXT, topic_evolution TEXT, frequency FLOAT, docs TEXT)"
+            f"CREATE TABLE {self.table}_topics(topic_id INTEGER, word_distribution TEXT, topic_evolution TEXT, frequency FLOAT, docs TEXT)"
         )
         for topic_id in trange(topic_model.nb_topics, leave=False):
             # Get word distributions
@@ -55,9 +56,13 @@ class DBHandler:
 
             # Compute topic evolution
             evolution = []
-            for date in range(start_date, end_date + step, step):
-                evolution.append((date, topic_model.topic_frequency(topic_id, date=date)))
-            dates, frequencies = zip(*evolution)
+            years = {year: 0.0 for year in range(start_date, end_date + step, step)}
+            for doc_id in range(corpus.size):
+                year = int(metadata[doc_id]["year"])
+                topic = topic_model.most_likely_topic_for_document(doc_id)
+                if topic == topic_id:
+                    years[year] += 1.0 / corpus.size
+            dates, frequencies = zip(*list(years.items()))
             topic_evolution = json.dumps({"labels": dates, "data": frequencies})
 
             # Get top documents per topic
@@ -71,10 +76,10 @@ class DBHandler:
             docs = json.dumps(documents)
 
             self.cursor.execute(
-                "INSERT INTO topics (topic_id, word_distribution, topic_evolution, frequency, docs) VALUES (?, ?, ?, ?, ?)",
+                f"INSERT INTO {self.table}_topics (topic_id, word_distribution, topic_evolution, frequency, docs) VALUES (%s, %s, %s, %s, %s)",
                 (topic_id, word_distribution, topic_evolution, frequency, docs),
             )
-        self.cursor.execute("CREATE INDEX topic_id_index on topics(topic_id)")
+        self.cursor.execute(f"CREATE INDEX {self.table}_topic_id_index on topics USING HASH(topic_id)")
         self.db.commit()
 
     def save_docs(self, topic_model, corpus, metadata):
@@ -87,7 +92,7 @@ class DBHandler:
                 metadata_fields.append(f"{field} TEXT")
         self.cursor.execute("DROP TABLE IF EXISTS docs")
         self.cursor.execute(
-            f"CREATE TABLE docs(doc_id INTEGER, topic_distribution TEXT, topic_similarity TEXT, vector_similarity TEXT, word_list TEXT, {', '.join(metadata_fields)})"
+            f"CREATE TABLE {self.table}_docs(doc_id INTEGER, topic_distribution TEXT, topic_similarity TEXT, vector_similarity TEXT, word_list TEXT, {', '.join(metadata_fields)})"
         )
         for doc_id in trange(topic_model.corpus.size, leave=False):
             # Get topic distributions
@@ -104,15 +109,7 @@ class DBHandler:
             for another_doc, score in corpus.similar_documents(doc_id, 20):
                 another_doc = int(another_doc)
                 score = float(score)
-                topic_similarity.append(
-                    (
-                        corpus.title(another_doc).capitalize(),
-                        ", ".join(corpus.author(another_doc)),
-                        int(corpus.date(another_doc)),
-                        another_doc,
-                        round(score, 3),
-                    )
-                )
+                topic_similarity.append((another_doc, round(score, 3)))
             vector_similarity = []
             for another_doc, score in (
                 (d, 1.0 - corpus.similarity_matrix[doc_id][d])
@@ -121,15 +118,7 @@ class DBHandler:
             ):
                 another_doc = int(another_doc)
                 score = float(score)
-                vector_similarity.append(
-                    (
-                        corpus.title(another_doc).capitalize(),
-                        ", ".join(corpus.author(another_doc)),
-                        int(corpus.date(another_doc)),
-                        another_doc,
-                        round(score, 3),
-                    )
-                )
+                vector_similarity.append((another_doc, round(score, 3)))
             topic_similarity = json.dumps(topic_similarity)
             vector_similarity = json.dumps(vector_similarity)
 
@@ -146,16 +135,16 @@ class DBHandler:
             field_values = [metadata[doc_id][field] for field in field_names]
             values = tuple([doc_id, topic_distribution, topic_similarity, vector_similarity, word_list] + field_values)
             self.cursor.execute(
-                f"INSERT INTO docs (doc_id, topic_distribution, topic_similarity, vector_similarity, word_list, {', '.join(field_names)}) VALUES (?, ?, ?, ?, ?, {', '.join(['?' for _ in range(len(field_names))])})",
+                f"INSERT INTO {self.table}_docs (doc_id, topic_distribution, topic_similarity, vector_similarity, word_list, {', '.join(field_names)}) VALUES (%s, %s, %s, %s, %s, {', '.join(['%s' for _ in range(len(field_names))])})",
                 values,
             )
-        self.cursor.execute("CREATE INDEX doc_id_index ON docs(doc_id)")
+        self.cursor.execute(f"CREATE INDEX doc_id_index ON {self.table}_docs USING HASH(doc_id)")
         self.db.commit()
 
     def save_words(self, topic_model, corpus):
         self.cursor.execute("DROP TABLE IF EXISTS words")
         self.cursor.execute(
-            "CREATE TABLE words(word_id INTEGER, word TEXT, distribution_across_topics TEXT, docs TEXT)"
+            f"CREATE TABLE {self.table}_words(word_id INTEGER, word TEXT, distribution_across_topics TEXT, docs TEXT)"
         )
 
         # Get word weights across docs
@@ -183,11 +172,11 @@ class DBHandler:
                 topics.append(i)
                 weights.append(word_distribution[i])
             self.cursor.execute(
-                "INSERT INTO words (word_id, word, distribution_across_topics, docs) VALUES (?, ?, ?, ?)",
+                f"INSERT INTO {self.table}_words (word_id, word, distribution_across_topics, docs) VALUES (%s, %s, %s, %s)",
                 (int(word_id), word, json.dumps({"labels": topics, "data": weights}), json.dumps(sorted_docs)),
             )
-        self.cursor.execute("CREATE INDEX word_id_index ON words(word_id)")
-        self.cursor.execute("CREATE INDEX word_index ON words(word)")
+        self.cursor.execute(f"CREATE INDEX word_id_index ON {self.table}_words USING HASH(word_id)")
+        self.cursor.execute(f"CREATE INDEX word_index ON {self.table}_words USING HASH(word)")
         self.db.commit()
 
     def get_vocabulary(self):
@@ -198,26 +187,21 @@ class DBHandler:
         return word_list
 
     def get_doc_data(self, doc_id):
-        self.cursor.execute("SELECT * FROM docs WHERE doc_id=?", (doc_id,))
+        self.cursor.execute("SELECT * FROM docs WHERE doc_id=%s", (doc_id,))
         return self.cursor.fetchone()
 
     def get_metadata(self, doc_id, metadata_fields):
-        self.cursor.execute(f"SELECT {', '.join(metadata_fields)} FROM docs WHERE doc_id=?", (doc_id,))
+        self.cursor.execute(f"SELECT {', '.join(metadata_fields)} FROM docs WHERE doc_id=%s", (doc_id,))
         return self.cursor.fetchone()
 
     def get_topic_data(self, topic_id):
-        self.cursor.execute("SELECT * FROM topics WHERE topic_id=?", (topic_id,))
+        self.cursor.execute("SELECT * FROM topics WHERE topic_id=%s", (topic_id,))
         return self.cursor.fetchone()
 
     def get_word_data(self, word):
-        self.cursor.execute("SELECT * FROM words WHERE word=?", (word,))
+        self.cursor.execute("SELECT * FROM words WHERE word=%s", (word,))
         return self.cursor.fetchone()
 
     def get_word_from_id(self, word_id):
-        self.cursor.execute("SELECT word FROM words WHERE word_id=?", (word_id,))
+        self.cursor.execute("SELECT word FROM words WHERE word_id=%s", (word_id,))
         return self.cursor.fetchone()[0]
-
-
-def save_json_object(json_object, file_path):
-    with codecs.open(file_path, "w", encoding="utf-8") as fp:
-        json.dump(json_object, fp, indent=4, separators=(",", ": "))

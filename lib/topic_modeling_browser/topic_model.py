@@ -5,7 +5,6 @@ import os
 from abc import ABCMeta, abstractmethod
 
 import numpy as np
-from dill import dump, load
 from scipy import cluster, spatial
 from scipy.sparse import coo_matrix
 from sklearn.decomposition import NMF
@@ -256,23 +255,6 @@ class TopicModel(object):
                 topic_associations[topic_id] = documents
         return topic_associations
 
-    def affiliation_repartition(self, topic_id):
-        counts = {}
-        doc_ids = self.documents_for_topic(topic_id)
-        for i in doc_ids:
-            affiliations = set(self.corpus.affiliation(i))
-            for affiliation in affiliations:
-                if counts.get(affiliation) is not None:
-                    count = counts[affiliation] + 1
-                    counts[affiliation] = count
-                else:
-                    counts[affiliation] = 1
-        tuples = []
-        for affiliation, count in counts.items():
-            tuples.append((affiliation, count))
-        tuples.sort(key=lambda x: x[1], reverse=True)
-        return tuples
-
 
 class LatentDirichletAllocation(TopicModel):
     def infer_topics(self, num_topics=10, algorithm="variational", **kwargs):
@@ -356,14 +338,3 @@ class NonNegativeMatrixFactorization(TopicModel):
                 topic_count += 1
             doc_count += 1
         self.document_topic_matrix = coo_matrix((data, (row, col)), shape=(self.corpus.size, self.nb_topics)).tocsr()
-
-
-def save_model(path, model):
-    with open(os.path.join(path, "model"), "wb") as output_file:
-        dump(model, output_file)
-
-
-def load_model(path):
-    with open(path, "rb") as input_file:
-        model = load(input_file)
-    return model

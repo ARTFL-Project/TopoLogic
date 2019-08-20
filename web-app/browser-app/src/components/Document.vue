@@ -26,16 +26,14 @@
                                     <ol class="list-group">
                                         <li
                                             v-for="doc in topicSimDocs"
-                                            :key="doc[3]"
+                                            :key="doc.doc_id"
                                             class="list-group-item"
                                             style="border-radius: 0px; border-width: 1px 0px"
                                         >
-                                            <router-link :to="`/document/${doc[3]}`">{{ doc[0] }}</router-link>
-                                            ({{ doc[4] }})
-                                            <br />
-                                            {{ doc[1] }}
-                                            <br />
-                                            {{ doc[2] }}
+                                            <router-link :to="`/document/${doc.doc_id}`">
+                                                <i>{{ doc.metadata.title }}</i>
+                                            </router-link>
+                                            ({{ doc.metadata.year }})
                                         </li>
                                     </ol>
                                 </div>
@@ -48,16 +46,14 @@
                                     <ol class="list-group">
                                         <li
                                             v-for="doc in vectorSimDocs"
-                                            :key="doc[3]"
+                                            :key="doc.doc_id"
                                             class="list-group-item"
                                             style="border-radius: 0px; border-width: 1px 0px"
                                         >
-                                            <router-link :to="`/document/${doc[3]}`">{{ doc[0] }}</router-link>
-                                            ({{ doc[4] }})
-                                            <br />
-                                            {{ doc[1] }}
-                                            <br />
-                                            {{ doc[2] }}
+                                            <router-link :to="`/document/${doc.doc_id}`">
+                                                <i>{{ doc.metadata.title }}</i>
+                                            </router-link>
+                                            ({{ doc.metadata.year }})
                                         </li>
                                     </ol>
                                 </div>

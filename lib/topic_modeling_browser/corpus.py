@@ -10,7 +10,6 @@ from sklearn.metrics import pairwise_distances
 from sklearn.metrics.pairwise import cosine_similarity
 
 import networkx as nx
-import pandas
 from networkx.readwrite import json_graph
 from nltk.corpus import stopwords
 
@@ -19,10 +18,24 @@ def fast_cosine(X, Y):
     return np.inner(X, Y) / np.sqrt(np.dot(X, X) * np.dot(Y, Y))
 
 
+class savedTexts:
+    def __init__(self, text_path, min_tokens_per_doc=0):
+        self.text_path = text_path
+        self.min_tokens = min_tokens_per_doc
+
+    def __iter__(self):
+        for file in os.scandir(self.text_path):
+            with open(file.path) as input_file:
+                text = input_file.read()
+                if len(text) >= self.min_tokens:
+                    yield text
+
+
 class Corpus:
     def __init__(
         self,
-        source_file_path,
+        source_files_path,
+        metadata,
         language=None,
         n_gram=1,
         vectorization="tfidf",
@@ -31,9 +44,11 @@ class Corpus:
         max_features=2000,
         sample=None,
         vectorizer=None,
+        min_tokens_per_doc=0,
     ):
 
-        self._source_file_path = source_file_path
+        self._source_files = source_files_path
+        self.metadata = metadata
         self._language = language
         self._n_gram = n_gram
         self._vectorization = vectorization
@@ -41,11 +56,8 @@ class Corpus:
         self._min_absolute_frequency = min_absolute_frequency
 
         self.max_features = max_features
-        self.data_frame = pandas.read_csv(source_file_path, sep="\t", encoding="utf-8")
-        if sample:
-            self.data_frame = self.data_frame.sample(frac=0.8)
-        self.data_frame.fillna(" ")
-        self.size = self.data_frame.count(0)[0]
+        self.size = len(os.listdir(source_files_path))
+        texts_to_vectorize = savedTexts(source_files_path, min_tokens_per_doc)
 
         if vectorizer is None:
             stop_words = []
@@ -71,52 +83,12 @@ class Corpus:
                 )
             else:
                 raise ValueError("Unknown vectorization type: %s" % vectorization)
-
-            self.sklearn_vector_space = self.vectorizer.fit_transform(t for t in self.data_frame["text"])
+            self.sklearn_vector_space = self.vectorizer.fit_transform(t for t in texts_to_vectorize)
         else:
             self.vectorizer = vectorizer
-            self.sklearn_vector_space = self.vectorizer.transform(t for t in self.data_frame["text"])
+            self.sklearn_vector_space = self.vectorizer.transform(t for t in texts_to_vectorize)
         self.feature_names = self.vectorizer.get_feature_names()
         self.similarity_matrix = pairwise_distances(self.sklearn_vector_space, metric="cosine", n_jobs=1)
-
-    def export(self, file_path):
-        self.data_frame.to_csv(path_or_buf=file_path, sep="\t", encoding="utf-8")
-
-    def full_text(self, doc_id):
-        return self.data_frame.iloc[doc_id]["text"]
-
-    def title(self, doc_id):
-        return self.data_frame.iloc[doc_id]["title"]
-
-    def date(self, doc_id):
-        return self.data_frame.iloc[doc_id]["date"]
-
-    def author(self, doc_id):
-        aut_str = str(self.data_frame.iloc[doc_id]["author"])
-        return aut_str.split(", ")
-
-    def affiliation(self, doc_id):
-        aff_str = str(self.data_frame.iloc[doc_id]["affiliation"])
-        return aff_str.split(", ")
-
-    def documents_by_author(self, author, date=None):
-        ids = []
-        potential_ids = range(self.size)
-        if date:
-            potential_ids = self.doc_ids(date)
-        for i in potential_ids:
-            if self.is_author(author, i):
-                ids.append(i)
-        return ids
-
-    def all_authors(self):
-        author_list = []
-        for doc_id in range(self.size):
-            author_list.extend(self.author(doc_id))
-        return list(set(author_list))
-
-    def is_author(self, author, doc_id):
-        return author in self.author(doc_id)
 
     def docs_for_word(self, word_id):
         ids = []
@@ -125,9 +97,6 @@ class Corpus:
             if vector[word_id] > 0:
                 ids.append(i)
         return ids
-
-    def doc_ids(self, date):
-        return self.data_frame[self.data_frame["date"] == date].index.tolist()
 
     def vector_for_document(self, doc_id):
         vector = self.sklearn_vector_space[doc_id]
@@ -156,22 +125,6 @@ class Corpus:
 
     def similar_documents_by_topic_distribution(self, topic_model):
         self.topic_distances = pairwise_distances(topic_model.document_topic_matrix, metric="cosine")
-
-    def collaboration_network(self, doc_ids=None, nx_format=False):
-        nx_graph = nx.Graph(name="")
-        for doc_id in doc_ids:
-            authors = self.author(doc_id)
-            for author in authors:
-                nx_graph.add_node(author)
-            for i in range(0, len(authors)):
-                for j in range(i + 1, len(authors)):
-                    nx_graph.add_edge(authors[i], authors[j])
-        bb = nx.betweenness_centrality(nx_graph)
-        nx.set_node_attributes(nx_graph, "betweenness", bb)
-        if nx_format:
-            return nx_graph
-        else:
-            return json_graph.node_link_data(nx_graph)
 
 
 def save_corpus(path, corpus):

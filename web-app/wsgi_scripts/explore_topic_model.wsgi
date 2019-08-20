@@ -32,8 +32,7 @@ CORS(application)
 
 def read_config(db_path):
     local_config = configparser.ConfigParser()
-    # local_config.read(os.path.join(APP_PATH, db_path, "config.ini"))
-    local_config.read(os.path.join("/shared/Topic-Modeling-Browser/", "config.ini"))
+    local_config.read(os.path.join(APP_PATH, db_path, "model_config.ini"))
     return {
         "topics": int(local_config["PARAMETERS"]["number_of_topics"]),
         "method": local_config["PARAMETERS"]["algorithm"],
@@ -61,7 +60,7 @@ def clean_text(text: str) -> str:
 
 @application.route("/get_config")
 def get_config():
-    local_db = request.args["db_path"]
+    local_db = os.path.join(request.args["db_path"], global_config["WEB_APP"]["web_app_path"])
     response = jsonify(read_config(local_db))
     response.headers.add("Access-Control-Allow-Origin", "*")
     return response
@@ -69,7 +68,7 @@ def get_config():
 
 @application.route("/get_topic_ids")
 def get_topic_ids():
-    local_db = request.args["db_path"]
+    local_db = os.path.join(request.args["db_path"], os.path.basename(global_config["WEB_APP"]["web_app_path"]))
     config = read_config(local_db)
     response = jsonify(list(range(config["topics"])))
     response.headers.add("Access-Control-Allow-Origin", "*")
@@ -78,9 +77,9 @@ def get_topic_ids():
 
 @application.route("/get_topic_data/<topic_id>")
 def get_topic_data(topic_id):
-    local_db = request.args["db_path"]
+    local_db = os.path.join(request.args["db_path"], global_config["WEB_APP"]["web_app_path"])
     config = read_config(local_db)
-    db = DBHandler(os.path.join(local_db, "topic_model_data.db"))
+    db = DBHandler(local_db)
     topic_data = db.get_topic_data(int(topic_id))
     doc_ids = json.loads(topic_data["docs"])
     documents = []
@@ -101,9 +100,9 @@ def get_topic_data(topic_id):
 
 @application.route("/get_doc_data/<doc_id>")
 def get_doc_data(doc_id):
-    local_db = request.args["db_path"]
+    local_db = os.path.join(request.args["db_path"], global_config["WEB_APP"]["web_app_path"])
     config = read_config(local_db)
-    db = DBHandler(os.path.join(local_db, "topic_model_data.db"))
+    db = DBHandler(local_db)
     doc_data = db.get_doc_data(int(doc_id))
     word_list = json.loads(doc_data["word_list"])
     word_list = [(w[0], w[1] * 10, w[2]) for w in word_list[:21] if w[1] > 0]
@@ -140,8 +139,14 @@ def get_doc_data(doc_id):
     weighted_word_list = [(w[0], w[1] / 10, w[2], color_codes[w[1]]) for w in adjusted_word_list]
     weighted_word_list.sort(key=lambda x: x[0])
 
-    topic_similarity = json.loads(doc_data["topic_similarity"])
-    vector_similarity = json.loads(doc_data["vector_similarity"])
+    topic_similarity = []
+    for doc_id, score in json.loads(doc_data["topic_similarity"]):
+        doc_metadata = db.get_metadata(doc_id, config["metadata_fields"])
+        topic_similarity.append({"doc_id": doc_id, "metadata": doc_metadata, "score": score})
+    vector_similarity = []
+    for doc_id, score in json.loads(doc_data["vector_similarity"]):
+        doc_metadata = db.get_metadata(doc_id, config["metadata_fields"])
+        vector_similarity.append({"doc_id": doc_id, "metadata": doc_metadata, "score": score})
 
     metadata = {field: doc_data[field] for field in config["metadata_fields"]}
     with open(os.path.join(config["file_path"], metadata["filename"]), "rb") as text_file:
@@ -167,9 +172,9 @@ def get_doc_data(doc_id):
 
 @application.route("/get_word_data/<word>")
 def get_word_data(word):
-    local_db = request.args["db_path"]
+    local_db = os.path.join(request.args["db_path"], global_config["WEB_APP"]["web_app_path"])
     config = read_config(local_db)
-    db = DBHandler(os.path.join(local_db, "topic_model_data.db"))
+    db = DBHandler(local_db)
     word_data = db.get_word_data(word)
     sorted_docs = json.loads(word_data["docs"])
     documents = []
@@ -192,9 +197,9 @@ def get_word_data(word):
 
 @application.route("/get_vocabulary")
 def vocabulary():
-    local_db = request.args["db_path"]
+    local_db = os.path.join(request.args["db_path"], global_config["WEB_APP"]["web_app_path"])
     config = read_config(local_db)
-    db = DBHandler(os.path.join(local_db, "topic_model_data.db"))
+    db = DBHandler(local_db)
     word_list = db.get_vocabulary()
     splitted_vocabulary = []
     words_per_column = int(len(word_list) / 5)
@@ -206,4 +211,3 @@ def vocabulary():
     response = jsonify(splitted_vocabulary=splitted_vocabulary, vocabulary_size=len(word_list))
     response.headers.add("Access-Control-Allow-Origin", "*")
     return response
-
