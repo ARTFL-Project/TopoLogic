@@ -64,7 +64,7 @@ export default {
     mounted() {
         this.$http
             .get(
-                `${this.$globalConfig.apiServer}/get_topic_data/${this.$route.params.topic}?db_path=${this.$globalConfig.appPath}`
+                `${this.$globalConfig.apiServer}/get_topic_data/${this.$route.params.topic}?table=${this.$globalConfig.databaseName}`
             )
             .then(response => {
                 this.documents = response.data.documents;

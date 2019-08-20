@@ -48,7 +48,7 @@ export default {
     mounted() {
         this.$http
             .get(
-                `${this.$globalConfig.apiServer}/get_word_data/${this.$route.params.word}?db_path=${this.$globalConfig.appPath}`
+                `${this.$globalConfig.apiServer}/get_word_data/${this.$route.params.word}?table=${this.$globalConfig.databaseName}`
             )
             .then(response => {
                 this.word = response.data.word;

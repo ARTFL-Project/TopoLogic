@@ -35,7 +35,7 @@ export default {
     created() {
         this.$http
             .get(
-                `${this.$globalConfig.apiServer}/get_topic_ids?db_path=${this.$globalConfig.appPath}`
+                `${this.$globalConfig.apiServer}/get_topic_ids?table=${this.$globalConfig.databaseName}`
             )
             .then(response => {
                 this.topicIds = response.data;

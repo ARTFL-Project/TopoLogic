@@ -70,8 +70,7 @@ def read_config(config_path):
     return config["DATABASE"]["database_name"], preprocessing, vectorization, topic_modeling
 
 
-def write_app_config(db_path):
-    database_name = os.path.basename(db_path)
+def write_app_config(db_path, database_name):
     with open(os.path.join(db_path, "appConfig.json"), "w") as app_config:
         json.dump(
             {
@@ -224,7 +223,7 @@ def build_model(
     print("Compute document similarity...", flush=True)
     full_corpus.similar_documents_by_topic_distribution(topic_model)
 
-    db = DBHandler(GLOBAL_CONFIG["DATABASE"])
+    db = DBHandler(GLOBAL_CONFIG["DATABASE"], database_name)
     print("Saving words...", flush=True)
     db.save_words(topic_model, full_corpus)
 
@@ -236,7 +235,10 @@ def build_model(
         f"{db_path}/topic_words.json", topic_model, full_corpus, min(years), max(years), doc_metadata, step=1
     )
 
-    write_app_config(db_path)
+    os.system(f"cp -R /var/lib/topic-modeling-browser/web-app/browser-app/* {db_path}/")
+    os.system(f"cp /var/lib/topic-modeling-browser/web-app/apache_htacess.conf {db_path}/.htaccess")
+    write_app_config(db_path, database_name)
+    os.system(f"cd {db_path}; npm run build")
 
 
 if __name__ == "__main__":

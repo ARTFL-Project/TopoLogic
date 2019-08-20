@@ -22,7 +22,7 @@ export default {
     name: "TopicDistributions",
     data() {
         return {
-            topicData: topics.nodes
+            topicData: topics
         };
     },
     mounted() {

@@ -20,9 +20,7 @@ def print_matrix(matrix):
 class DBHandler:
     def __init__(self, config, table):
         self.db = psycopg2.connect(
-            user=config["DATABASE"]["database_user"],
-            password=config["DATABASE"]["database_password"],
-            database=config["DATABASE"]["database_name"],
+            user=config["database_user"], password=config["database_password"], database=config["database_name"]
         )
         self.cursor = self.db.cursor(cursor_factory=RealDictCursor)
         self.table = table
@@ -45,7 +43,7 @@ class DBHandler:
         with open(topic_words_path, "w") as out_file:
             json.dump(topic_words, out_file)
 
-        self.cursor.execute("DROP TABLE IF EXISTS topics")
+        self.cursor.execute(f"DROP TABLE IF EXISTS {self.table}_topics")
         self.cursor.execute(
             f"CREATE TABLE {self.table}_topics(topic_id INTEGER, word_distribution TEXT, topic_evolution TEXT, frequency FLOAT, docs TEXT)"
         )
@@ -79,7 +77,7 @@ class DBHandler:
                 f"INSERT INTO {self.table}_topics (topic_id, word_distribution, topic_evolution, frequency, docs) VALUES (%s, %s, %s, %s, %s)",
                 (topic_id, word_distribution, topic_evolution, frequency, docs),
             )
-        self.cursor.execute(f"CREATE INDEX {self.table}_topic_id_index on topics USING HASH(topic_id)")
+        self.cursor.execute(f"CREATE INDEX topic_id_index on {self.table}_topics USING HASH(topic_id)")
         self.db.commit()
 
     def save_docs(self, topic_model, corpus, metadata):
@@ -90,7 +88,7 @@ class DBHandler:
                 metadata_fields.append(f"{field} INTEGER")
             else:
                 metadata_fields.append(f"{field} TEXT")
-        self.cursor.execute("DROP TABLE IF EXISTS docs")
+        self.cursor.execute(f"DROP TABLE IF EXISTS {self.table}_docs")
         self.cursor.execute(
             f"CREATE TABLE {self.table}_docs(doc_id INTEGER, topic_distribution TEXT, topic_similarity TEXT, vector_similarity TEXT, word_list TEXT, {', '.join(metadata_fields)})"
         )
@@ -142,7 +140,7 @@ class DBHandler:
         self.db.commit()
 
     def save_words(self, topic_model, corpus):
-        self.cursor.execute("DROP TABLE IF EXISTS words")
+        self.cursor.execute(f"DROP TABLE IF EXISTS {self.table}_words")
         self.cursor.execute(
             f"CREATE TABLE {self.table}_words(word_id INTEGER, word TEXT, distribution_across_topics TEXT, docs TEXT)"
         )
@@ -180,28 +178,28 @@ class DBHandler:
         self.db.commit()
 
     def get_vocabulary(self):
-        self.cursor.execute("SELECT word_id, word FROM words")
+        self.cursor.execute(f"SELECT word_id, word FROM {self.table}_words")
         word_list = []
         for result in self.cursor:
             word_list.append((result["word_id"], result["word"]))
         return word_list
 
     def get_doc_data(self, doc_id):
-        self.cursor.execute("SELECT * FROM docs WHERE doc_id=%s", (doc_id,))
+        self.cursor.execute(f"SELECT * FROM {self.table}_docs WHERE doc_id=%s", (doc_id,))
         return self.cursor.fetchone()
 
     def get_metadata(self, doc_id, metadata_fields):
-        self.cursor.execute(f"SELECT {', '.join(metadata_fields)} FROM docs WHERE doc_id=%s", (doc_id,))
+        self.cursor.execute(f"SELECT {', '.join(metadata_fields)} FROM {self.table}_docs WHERE doc_id=%s", (doc_id,))
         return self.cursor.fetchone()
 
     def get_topic_data(self, topic_id):
-        self.cursor.execute("SELECT * FROM topics WHERE topic_id=%s", (topic_id,))
+        self.cursor.execute(f"SELECT * FROM {self.table}_topics WHERE topic_id=%s", (topic_id,))
         return self.cursor.fetchone()
 
     def get_word_data(self, word):
-        self.cursor.execute("SELECT * FROM words WHERE word=%s", (word,))
+        self.cursor.execute(f"SELECT * FROM {self.table}_words WHERE word=%s", (word,))
         return self.cursor.fetchone()
 
     def get_word_from_id(self, word_id):
-        self.cursor.execute("SELECT word FROM words WHERE word_id=%s", (word_id,))
+        self.cursor.execute(f"SELECT word FROM {self.table}_words WHERE word_id=%s", (word_id,))
         return self.cursor.fetchone()[0]

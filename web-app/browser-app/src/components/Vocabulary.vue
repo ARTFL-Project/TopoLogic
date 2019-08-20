@@ -36,7 +36,7 @@ export default {
     created() {
         this.$http
             .get(
-                `${this.$globalConfig.apiServer}/get_vocabulary?db_path=${this.$globalConfig.appPath}`
+                `${this.$globalConfig.apiServer}/get_vocabulary?table=${this.$globalConfig.databaseName}`
             )
             .then(response => {
                 this.vocabularySize = response.data.vocabulary_size;

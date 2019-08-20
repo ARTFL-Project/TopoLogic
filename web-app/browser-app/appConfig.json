@@ -1,6 +1,0 @@
-{
-    "webServer": "Apache",
-    "apiServer": "http://anomander.uchicago.edu/topic-modeling-browser-api/",
-    "databaseName": "dev",
-    "appPath": "/shared/Topic-Modeling-Browser/web-app/browser-app/"
-}

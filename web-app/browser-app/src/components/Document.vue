@@ -116,7 +116,7 @@ export default {
         fetchData() {
             this.$http
                 .get(
-                    `${this.$globalConfig.apiServer}/get_doc_data/${this.$route.params.doc}?db_path=${this.$globalConfig.appPath}`
+                    `${this.$globalConfig.apiServer}/get_doc_data/${this.$route.params.doc}?table=${this.$globalConfig.databaseName}`
                 )
                 .then(response => {
                     this.words = response.data.words;
@@ -182,8 +182,9 @@ export default {
                 function(e) {
                     let target = myChart.getElementAtEvent(e);
                     if (typeof target[0] !== "undefined") {
+                        console.log(target[0]._view.label);
                         let topic = target[0]._view.label;
-                        vm.$router.push("`/topic/${topic}`");
+                        vm.$router.push(`/topic/${topic}`);
                     }
                 },
                 false
