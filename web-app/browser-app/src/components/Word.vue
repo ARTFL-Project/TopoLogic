@@ -18,17 +18,15 @@
                     <ul class="list-group">
                         <li
                             v-for="doc in documents"
-                            :key="doc[1]"
+                            :key="doc.doc_id"
                             class="list-group-item"
                             style="border-radius: 0px; border-width: 1px 0px; font-size: 90%"
                         >
-                            <strong>
-                                <router-link :to="`/document/${doc[1]}`">{{ doc[0]["title"] }}</router-link>
-                            </strong>
-                            <br />
-                            {{ doc[0]["author"] }}
-                            <br />
-                            <i>‡{{ doc[0]["title"] }}</i>
+                            <router-link :to="`/document/${doc.doc_id}`">
+                                <i>{{ doc.metadata.title }}</i>
+                            </router-link>
+                            &#9702;&nbsp;{{ doc.metadata.author }}
+                            (score: {{doc.score.toFixed( 2 )}})
                         </li>
                     </ul>
                 </div>

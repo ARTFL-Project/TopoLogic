@@ -81,7 +81,7 @@ def get_topic_data(topic_id):
     topic_data = db.get_topic_data(int(topic_id))
     doc_ids = json.loads(topic_data["docs"])
     documents = []
-    for document_id, weight in doc_ids:
+    for document_id, weight in doc_ids[:50]:
         metadata = db.get_metadata(document_id, config["metadata_fields"])
         documents.append((metadata["title"].capitalize(), metadata["author"], metadata["year"], document_id, weight))
     response = jsonify(
@@ -176,9 +176,9 @@ def get_word_data(word):
     word_data = db.get_word_data(word)
     sorted_docs = json.loads(word_data["docs"])
     documents = []
-    for document_id, _ in sorted_docs:
+    for document_id, score in sorted_docs[:50]:
         metadata = db.get_metadata(document_id, config["metadata_fields"])
-        documents.append((metadata, document_id))
+        documents.append({"metadata": metadata, "doc_id": document_id, "score": score})
 
     response = jsonify(
         {

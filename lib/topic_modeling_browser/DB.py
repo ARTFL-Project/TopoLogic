@@ -77,7 +77,7 @@ class DBHandler:
                 f"INSERT INTO {self.table}_topics (topic_id, word_distribution, topic_evolution, frequency, docs) VALUES (%s, %s, %s, %s, %s)",
                 (topic_id, word_distribution, topic_evolution, frequency, docs),
             )
-        self.cursor.execute(f"CREATE INDEX topic_id_index on {self.table}_topics USING HASH(topic_id)")
+        self.cursor.execute(f"CREATE INDEX {self.table}_topic_id_index on {self.table}_topics USING HASH(topic_id)")
         self.db.commit()
 
     def save_docs(self, topic_model, corpus, metadata):
@@ -141,7 +141,7 @@ class DBHandler:
                 f"INSERT INTO {self.table}_docs (doc_id, topic_distribution, topic_similarity, vector_similarity, word_list, {', '.join(field_names)}) VALUES (%s, %s, %s, %s, %s, {', '.join(['%s' for _ in range(len(field_names))])})",
                 values,
             )
-        self.cursor.execute(f"CREATE INDEX doc_id_index ON {self.table}_docs USING HASH(doc_id)")
+        self.cursor.execute(f"CREATE INDEX {self.table}_doc_id_index ON {self.table}_docs USING HASH(doc_id)")
         self.db.commit()
 
     def save_words(self, topic_model, corpus):
@@ -178,8 +178,8 @@ class DBHandler:
                 f"INSERT INTO {self.table}_words (word_id, word, distribution_across_topics, docs) VALUES (%s, %s, %s, %s)",
                 (int(word_id), word, json.dumps({"labels": topics, "data": weights}), json.dumps(sorted_docs)),
             )
-        self.cursor.execute(f"CREATE INDEX word_id_index ON {self.table}_words USING HASH(word_id)")
-        self.cursor.execute(f"CREATE INDEX word_index ON {self.table}_words USING HASH(word)")
+        self.cursor.execute(f"CREATE INDEX {self.table}_word_id_index ON {self.table}_words USING HASH(word_id)")
+        self.cursor.execute(f"CREATE INDEX {self.table}_word_index ON {self.table}_words USING HASH(word)")
         self.db.commit()
 
     def get_vocabulary(self):

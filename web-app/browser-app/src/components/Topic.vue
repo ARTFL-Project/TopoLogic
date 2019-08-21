@@ -24,7 +24,7 @@
                 <div class="row">
                     <div class="col-12">
                         <div class="card shadow-sm mt-4 p-2">
-                            <h6>Related documents ({{documents.length}})</h6>
+                            <h6>Related documents (top {{documents.length}})</h6>
                             <table id="documents" class="display" cellspacing="0">
                                 <thead>
                                     <tr>
