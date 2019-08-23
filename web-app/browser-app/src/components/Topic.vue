@@ -1,51 +1,49 @@
 <template>
     <div class="container-fluid">
-        <div class="card shadow-sm">
-            <div class="card-header">
-                <h5>Topic {{ }}</h5>
+        <h5 class="mb-4" style="text-align: center">
+            Representation of topic
+            <b>{{topic}}</b> across corpus
+        </h5>
+        <div class="card-text" style="font-size: 90%">
+            <div class="row">
+                <div class="col-4">
+                    <div class="card shadow-sm p-2">
+                        <h6>Top 20 words</h6>
+                        <canvas id="relevant-words" style="max-height:400px"></canvas>
+                    </div>
+                </div>
+                <div class="col-8">
+                    <div class="card shadow-sm p-2">
+                        <h6>Topic frequency across time (overall frequency of {{ frequency }}%)</h6>
+                        <canvas id="topic-frequency" style="max-height:400px"></canvas>
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                <div class="card-text" style="font-size: 90%">
-                    <div class="row">
-                        <div class="col-4">
-                            <div class="card shadow-sm p-2">
-                                <h6>Most relevant words</h6>
-                                <canvas id="relevant-words" style="max-height:400px"></canvas>
-                            </div>
-                        </div>
-                        <div class="col-8">
-                            <div class="card shadow-sm p-2">
-                                <h6>Topic frequency across time (overall frequency of {{ frequency }}%)</h6>
-                                <canvas id="topic-frequency" style="max-height:400px"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-12">
-                        <div class="card shadow-sm mt-4 p-2">
-                            <h6>Related documents (top {{documents.length}})</h6>
-                            <table id="documents" class="display" cellspacing="0">
-                                <thead>
-                                    <tr>
-                                        <th>Title</th>
-                                        <th>Author(s)</th>
-                                        <th>Date</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-for="doc in documents" :key="doc[3]">
-                                        <td>
-                                            <router-link :to="`/document/${doc[3]}`">{{ doc[0] }}</router-link>
-                                        </td>
-                                        <td>{{ doc[1] }}</td>
-                                        <td>{{ doc[2] }}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
+        </div>
+        <div class="row">
+            <div class="col-12">
+                <b-card
+                    no-body
+                    :header="`Top ${documents.length} documents for this topic`"
+                    class="mt-4 shadow-sm"
+                >
+                    <b-list-group flush>
+                        <b-list-group-item
+                            v-for="doc in documents"
+                            :key="doc[3]"
+                            :to="`/document/${doc[3]}`"
+                        >
+                            <span style="font-style: italic">{{doc[0]}}</span>
+                            <br />
+                            <span style="color:initial">{{ doc[1] }} ({{doc[2]}})</span>
+                            <b-badge
+                                variant="primary"
+                                pill
+                                class="float-right"
+                            >{{doc[4].toFixed(3)}}</b-badge>
+                        </b-list-group-item>
+                    </b-list-group>
+                </b-card>
             </div>
         </div>
     </div>

@@ -17,6 +17,10 @@ def print_matrix(matrix):
         print(matrix[i, :])
 
 
+def fast_cosine(X, Y):
+    return np.inner(X, Y) / np.sqrt(np.dot(X, X) * np.dot(Y, Y))
+
+
 class DBHandler:
     def __init__(self, config, table):
         self.db = psycopg2.connect(
@@ -147,7 +151,7 @@ class DBHandler:
     def save_words(self, topic_model, corpus):
         self.cursor.execute(f"DROP TABLE IF EXISTS {self.table}_words")
         self.cursor.execute(
-            f"CREATE TABLE {self.table}_words(word_id INTEGER, word TEXT, distribution_across_topics TEXT, docs TEXT)"
+            f"CREATE TABLE {self.table}_words(word_id INTEGER, word TEXT, distribution_across_topics TEXT, docs TEXT, docs_by_topic TEXT)"
         )
 
         # Get word weights across docs
@@ -174,20 +178,28 @@ class DBHandler:
             for i in range(len(word_distribution)):
                 topics.append(i)
                 weights.append(word_distribution[i])
+
+            sim_doc_by_distribution = []
+            # for inner_doc_id, doc_topic_matrix in enumerate(topic_model.document_topic_matrix):
+            #     sim_score = fast_cosine(word_distribution, doc_topic_matrix)
+            #     sim_doc_by_distribution.append((inner_doc_id, float(sim_score)))
             self.cursor.execute(
-                f"INSERT INTO {self.table}_words (word_id, word, distribution_across_topics, docs) VALUES (%s, %s, %s, %s)",
-                (int(word_id), word, json.dumps({"labels": topics, "data": weights}), json.dumps(sorted_docs)),
+                f"INSERT INTO {self.table}_words (word_id, word, distribution_across_topics, docs, docs_by_topic) VALUES (%s, %s, %s, %s, %s)",
+                (
+                    int(word_id),
+                    word,
+                    json.dumps({"labels": topics, "data": weights}),
+                    json.dumps(sorted_docs),
+                    json.dumps(sim_doc_by_distribution),
+                ),
             )
         self.cursor.execute(f"CREATE INDEX {self.table}_word_id_index ON {self.table}_words USING HASH(word_id)")
         self.cursor.execute(f"CREATE INDEX {self.table}_word_index ON {self.table}_words USING HASH(word)")
         self.db.commit()
 
     def get_vocabulary(self):
-        self.cursor.execute(f"SELECT word_id, word FROM {self.table}_words")
-        word_list = []
-        for result in self.cursor:
-            word_list.append((result["word_id"], result["word"]))
-        return word_list
+        self.cursor.execute(f"SELECT word FROM {self.table}_words")
+        return sorted([result["word"] for result in self.cursor])
 
     def get_doc_data(self, doc_id):
         self.cursor.execute(f"SELECT * FROM {self.table}_docs WHERE doc_id=%s", (doc_id,))
@@ -208,3 +220,19 @@ class DBHandler:
     def get_word_from_id(self, word_id):
         self.cursor.execute(f"SELECT word FROM {self.table}_words WHERE word_id=%s", (word_id,))
         return self.cursor.fetchone()[0]
+
+    def get_all_metadata_values(self, field):
+        self.cursor.execute(f"SELECT DISTINCT {field} FROM {self.table}_docs")
+        return sorted([row[field] for row in self.cursor if row[field]])
+
+    def get_topic_distribution_by_metadata(self, field, field_value):
+        topic_distribution = {}
+        self.cursor.execute(f"SELECT * FROM {self.table}_docs WHERE {field}=%s", (field_value,))
+        for row in self.cursor:
+            if not topic_distribution:
+                topic_distribution = json.loads(row["topic_distribution"])
+            else:
+                for pos, weight in enumerate(json.loads(row["topic_distribution"])["data"]):
+                    topic_distribution["data"][pos] += weight
+        coeff = 1.0 / sum([weight for weight in topic_distribution["data"]])
+        return topic_distribution, coeff

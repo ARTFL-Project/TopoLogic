@@ -14,10 +14,6 @@ from networkx.readwrite import json_graph
 from nltk.corpus import stopwords
 
 
-def fast_cosine(X, Y):
-    return np.inner(X, Y) / np.sqrt(np.dot(X, X) * np.dot(Y, Y))
-
-
 class savedTexts:
     def __init__(self, text_path, number_of_texts, min_tokens_per_doc=0):
         self.text_path = text_path

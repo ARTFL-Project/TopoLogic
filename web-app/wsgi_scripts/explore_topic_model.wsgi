@@ -146,6 +146,7 @@ def get_doc_data(doc_id):
         vector_similarity.append({"doc_id": doc_id, "metadata": doc_metadata, "score": score})
 
     metadata = {field: doc_data[field] for field in config["metadata_fields"]}
+    print("METADATA", repr(metadata))
     with open(os.path.join(config["file_path"], metadata["filename"]), "rb") as text_file:
         length = int(metadata["end_byte"]) - int(metadata["start_byte"])
         text_file.seek(int(metadata["start_byte"]))
@@ -203,8 +204,40 @@ def vocabulary():
     for j in range(5):
         sub_vocabulary = []
         for l in range(j * words_per_column, (j + 1) * words_per_column):
-            sub_vocabulary.append(word_list[l])
+            sub_vocabulary.append(word_list[l][1])
         splitted_vocabulary.append(sub_vocabulary)
     response = jsonify(splitted_vocabulary=splitted_vocabulary, vocabulary_size=len(word_list))
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    return response
+
+
+@application.route("/get_all_field_values")
+def get_all_field_values():
+    config = read_config(request.args["table"])
+    db = DBHandler(DATABASE, request.args["table"])
+    field = request.args["field"]
+    if field == "word":
+        field_values = db.get_vocabulary()
+    else:
+        field_values = db.get_all_metadata_values(field)
+    splitted_fields = []
+    fields_per_column = int(len(field_values) / 5)
+    for j in range(5):
+        sub_field = []
+        for l in range(j * fields_per_column, (j + 1) * fields_per_column):
+            sub_field.append(field_values[l])
+        splitted_fields.append(sub_field)
+    response = jsonify(splitted_fields=splitted_fields, size=len(field_values))
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    return response
+
+
+@application.route("/get_field_distribution/<field>")
+def get_field_distribution(field):
+    config = read_config(request.args["table"])
+    db = DBHandler(DATABASE, request.args["table"])
+    field_value = request.args["value"]
+    topic_distribution, coeff = db.get_topic_distribution_by_metadata(field, field_value)
+    response = jsonify(topic_distribution=topic_distribution, coeff=coeff)
     response.headers.add("Access-Control-Allow-Origin", "*")
     return response

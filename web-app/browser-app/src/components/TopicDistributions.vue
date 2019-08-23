@@ -1,15 +1,29 @@
 <template>
     <b-container fluid class="mt-4">
-        <b-card no-body class="shadow-sm">
-            <div class="card-body">
-                <h5 class="card-title">Each bar represents a topic. Click one to get more details</h5>
-                <div class="card-text">
-                    <canvas
-                        id="topic-weights"
-                        :style="`height: ${topicData.length * 32}px !important`"
-                    ></canvas>
-                </div>
-            </div>
+        <b-card no-body class="shadow-sm p-2 mb-4">
+            <h5 class="card-title pt-2" style="text-align: center;">
+                Topics and their relative distribution across the corpus
+                <div style="font-size: 70%">Click to get detailed distribution</div>
+            </h5>
+            <b-row
+                v-for="topic in topicData"
+                :key="topic.name"
+                class="mb-1 mr-1"
+                style="padding: .1rem; cursor: pointer"
+                @click="goToTopic(topic.name)"
+            >
+                <b-col cols="2" style="text-align: right">
+                    <b>Topic {{topic.name}}</b>
+                    ({{(topic.frequency*100).toFixed(2)}}%):
+                </b-col>
+                <b-col cols="10" class="position-relative pl-2">
+                    {{topic.description}}
+                    <span
+                        class="position-absolute"
+                        :style="`display: inline-block; background-color: rgba(85,172,238, .4); height: 100%; left: 0; top: 0; width: ${topic.frequency*frequencyMultiplier}%;`"
+                    ></span>
+                </b-col>
+            </b-row>
         </b-card>
     </b-container>
 </template>
@@ -25,113 +39,21 @@ export default {
             topicData: topics
         };
     },
-    beforeDestroy() {
-        this.topicChart.destroy();
-    },
-    mounted() {
-        var ctx = document.getElementById("topic-weights");
-        var labels = [];
-        var weights = [];
-        var descriptions = [];
-        for (var i = 0; i < this.topicData.length; i += 1) {
-            labels.push("Topic " + this.topicData[i].name);
-            weights.push(this.topicData[i].frequency);
-            descriptions.push(this.topicData[i].description);
-        }
-        Chart.defaults.global.responsive = true;
-        Chart.defaults.global.animation.duration = 400;
-        Chart.defaults.global.tooltipCornerRadius = 0;
-        Chart.defaults.bar.scales.xAxes[0].gridLines.display = false;
-        Chart.defaults.global.tooltips.enabled = false;
-        Chart.defaults.global.defaultFontSize = "16";
-        var vm = this;
-        vm.topicChart = new Chart(ctx, {
-            type: "horizontalBar",
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: "topics",
-                        data: weights,
-                        backgroundColor: "rgba(85,172,238, .4)",
-                        borderWidth: 25
-                    }
-                ]
-            },
-            options: {
-                maintainAspectRatio: false,
-                scales: {
-                    yAxes: [
-                        {
-                            id: "topics",
-                            // type: 'category',
-                            // display: false,
-                            categoryPercentage: 1.0,
-                            barPercentage: 1.0,
-                            barThickness: 25,
-                            gridLines: {
-                                display: false,
-                                offsetGridLines: false
-                            }
-                            // stacked: true
-                        }
-                    ],
-                    xAxes: [
-                        {
-                            // stacked: true,
-                            display: false
-                        }
-                    ]
-                },
-                legend: {
-                    display: false
-                },
-                hover: {
-                    animationDuration: 0
-                },
-                animation: {
-                    duration: 1,
-                    onComplete() {
-                        const chartInstance = this.chart;
-                        const ctx2 = chartInstance.ctx;
-                        const dataset = this.data.datasets[0];
-                        const meta = chartInstance.controller.getDatasetMeta(0);
-
-                        Chart.helpers.each(
-                            meta.data.forEach((bar, index) => {
-                                const label = descriptions[index];
-                                const labelPositionX = 90;
-                                const labelWidth =
-                                    ctx2.measureText(label).width +
-                                    labelPositionX;
-
-                                ctx2.textBaseline = "middle";
-                                ctx2.textAlign = "left";
-                                ctx2.fillStyle = "#444";
-                                ctx2.fillText(
-                                    label,
-                                    labelPositionX,
-                                    bar._model.y
-                                );
-                            })
-                        );
-                    }
+    computed: {
+        frequencyMultiplier: function() {
+            let maxFrequency = 0.0;
+            for (let topic of topics) {
+                if (topic.frequency > maxFrequency) {
+                    maxFrequency = topic.frequency;
                 }
             }
-        });
-        // ctx.style.height = labels.length * 140
-        // ctx.style.backgroundColor = 'rgba(85,172,238, .2)';
-        ctx.addEventListener(
-            "click",
-            function(e) {
-                let target = vm.topicChart.getElementAtEvent(e);
-                if (typeof target[0] !== "undefined") {
-                    let topic = target[0]._view.label.replace("Topic ", "");
-                    vm.$router.push(`/topic/${topic}`);
-                }
-            },
-            false
-        );
+            return 100 / maxFrequency;
+        }
+    },
+    methods: {
+        goToTopic(topic) {
+            this.$router.push(`/topic/${topic}`);
+        }
     }
 };
 </script>

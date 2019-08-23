@@ -5,7 +5,6 @@
             <b-navbar-toggle target="nav-collapse"></b-navbar-toggle>
             <b-collapse class="mr-auto" id="nav-collapse" is-nav>
                 <b-navbar-nav>
-                    <b-nav-item to="/vocabulary">Vocabulary</b-nav-item>
                     <b-nav-item-dropdown text="Navigate Topics" id="vocab-list">
                         <b-dropdown-item
                             v-for="topic in topicIds"
@@ -13,6 +12,9 @@
                             :to="`/topic/${topic}`"
                         >Topic {{ topic }}</b-dropdown-item>
                     </b-nav-item-dropdown>
+                    <b-nav-item to="/view/word">Vocabulary</b-nav-item>
+                    <b-nav-item to="/view/author">Topics in Authors</b-nav-item>
+                    <b-nav-item to="/view/year">Topics across Time</b-nav-item>
                 </b-navbar-nav>
             </b-collapse>
         </b-navbar>

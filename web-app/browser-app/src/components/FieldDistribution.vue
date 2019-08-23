@@ -1,49 +1,20 @@
 <template>
     <b-container fluid class="mt-4">
         <div class="card shadow-sm">
-            <div class="card-header">
-                <h5>
-                    Distribution of
-                    <b>{{ word }}</b> in the corpus
-                </h5>
-            </div>
-            <div class="row mt-4 p-2">
-                <div class="col-7">
-                    <div class="card shadow-sm p-2">
-                        <h5 class="mb-2">Word distribution of "{{ word }}" across topics</h5>
-                        <canvas id="word-distribution" width="400" max-height="400"></canvas>
-                    </div>
-                </div>
-                <div class="col-5">
-                    <div class="card shadow-sm">
-                        <h5 class="p-2">Top {{ documents.length }} documents by relevance</h5>
-                        <ul class="list-group">
-                            <li
-                                v-for="doc in documents"
-                                :key="doc.doc_id"
-                                class="list-group-item"
-                                style="border-radius: 0px; border-width: 1px 0px; font-size: 90%"
-                            >
-                                <router-link :to="`/document/${doc.doc_id}`">
-                                    <i>{{ doc.metadata.title }}</i>
-                                </router-link>
-                                &#9702;&nbsp;{{ doc.metadata.author }}
-                                (score: {{doc.score.toFixed( 2 )}})
-                            </li>
-                        </ul>
-                    </div>
-                </div>
+            <div class="card shadow-sm p-2">
+                <h5 class="mb-2">Distribution of {{fieldName}} "{{ fieldValue }}" across topics</h5>
+                <canvas id="field-distribution" width="400" max-height="400"></canvas>
             </div>
         </div>
     </b-container>
 </template>
 <script>
 export default {
-    name: "Word",
+    name: "FieldDistribution",
     data() {
         return {
-            word: "",
-            documents: []
+            fieldName: this.$route.params.fieldName,
+            fieldValue: this.$route.params.fieldValue
         };
     },
     mounted() {
@@ -51,33 +22,37 @@ export default {
     },
     watch: {
         // call again the method if the route changes
-        $route: "loadNewData"
+        $route: "fetchData"
     },
     beforeDestroy() {
         this.destroyChart();
     },
     methods: {
         fetchData() {
+            console.log(this.$route.params.fieldValue);
             this.$http
                 .get(
-                    `${this.$globalConfig.apiServer}/get_word_data/${this.$route.params.word}?table=${this.$globalConfig.databaseName}`
+                    `${this.$globalConfig.apiServer}/get_field_distribution/${this.$route.params.fieldName}?table=${this.$globalConfig.databaseName}&value=${this.$route.params.fieldValue}`
                 )
                 .then(response => {
-                    this.word = response.data.word;
-                    this.documents = response.data.documents;
                     this.build_topic_distribution(
-                        response.data.topic_distribution
+                        response.data.topic_distribution,
+                        response.data.coeff
                     );
                 });
         },
-        build_topic_distribution(topicDistribution) {
-            var ctx = document.getElementById("word-distribution");
+        build_topic_distribution(topicDistribution, coeff) {
+            var ctx = document.getElementById("field-distribution");
             Chart.defaults.global.responsive = true;
             Chart.defaults.global.animation.duration = 400;
             Chart.defaults.global.tooltipCornerRadius = 0;
             // Chart.defaults.global.maintainAspectRatio = false;
             Chart.defaults.bar.scales.xAxes[0].gridLines.display = false;
             var vm = this;
+            let topicData = [];
+            for (let weight of topicDistribution.data) {
+                topicData.push(weight * coeff);
+            }
             vm.topicChart = new Chart(ctx, {
                 type: "bar",
                 data: {
@@ -85,7 +60,7 @@ export default {
                     datasets: [
                         {
                             label: "weight",
-                            data: topicDistribution.data,
+                            data: topicData,
                             backgroundColor: "#55acee"
                         }
                     ]
@@ -123,7 +98,7 @@ export default {
                     let target = vm.topicChart.getElementAtEvent(e);
                     if (typeof target[0] !== "undefined") {
                         let topic = target[0]._view.label;
-                        vm.$router.push(`../topic/${topic}`);
+                        vm.$router.push(`/topic/${topic}`);
                     }
                 },
                 false

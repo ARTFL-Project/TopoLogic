@@ -1,12 +1,11 @@
 <template>
-    <div class="card shadow-sm">
-        <div class="card-header">
-            <h5>
-                {{ metadata.author}},
-                <i>{{ metadata.title }}</i>
-                ({{ metadata.year }})
-            </h5>
-        </div>
+    <b-container fluid class="mt-4">
+        <h5 class="pl-4 pr-4" style="text-align: center">
+            <i>{{ metadata.title }}</i>
+            ({{ metadata.year }})
+            <br />
+            {{ metadata.author}}
+        </h5>
         <div class="card-body">
             <div class="card-text" style="font-size: 90%">
                 <div class="row mb-4">
@@ -22,7 +21,7 @@
                                 <div class="card">
                                     <h5
                                         class="card-title p-3"
-                                    >Documents with most similar topic distribution (top {{topicSimDocs.length}})</h5>
+                                    >Top {{topicSimDocs.length}} documents with most similar topic distribution</h5>
                                     <ol class="list-group">
                                         <li
                                             v-for="doc in topicSimDocs"
@@ -42,7 +41,7 @@
                                 <div class="card">
                                     <h5
                                         class="card-title p-3"
-                                    >Documents with most similar vocabulary (top {{vectorSimDocs.length}})</h5>
+                                    >Top {{vectorSimDocs.length}} documents with most similar vocabulary</h5>
                                     <ol class="list-group">
                                         <li
                                             v-for="doc in vectorSimDocs"
@@ -91,7 +90,7 @@
                 </div>
             </div>
         </div>
-    </div>
+    </b-container>
 </template>
 <script>
 export default {

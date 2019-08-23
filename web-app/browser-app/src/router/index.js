@@ -5,7 +5,8 @@ import TopicDistributions from '../components/TopicDistributions'
 import Topic from '../components/Topic'
 import Document from '../components/Document'
 import Word from '../components/Word'
-import Vocabulary from '../components/Vocabulary'
+import FieldView from '../components/FieldView'
+import FieldDistribution from '../components/FieldDistribution'
 
 import globalConfig from '../../appConfig.json'
 
@@ -13,7 +14,6 @@ Vue.use(Router)
 
 export default new Router({
 	mode: 'history',
-	// base: '/',
 	base: globalConfig.appPath,
 	routes: [
 		{
@@ -37,9 +37,14 @@ export default new Router({
 			component: Word
 		},
 		{
-			path: '/vocabulary',
-			name: 'vocabulary',
-			component: Vocabulary
+			path: '/view/:fieldName',
+			name: 'fieldView',
+			component: FieldView
+		},
+		{
+			path: '/metadata/:fieldName/:fieldValue',
+			name: 'fieldDistribution',
+			component: FieldDistribution
 		}
 	],
 	scrollBehavior(to, from, savedPosition) {
