@@ -2,11 +2,12 @@
     <b-container fluid class="mt-4">
         <b-card no-body class="shadow-sm p-2 mb-4">
             <h5 class="card-title pt-2" style="text-align: center;">
-                Topics and their relative distribution across the corpus
+                Topics and their relative distribution
+                <b>{{ fieldValue }}</b>
                 <div style="font-size: 70%">Click to get detailed distribution</div>
             </h5>
             <b-row
-                v-for="topic in topicData"
+                v-for="topic in sortedTopicDistribution"
                 :key="topic.name"
                 class="mb-1 mr-1"
                 style="padding: .1rem; cursor: pointer"
@@ -16,7 +17,7 @@
                     <b>Topic {{topic.name}}</b>
                     ({{(topic.frequency*100).toFixed(2)}}%):
                 </b-col>
-                <b-col cols="10" class="position-relative pl-2">
+                <b-col cols="8" class="position-relative pl-2">
                     {{topic.description}}
                     <span
                         class="position-absolute"
@@ -33,10 +34,11 @@ import topics from "../../topic_words.json";
 import Chart from "chart.js/dist/Chart.js";
 
 export default {
-    name: "TopicDistributions",
+    name: "topicDistributions",
     data() {
         return {
-            topicData: topics
+            topicData: topics,
+            routeName: this.$route.name
         };
     },
     computed: {
@@ -48,6 +50,19 @@ export default {
                 }
             }
             return 100 / maxFrequency;
+        },
+        fieldValue() {
+            if (this.$route.name == "home") {
+                return "across the corpus";
+            } else {
+                return `in ${this.$route.params.fieldValue}`;
+            }
+        },
+        sortedTopicDistribution() {
+            topics.sort(function(a, b) {
+                return b.frequency - a.frequency;
+            });
+            return topics;
         }
     },
     methods: {
