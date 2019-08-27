@@ -30,21 +30,21 @@
 </template>
 
 <script>
-import topics from "../../topic_words.json";
 import Chart from "chart.js/dist/Chart.js";
+import topicData from "../../topic_words.json";
 
 export default {
     name: "topicDistributions",
+    props: ["topics"],
     data() {
         return {
-            topicData: topics,
             routeName: this.$route.name
         };
     },
     computed: {
         frequencyMultiplier: function() {
             let maxFrequency = 0.0;
-            for (let topic of topics) {
+            for (let topic of this.topics) {
                 if (topic.frequency > maxFrequency) {
                     maxFrequency = topic.frequency;
                 }
@@ -59,10 +59,18 @@ export default {
             }
         },
         sortedTopicDistribution() {
-            topics.sort(function(a, b) {
+            let topicsWithDescription = [];
+            for (let topicName in this.topics) {
+                topicsWithDescription.push({
+                    name: topicName,
+                    description: topicData[topicName].description,
+                    frequency: this.topics[topicName].frequency
+                });
+            }
+            topicsWithDescription.sort(function(a, b) {
                 return b.frequency - a.frequency;
             });
-            return topics;
+            return topicsWithDescription;
         }
     },
     methods: {
@@ -73,6 +81,5 @@ export default {
 };
 </script>
 
-<!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
 </style>

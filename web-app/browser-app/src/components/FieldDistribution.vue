@@ -1,6 +1,6 @@
 <template>
     <b-container fluid class="mt-4">
-        <topic-distributions></topic-distributions>
+        <topic-distributions v-if="topics.length" :topics="topics"></topic-distributions>
     </b-container>
 </template>
 <script>
@@ -14,8 +14,28 @@ export default {
     data() {
         return {
             fieldName: this.$route.params.fieldName,
-            fieldValue: this.$route.params.fieldValue
+            fieldValue: this.$route.params.fieldValue,
+            topics: []
         };
+    },
+    created() {
+        this.fetchData();
+    },
+    watch: {
+        // call again the method if the route changes
+        $route: "fetchData"
+    },
+    methods: {
+        fetchData() {
+            this.$http
+                .get(
+                    `${this.$globalConfig.apiServer}/get_field_distribution/${this.$route.params.fieldName}?table=${this.$globalConfig.databaseName}&value=${this.$route.params.fieldValue}`
+                )
+                .then(response => {
+                    this.topics = response.data.topic_distribution;
+                    console.log(this.topics);
+                });
+        }
     }
 };
 </script>

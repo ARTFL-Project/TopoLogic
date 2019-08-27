@@ -226,13 +226,41 @@ class DBHandler:
         return sorted([row[field] for row in self.cursor if row[field]])
 
     def get_topic_distribution_by_metadata(self, field, field_value):
-        topic_distribution = {}
+        topic_distribution = []
         self.cursor.execute(f"SELECT * FROM {self.table}_docs WHERE {field}=%s", (field_value,))
         for row in self.cursor:
             if not topic_distribution:
-                topic_distribution = json.loads(row["topic_distribution"])
+                topic_distribution = [
+                    {"name": pos, "frequency": weight}
+                    for pos, weight in enumerate(json.loads(row["topic_distribution"])["data"])
+                ]
             else:
                 for pos, weight in enumerate(json.loads(row["topic_distribution"])["data"]):
-                    topic_distribution["data"][pos] += weight
-        coeff = 1.0 / sum([weight for weight in topic_distribution["data"]])
-        return topic_distribution, coeff
+                    topic_distribution[pos]["frequency"] += weight
+        coeff = 1.0 / sum([topic["frequency"] for topic in topic_distribution])
+        topic_distribution = [
+            {"name": pos, "frequency": topic["frequency"] * coeff} for pos, topic in enumerate(topic_distribution)
+        ]
+        return topic_distribution
+
+    def get_topic_distribution_by_years(self):
+        topic_distribution = {}
+        self.cursor.execute(f"SELECT year, topic_distribution FROM {self.table}_docs")
+        for row in self.cursor:
+            if row["year"] not in topic_distribution:
+                topic_distribution[row["year"]] = json.loads(row["topic_distribution"])["data"]
+            else:
+                for pos, weight in enumerate(json.loads(row["topic_distribution"])["data"]):
+                    topic_distribution[row["year"]][pos] += weight
+        topic_distributions_list = []
+        for year, distribution in topic_distribution.items():
+            coeff = 1.0 / sum([weight for weight in distribution])
+            topic_distributions_list.append(
+                {
+                    "year": year,
+                    "data": [weight * coeff for weight in distribution],
+                    "labels": list(range(len(distribution))),
+                }
+            )
+        topic_distributions_list.sort(key=lambda x: x["year"])
+        return topic_distributions_list

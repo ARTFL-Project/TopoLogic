@@ -194,23 +194,6 @@ def get_word_data(word):
     return response
 
 
-@application.route("/get_vocabulary")
-def vocabulary():
-    config = read_config(request.args["table"])
-    db = DBHandler(DATABASE, request.args["table"])
-    word_list = db.get_vocabulary()
-    splitted_vocabulary = []
-    words_per_column = int(len(word_list) / 5)
-    for j in range(5):
-        sub_vocabulary = []
-        for l in range(j * words_per_column, (j + 1) * words_per_column):
-            sub_vocabulary.append(word_list[l][1])
-        splitted_vocabulary.append(sub_vocabulary)
-    response = jsonify(splitted_vocabulary=splitted_vocabulary, vocabulary_size=len(word_list))
-    response.headers.add("Access-Control-Allow-Origin", "*")
-    return response
-
-
 @application.route("/get_all_field_values")
 def get_all_field_values():
     config = read_config(request.args["table"])
@@ -220,14 +203,7 @@ def get_all_field_values():
         field_values = db.get_vocabulary()
     else:
         field_values = db.get_all_metadata_values(field)
-    splitted_fields = []
-    fields_per_column = int(len(field_values) / 5)
-    for j in range(5):
-        sub_field = []
-        for l in range(j * fields_per_column, (j + 1) * fields_per_column):
-            sub_field.append(field_values[l])
-        splitted_fields.append(sub_field)
-    response = jsonify(splitted_fields=splitted_fields, size=len(field_values))
+    response = jsonify(field_values=field_values, size=len(field_values))
     response.headers.add("Access-Control-Allow-Origin", "*")
     return response
 
@@ -237,7 +213,17 @@ def get_field_distribution(field):
     config = read_config(request.args["table"])
     db = DBHandler(DATABASE, request.args["table"])
     field_value = request.args["value"]
-    topic_distribution, coeff = db.get_topic_distribution_by_metadata(field, field_value)
-    response = jsonify(topic_distribution=topic_distribution, coeff=coeff)
+    topic_distribution = db.get_topic_distribution_by_metadata(field, field_value)
+    response = jsonify(topic_distribution=topic_distribution)
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    return response
+
+
+@application.route("/get_time_distributions")
+def get_time_distributions():
+    config = read_config(request.args["table"])
+    db = DBHandler(DATABASE, request.args["table"])
+    topic_distribution = db.get_topic_distribution_by_years()
+    response = jsonify(topic_distribution=topic_distribution)
     response.headers.add("Access-Control-Allow-Origin", "*")
     return response

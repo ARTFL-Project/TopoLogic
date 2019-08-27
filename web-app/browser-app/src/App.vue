@@ -14,23 +14,27 @@
                     </b-nav-item-dropdown>
                     <b-nav-item to="/view/word">Vocabulary</b-nav-item>
                     <b-nav-item to="/view/author">Topics in Authors</b-nav-item>
-                    <b-nav-item to="/view/year">Topics across Time</b-nav-item>
+                    <b-nav-item to="/time">Topics across Time</b-nav-item>
                 </b-navbar-nav>
             </b-collapse>
         </b-navbar>
         <model-statistics v-if="$route.name == 'home'"></model-statistics>
+        <topic-distributions v-if="$route.name == 'home'" :topics="topicData"></topic-distributions>
         <router-view></router-view>
     </div>
 </template>
 
 <script>
+import topics from "../topic_words.json";
 import ModelStatistics from "./components/ModelStatistics";
+import TopicDistributions from "./components/TopicDistributions";
 
 export default {
     name: "app",
-    components: { ModelStatistics },
+    components: { ModelStatistics, TopicDistributions },
     data() {
         return {
+            topicData: topics,
             topicIds: []
         };
     },
