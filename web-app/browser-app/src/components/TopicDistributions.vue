@@ -1,9 +1,11 @@
 <template>
     <b-container fluid class="mt-4">
-        <b-card no-body class="shadow-sm p-2 mb-4">
-            <h5 class="card-title pt-2" style="text-align: center;">
-                Topics and their relative distribution
-                <b>{{ fieldValue }}</b>
+        <b-card
+            no-body
+            class="shadow-sm mb-4"
+            :header="`Topics and their relative distribution ${fieldValue}`"
+        >
+            <h5 class="card-title p-2 text-center">
                 <div style="font-size: 70%">Click to get detailed distribution</div>
             </h5>
             <b-row

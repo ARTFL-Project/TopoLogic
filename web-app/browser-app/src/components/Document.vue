@@ -12,18 +12,21 @@
                     <div class="col-8">
                         <div class="row">
                             <div class="col-12">
-                                <div class="card p-2">
-                                    <h5 class="card-title">Topic distribution</h5>
-                                    <canvas id="topic-distribution" style="max-height: 400px;"></canvas>
-                                </div>
+                                <b-card header="Topic Distribution">
+                                    <canvas
+                                        id="topic-distribution"
+                                        class="m-1"
+                                        style="height: 300px; width:100%"
+                                    ></canvas>
+                                </b-card>
                             </div>
                             <div class="col-6 mt-4">
-                                <div class="card">
-                                    <h5
-                                        class="card-title p-3"
-                                    >Top {{topicSimDocs.length}} documents with most similar topic distribution</h5>
-                                    <ol class="list-group">
-                                        <li
+                                <b-card
+                                    no-body
+                                    :header="`Top ${topicSimDocs.length} documents with most similar topic distribution`"
+                                >
+                                    <b-list-group flush>
+                                        <b-list-group-item
                                             v-for="doc in topicSimDocs"
                                             :key="doc.doc_id"
                                             class="list-group-item"
@@ -33,17 +36,17 @@
                                                 <i>{{ doc.metadata.title }}</i>
                                             </router-link>
                                             ({{ doc.metadata.year }})
-                                        </li>
-                                    </ol>
-                                </div>
+                                        </b-list-group-item>
+                                    </b-list-group>
+                                </b-card>
                             </div>
                             <div class="col-6 mt-4">
-                                <div class="card">
-                                    <h5
-                                        class="card-title p-3"
-                                    >Top {{vectorSimDocs.length}} documents with most similar vocabulary</h5>
-                                    <ol class="list-group">
-                                        <li
+                                <b-card
+                                    no-body
+                                    :header="`Top ${vectorSimDocs.length} documents with most similar topic distribution`"
+                                >
+                                    <b-list-group flush>
+                                        <b-list-group-item
                                             v-for="doc in vectorSimDocs"
                                             :key="doc.doc_id"
                                             class="list-group-item"
@@ -53,17 +56,16 @@
                                                 <i>{{ doc.metadata.title }}</i>
                                             </router-link>
                                             ({{ doc.metadata.year }})
-                                        </li>
-                                    </ol>
-                                </div>
+                                        </b-list-group-item>
+                                    </b-list-group>
+                                </b-card>
                             </div>
                         </div>
                     </div>
                     <div class="col-4">
                         <div class="row">
                             <div class="col-12">
-                                <div class="card p-3" style="height: 100%">
-                                    <h5 class="card-title">Vector representation</h5>
+                                <b-card no-body style="height: 100%" header="Vector Representation">
                                     <div
                                         style="display: flex; height: 100%; justify-content: center; align-items: center;"
                                         class="card-text"
@@ -77,13 +79,10 @@
                                             >{{weightedWord[0]}}</router-link>
                                         </div>
                                     </div>
-                                </div>
+                                </b-card>
                             </div>
                             <div class="col-12 text-justify mt-4">
-                                <div class="card p-3">
-                                    <h5 class="card-title">Original text</h5>
-                                    {{ text }}
-                                </div>
+                                <b-card header="Original Text">{{ text }}</b-card>
                             </div>
                         </div>
                     </div>
@@ -93,6 +92,8 @@
     </b-container>
 </template>
 <script>
+import topicData from "../../topic_words.json";
+
 export default {
     name: "Document",
     data() {
@@ -133,7 +134,7 @@ export default {
         },
         buildTopicDistribution(topicDistribution) {
             var ctx = document.getElementById("topic-distribution");
-            Chart.defaults.global.responsive = true;
+            Chart.defaults.global.responsive = false;
             Chart.defaults.global.animation.duration = 400;
             Chart.defaults.global.tooltipCornerRadius = 0;
             // Chart.defaults.global.maintainAspectRatio = false;
@@ -158,8 +159,13 @@ export default {
                     },
                     tooltips: {
                         callbacks: {
-                            title: function(tooltipItem) {
-                                return "Topic " + tooltipItem[0].xLabel;
+                            title: function() {
+                                return "";
+                            },
+                            label: function(tooltipItem) {
+                                return `Topic ${tooltipItem.xLabel}: ${
+                                    topicData[tooltipItem.xLabel].description
+                                } (${tooltipItem.yLabel.toFixed(3)})`;
                             }
                         }
                     },

@@ -38,6 +38,8 @@
     </b-container>
 </template>
 <script>
+import topicData from "../../topic_words.json";
+
 export default {
     name: "Word",
     data() {
@@ -96,8 +98,13 @@ export default {
                     },
                     tooltips: {
                         callbacks: {
-                            title: function(tooltipItem) {
-                                return "Topic " + tooltipItem[0].xLabel;
+                            title: function() {
+                                return "";
+                            },
+                            label: function(tooltipItem) {
+                                return `Topic ${tooltipItem.xLabel}: ${
+                                    topicData[tooltipItem.xLabel].description
+                                } (${tooltipItem.yLabel.toFixed(3)})`;
                             }
                         }
                     },

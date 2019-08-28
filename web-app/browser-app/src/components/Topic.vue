@@ -7,16 +7,17 @@
         <div class="card-text" style="font-size: 90%">
             <div class="row">
                 <div class="col-4">
-                    <div class="card shadow-sm p-2">
-                        <h6>Top 20 words</h6>
-                        <canvas id="relevant-words" style="max-height:400px"></canvas>
-                    </div>
+                    <b-card class="shadow-sm" header="Top 20 Tokens">
+                        <canvas id="relevant-words" style="height:400px; width: 100%"></canvas>
+                    </b-card>
                 </div>
                 <div class="col-8">
-                    <div class="card shadow-sm p-2">
-                        <h6>Topic frequency across time (overall frequency of {{ frequency }}%)</h6>
-                        <canvas id="topic-frequency" style="max-height:400px"></canvas>
-                    </div>
+                    <b-card
+                        class="shadow-sm"
+                        :header="`Topic frequency across time (overall frequency of ${frequency}%)`"
+                    >
+                        <canvas id="topic-frequency" style="height:400px; width: 100%"></canvas>
+                    </b-card>
                 </div>
             </div>
         </div>
@@ -85,7 +86,7 @@ export default {
         buildWordDistribution(wordDistribution) {
             var ctx = document.getElementById("relevant-words");
 
-            Chart.defaults.global.responsive = true;
+            Chart.defaults.global.responsive = false;
             Chart.defaults.global.animation.duration = 400;
             Chart.defaults.global.tooltipCornerRadius = 0;
             Chart.defaults.bar.scales.xAxes[0].gridLines.display = false;

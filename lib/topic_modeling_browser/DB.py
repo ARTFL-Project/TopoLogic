@@ -243,24 +243,59 @@ class DBHandler:
         ]
         return topic_distribution
 
-    def get_topic_distribution_by_years(self):
+    def get_topic_distribution_by_years(self, interval):
         topic_distribution = {}
         self.cursor.execute(f"SELECT year, topic_distribution FROM {self.table}_docs")
+        labels = []
         for row in self.cursor:
+            distribution = json.loads(row["topic_distribution"])
+            if not labels:
+                labels = list(range(len(distribution["data"])))
             if row["year"] not in topic_distribution:
-                topic_distribution[row["year"]] = json.loads(row["topic_distribution"])["data"]
+                topic_distribution[row["year"]] = distribution["data"]
             else:
-                for pos, weight in enumerate(json.loads(row["topic_distribution"])["data"]):
+                for pos, weight in enumerate(distribution["data"]):
                     topic_distribution[row["year"]][pos] += weight
         topic_distributions_list = []
-        for year, distribution in topic_distribution.items():
-            coeff = 1.0 / sum([weight for weight in distribution])
-            topic_distributions_list.append(
-                {
-                    "year": year,
-                    "data": [weight * coeff for weight in distribution],
-                    "labels": list(range(len(distribution))),
-                }
-            )
-        topic_distributions_list.sort(key=lambda x: x["year"])
+        if interval == 1:
+            for year, distribution in topic_distribution.items():
+                coeff = 1.0 / sum(distribution)
+                topic_distributions_list.append(
+                    {"year": year, "data": [weight * coeff for weight in distribution], "labels": labels}
+                )
+            topic_distributions_list.sort(key=lambda x: x["year"])
+        else:
+            sorted_results = sorted(topic_distribution.items(), key=lambda x: x[0])
+            self.cursor.execute(f"SELECT MIN(year) FROM {self.table}_docs")
+            current_min = self.cursor.fetchone()["min"]
+            current_max = current_min + interval
+            current_group = {"year": f"{current_min}-{current_max}", "labels": labels}
+            for year, distribution in sorted_results:
+                print("YEAR", year, current_max)
+                if year < current_max:
+                    if "data" not in current_group:
+                        current_group["data"] = distribution
+                    else:
+                        for pos, weight in enumerate(distribution):
+                            current_group["data"][pos] += weight
+                else:
+                    coeff = 1.0 / sum(current_group["data"])
+                    current_group["data"] = [weight * coeff for weight in current_group["data"]]
+                    topic_distributions_list.append(current_group)
+                    current_min += interval
+                    current_max += interval
+                    while year > current_max:
+                        current_group = {
+                            "year": f"{current_min}-{current_max}",
+                            "labels": labels,
+                            "data": [0.0 for _ in range(len(labels))],
+                        }
+                        topic_distributions_list.append((current_group))
+                        current_min += interval
+                        current_max += interval
+                    current_group = {"year": f"{current_min}-{current_max}", "labels": labels, "data": distribution}
+            coeff = 1.0 / sum(current_group["data"])
+            current_group["data"] = [weight * coeff for weight in current_group["data"]]
+            topic_distributions_list.append(current_group)
+            # topic_distributions_list.sort(key=lambda x: int(x["year"].split("-")[0]))
         return topic_distributions_list

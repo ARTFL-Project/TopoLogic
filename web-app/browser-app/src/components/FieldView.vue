@@ -1,43 +1,33 @@
 <template>
     <div class="container-fluid">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <h5 class="card-title">{{ totalFields }} distinct {{fieldName}}s in corpus</h5>
-                <div class="card-text" style="font-size: 90%">
-                    <div class="row">
-                        <div
-                            class="col-6"
-                            v-for="(halfGroup, halfIndex) in alphaFields"
-                            :key="halfIndex"
+        <h5 class="text-center mt-4 mb-4">{{ header }}</h5>
+        <div class="row">
+            <div class="col-6" v-for="(halfGroup, halfIndex) in alphaFields" :key="halfIndex">
+                <b-card
+                    no-body
+                    :header="group.firstLetter"
+                    v-for="(group, index) in halfGroup"
+                    :key="index"
+                    class="mb-4 shadow-sm"
+                >
+                    <b-list-group flush>
+                        <b-list-group-item
+                            class="list-group-item"
+                            style="padding: .5rem 1rem"
+                            v-for="(value, valueIndex) in group.fields"
+                            :key="valueIndex"
                         >
-                            <b-card
-                                no-body
-                                :header="group.firstLetter"
-                                v-for="(group, index) in halfGroup"
-                                :key="index"
-                                class="mb-4 shadow-sm"
-                            >
-                                <b-list-group flush>
-                                    <b-list-group-item
-                                        class="list-group-item"
-                                        style="padding: .5rem 1rem"
-                                        v-for="(value, valueIndex) in group.fields"
-                                        :key="valueIndex"
-                                    >
-                                        <router-link
-                                            :to="`/${fieldName}/${value}`"
-                                            v-if="fieldName == 'word'"
-                                        >{{ value }}</router-link>
-                                        <router-link
-                                            :to="`/metadata/${fieldName}/${value}`"
-                                            v-if="fieldName != 'word'"
-                                        >{{ value }}</router-link>
-                                    </b-list-group-item>
-                                </b-list-group>
-                            </b-card>
-                        </div>
-                    </div>
-                </div>
+                            <router-link
+                                :to="`/${fieldName}/${value}`"
+                                v-if="fieldName == 'word'"
+                            >{{ value }}</router-link>
+                            <router-link
+                                :to="`/metadata/${fieldName}/${value}`"
+                                v-if="fieldName != 'word'"
+                            >{{ value }}</router-link>
+                        </b-list-group-item>
+                    </b-list-group>
+                </b-card>
             </div>
         </div>
     </div>
@@ -80,6 +70,13 @@ export default {
                 ];
             }
             return [];
+        },
+        header: function() {
+            if (this.fieldName == "word") {
+                return `${this.totalFields} distinct tokens across the corpus`;
+            } else {
+                return `${this.totalFields} ${this.fieldName}s across the corpus`;
+            }
         }
     },
     created() {

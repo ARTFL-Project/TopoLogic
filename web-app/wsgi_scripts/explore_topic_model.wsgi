@@ -223,7 +223,7 @@ def get_field_distribution(field):
 def get_time_distributions():
     config = read_config(request.args["table"])
     db = DBHandler(DATABASE, request.args["table"])
-    topic_distribution = db.get_topic_distribution_by_years()
+    topic_distribution = db.get_topic_distribution_by_years(int(request.args["interval"]))
     response = jsonify(topic_distribution=topic_distribution)
     response.headers.add("Access-Control-Allow-Origin", "*")
     return response
