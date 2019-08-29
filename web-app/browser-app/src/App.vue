@@ -7,10 +7,11 @@
                 <b-navbar-nav>
                     <b-nav-item-dropdown text="Navigate Topics" id="vocab-list">
                         <b-dropdown-item
-                            v-for="topic in topicIds"
-                            :key="topic"
-                            :to="`/topic/${topic}`"
-                        >Topic {{ topic }}</b-dropdown-item>
+                            v-for="topic in topicData"
+                            :key="topic.name"
+                            :to="`/topic/${topic.name}`"
+                            class="pt-1 pb-1"
+                        >Topic {{ topic.name }}: {{ topic.description }}</b-dropdown-item>
                     </b-nav-item-dropdown>
                     <b-nav-item to="/view/word">Vocabulary</b-nav-item>
                     <b-nav-item to="/view/author">Topics in Authors</b-nav-item>
@@ -37,15 +38,6 @@ export default {
             topicData: topics,
             topicIds: []
         };
-    },
-    created() {
-        this.$http
-            .get(
-                `${this.$globalConfig.apiServer}/get_topic_ids?table=${this.$globalConfig.databaseName}`
-            )
-            .then(response => {
-                this.topicIds = response.data;
-            });
     }
 };
 </script>

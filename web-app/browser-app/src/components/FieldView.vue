@@ -89,7 +89,6 @@ export default {
     methods: {
         fetchData() {
             this.fieldName = this.$route.params.fieldName;
-            this.splitted_fields = [];
             this.$http
                 .get(
                     `${this.$globalConfig.apiServer}/get_all_field_values?table=${this.$globalConfig.databaseName}&field=${this.$route.params.fieldName}`

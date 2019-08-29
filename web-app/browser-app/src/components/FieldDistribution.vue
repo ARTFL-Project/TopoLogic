@@ -33,7 +33,6 @@ export default {
                 )
                 .then(response => {
                     this.topics = response.data.topic_distribution;
-                    console.log(this.topics);
                 });
         }
     }
