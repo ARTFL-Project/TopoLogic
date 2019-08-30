@@ -12,12 +12,16 @@
                     <div class="col-8">
                         <div class="row">
                             <div class="col-12">
-                                <b-card header="Topic Distribution">
-                                    <canvas
-                                        id="topic-distribution"
-                                        class="m-1"
-                                        style="height: 300px; width:100%"
-                                    ></canvas>
+                                <b-card no-body header="Topic Distribution">
+                                    <div class="pl-2 pr-2">
+                                        <apexchart
+                                            height="300px"
+                                            width="100%"
+                                            type="bar"
+                                            :options="options"
+                                            :series="series"
+                                        ></apexchart>
+                                    </div>
                                 </b-card>
                             </div>
                             <div class="col-6 mt-4">
@@ -102,7 +106,52 @@ export default {
             text: "",
             words: [],
             vectorSimDocs: [],
-            topicSimDocs: []
+            topicSimDocs: [],
+            options: {
+                chart: {
+                    id: "topic-distribution",
+                    toolbar: {
+                        show: false
+                    },
+                    events: {
+                        click: this.goToTopic
+                    }
+                },
+                xaxis: {
+                    categories: []
+                },
+                yaxis: {
+                    labels: {
+                        formatter: val => val.toFixed(2)
+                    }
+                },
+                grid: {
+                    padding: {
+                        left: 0,
+                        right: 0,
+                        top: 0,
+                        bottom: 0
+                    }
+                },
+                dataLabels: {
+                    enabled: false
+                },
+                tooltip: {
+                    x: {
+                        formatter: val =>
+                            `Topic ${val}: ${topicData[val].description}`
+                    },
+                    y: {
+                        formatter: val => val.toFixed(4)
+                    }
+                }
+            },
+            series: [
+                {
+                    name: "",
+                    data: []
+                }
+            ]
         };
     },
     mounted() {
@@ -111,9 +160,6 @@ export default {
     watch: {
         // call again the method if the route changes
         $route: "loadNewData"
-    },
-    beforeDestroy() {
-        this.destroyChart();
     },
     methods: {
         fetchData() {
@@ -133,77 +179,24 @@ export default {
                 });
         },
         buildTopicDistribution(topicDistribution) {
-            var ctx = document.getElementById("topic-distribution");
-            Chart.defaults.global.responsive = false;
-            Chart.defaults.global.animation.duration = 400;
-            Chart.defaults.global.tooltipCornerRadius = 0;
-            // Chart.defaults.global.maintainAspectRatio = false;
-            Chart.defaults.bar.scales.xAxes[0].gridLines.display = false;
-            var vm = this;
-            vm.myChart = new Chart(ctx, {
-                type: "bar",
-                data: {
-                    labels: topicDistribution.labels,
-                    datasets: [
-                        {
-                            label: "weight",
-                            data: topicDistribution.data,
-                            backgroundColor: "#55acee"
-                        }
-                    ]
-                },
-                options: {
-                    maintainAspectRatio: false,
-                    legend: {
-                        display: false
-                    },
-                    tooltips: {
-                        callbacks: {
-                            title: function() {
-                                return "";
-                            },
-                            label: function(tooltipItem) {
-                                return `Topic ${tooltipItem.xLabel}: ${
-                                    topicData[tooltipItem.xLabel].description
-                                } (${tooltipItem.yLabel.toFixed(3)})`;
-                            }
-                        }
-                    },
-                    scales: {
-                        yAxes: {
-                            scaleLabel: {
-                                display: true,
-                                labelString: "weight"
-                            }
-                        },
-                        yAxes: {
-                            scaleLabel: {
-                                display: true,
-                                labelString: "topics"
-                            }
-                        }
+            this.series[0].data = topicDistribution.data;
+            this.options = {
+                ...this.options,
+                ...{
+                    xaxis: {
+                        categories: topicDistribution.labels
                     }
                 }
-            });
-            ctx.addEventListener(
-                "click",
-                function(e) {
-                    let target = vm.myChart.getElementAtEvent(e);
-                    if (typeof target[0] !== "undefined") {
-                        console.log(target[0]._view.label);
-                        let topic = target[0]._view.label;
-                        vm.$router.push(`/topic/${topic}`);
-                    }
-                },
-                false
-            );
+            };
         },
         loadNewData() {
-            this.destroyChart();
             this.fetchData();
         },
-        destroyChart() {
-            this.myChart.destroy();
+        goToTopic(event) {
+            let seriesIndex = parseInt(event.target.getAttribute("j"));
+            this.$router.push(
+                `/topic/${this.options.xaxis.categories[seriesIndex]}`
+            );
         }
     }
 };

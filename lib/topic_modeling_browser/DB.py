@@ -243,7 +243,16 @@ class DBHandler:
         ]
         return topic_distribution
 
-    def get_topic_distribution_by_years(self, interval):
+    def get_topic_distributions_over_time(self, interval):
+        distributions_over_time = []
+        self.cursor.execute(f"SELECT topic_id, topic_evolution FROM {self.table}_topics")
+        for row in self.cursor:
+            distributions_over_time.append(
+                {"topic": row["topic_id"], "topic_evolution": json.loads(row["topic_evolution"])}
+            )
+        return distributions_over_time
+
+    def old_get_topic_distribution_by_years(self, interval):
         topic_distribution = {}
         self.cursor.execute(f"SELECT year, topic_distribution FROM {self.table}_docs")
         labels = []

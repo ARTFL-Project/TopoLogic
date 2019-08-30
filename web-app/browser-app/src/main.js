@@ -5,11 +5,17 @@ import BootstrapVue from 'bootstrap-vue'
 import 'bootstrap/dist/css/bootstrap.css'
 import 'bootstrap-vue/dist/bootstrap-vue.css'
 import axios from 'axios'
+import VueApexCharts from 'vue-apexcharts'
+
 
 import globalConfig from "../appConfig.json";
 
 Vue.config.productionTip = false
 Vue.use(BootstrapVue)
+
+Vue.use(VueApexCharts)
+Vue.component('apexchart', VueApexCharts)
+
 Vue.prototype.$http = axios
 Vue.prototype.$globalConfig = globalConfig
 

@@ -2,21 +2,34 @@
     <div class="container-fluid">
         <h5 class="mb-4" style="text-align: center">
             Representation of topic
-            <b>{{topic}}</b> across corpus
+            <b>{{topic}}</b>
+            across corpus (overall frequency of {{frequency}}%)
         </h5>
         <div class="card-text" style="font-size: 90%">
             <div class="row">
                 <div class="col-4">
-                    <b-card class="shadow-sm" header="Top 20 Tokens">
-                        <canvas id="relevant-words" style="height:400px; width: 100%"></canvas>
+                    <b-card no-body class="shadow-sm" header="Top 20 Tokens">
+                        <div class="p-4">
+                            <apexchart
+                                type="bar"
+                                height="450px"
+                                :options="wordDistributionChartOptions"
+                                :series="wordDistributionSeries"
+                            />
+                        </div>
                     </b-card>
                 </div>
                 <div class="col-8">
-                    <b-card
-                        class="shadow-sm"
-                        :header="`Topic frequency across time (overall frequency of ${frequency}%)`"
-                    >
-                        <canvas id="topic-frequency" style="height:400px; width: 100%"></canvas>
+                    <b-card no-body class="shadow-sm" header="Topic frequency across time">
+                        <div class="p-4">
+                            <apexchart
+                                width="100%"
+                                height="435px"
+                                type="line"
+                                :options="topicEvolutionChartOptions"
+                                :series="topicEvolutionSeries"
+                            ></apexchart>
+                        </div>
                     </b-card>
                 </div>
             </div>
@@ -57,14 +70,109 @@ export default {
             topicData: {},
             documents: [],
             frequency: 0,
-            topic: this.$route.params.topic
+            topic: this.$route.params.topic,
+            topicEvolutionChartOptions: {
+                chart: {
+                    id: "topic-evolution",
+                    toolbar: {
+                        show: false
+                    }
+                },
+                xaxis: {
+                    categories: []
+                },
+                stroke: {
+                    curve: "smooth",
+                    width: 2
+                },
+                grid: {
+                    padding: {
+                        left: 0,
+                        right: 0,
+                        top: 0,
+                        bottom: 0
+                    }
+                }
+            },
+            topicEvolutionSeries: [
+                {
+                    name: "Topic Evolution",
+                    data: []
+                }
+            ],
+            wordDistributionChartOptions: {
+                chart: {
+                    sparkline: {
+                        enabled: true
+                    },
+                    toolbar: {
+                        show: false
+                    },
+                    events: {
+                        click: this.goToWord
+                    }
+                },
+                plotOptions: {
+                    bar: {
+                        barHeight: "100%",
+                        distributed: true,
+                        horizontal: true,
+                        dataLabels: {
+                            position: "bottom"
+                        }
+                    }
+                },
+                colors: [
+                    "#33b2df",
+                    "#546E7A",
+                    "#d4526e",
+                    "#13d8aa",
+                    "#A5978B",
+                    "#2b908f",
+                    "#f9a3a4",
+                    "#90ee7e",
+                    "#f48024",
+                    "#69d2e7"
+                ],
+                dataLabels: {
+                    enabled: true,
+                    textAnchor: "start",
+                    style: {
+                        colors: ["#fff"],
+                        fontSize: "14px"
+                    },
+                    formatter: function(val, opt) {
+                        return (
+                            opt.w.globals.labels[opt.dataPointIndex] +
+                            ":  " +
+                            val
+                        );
+                    },
+                    offsetX: 0,
+                    dropShadow: {
+                        enabled: true
+                    }
+                },
+                stroke: {
+                    width: 0.5,
+                    colors: ["#fff"]
+                },
+                xaxis: {
+                    categories: []
+                },
+                grid: {
+                    show: false
+                }
+            },
+            wordDistributionSeries: [
+                {
+                    data: []
+                }
+            ]
         };
     },
     mounted() {
         this.fetchData();
-    },
-    beforeDestroy() {
-        this.destroyChart();
     },
     watch: {
         // call again the method if the route changes
@@ -83,140 +191,61 @@ export default {
                     this.buildTopicEvolution(response.data.topic_evolution);
                 });
         },
+        sumArray: function(arr) {
+            return arr.reduce(function(a, b) {
+                return a + b;
+            }, 0);
+        },
+        formatTopicEvolution(topicEvolution) {
+            let arrSum = this.sumArray(topicEvolution);
+            let coeff = 1.0 / arrSum;
+            let weightedTopicEvolution = [];
+            for (let value of topicEvolution) {
+                weightedTopicEvolution.push((coeff * value).toFixed(2));
+            }
+            return weightedTopicEvolution;
+        },
+        formatWordDistribution(wordDistribution) {
+            for (let index = 0; index < wordDistribution.length; index += 1) {
+                wordDistribution[index] = wordDistribution[index].toFixed(2);
+            }
+            return wordDistribution;
+        },
         buildWordDistribution(wordDistribution) {
-            var ctx = document.getElementById("relevant-words");
-
-            Chart.defaults.global.responsive = false;
-            Chart.defaults.global.animation.duration = 400;
-            Chart.defaults.global.tooltipCornerRadius = 0;
-            Chart.defaults.bar.scales.xAxes[0].gridLines.display = false;
-            Chart.defaults.global.defaultFontSize = "14";
-            var vm = this;
-            vm.wordChart = new Chart(ctx, {
-                type: "horizontalBar",
-                data: {
-                    labels: wordDistribution.labels,
-                    datasets: [
-                        {
-                            label: "weight",
-                            data: wordDistribution.data,
-                            backgroundColor: "rgba(85,172,238, .6)"
-                        }
-                    ]
-                },
-                options: {
-                    maintainAspectRatio: false,
-                    tooltips: {
-                        enabled: false
-                    },
-                    legend: {
-                        display: false
-                    },
-                    scales: {
-                        xAxes: [
-                            {
-                                display: false,
-                                gridLines: {
-                                    display: false,
-                                    offsetGridLines: false
-                                }
-                            }
-                        ],
-                        yAxes: [
-                            {
-                                display: false,
-                                gridLines: {
-                                    barThickness: 20,
-                                    display: false
-                                }
-                            }
-                        ]
-                    },
-                    hover: {
-                        animationDuration: 0
-                    },
-                    animation: {
-                        duration: 1,
-                        onComplete() {
-                            const chartInstance = this.chart;
-                            const ctx2 = chartInstance.ctx;
-                            const dataset = this.data.datasets[0];
-                            const meta = chartInstance.controller.getDatasetMeta(
-                                0
-                            );
-
-                            Chart.helpers.each(
-                                meta.data.forEach((bar, index) => {
-                                    const label = this.data.labels[index];
-                                    const labelPositionX = 10;
-                                    const labelWidth =
-                                        ctx2.measureText(label).width +
-                                        labelPositionX;
-
-                                    ctx2.textBaseline = "middle";
-                                    ctx2.textAlign = "left";
-                                    ctx2.fillStyle = "#444";
-                                    ctx2.fillText(
-                                        label,
-                                        labelPositionX,
-                                        bar._model.y
-                                    );
-                                })
-                            );
-                        }
+            this.wordDistributionChartOptions = {
+                ...this.wordDistributionChartOptions,
+                ...{
+                    xaxis: {
+                        categories: wordDistribution.labels
                     }
                 }
-            });
-
-            ctx.addEventListener(
-                "click",
-                function(e) {
-                    let target = vm.wordChart.getElementAtEvent(e);
-                    if (typeof target[0] !== "undefined") {
-                        let word = target[0]._view.label;
-                        vm.$router.push(`../word/${word}`);
-                    }
-                },
-                false
+            };
+            this.wordDistributionSeries[0].data = this.formatWordDistribution(
+                wordDistribution.data
             );
         },
         buildTopicEvolution(topicEvolution) {
-            var ctx2 = document.getElementById("topic-frequency");
-            Chart.defaults.global.responsive = true;
-            Chart.defaults.global.animation.duration = 400;
-            Chart.defaults.global.tooltipCornerRadius = 0;
-            // Chart.defaults.global.maintainAspectRatio = false;
-            Chart.defaults.bar.scales.xAxes[0].gridLines.display = false;
-            this.topicChart = new Chart(ctx2, {
-                type: "line",
-                data: {
-                    labels: topicEvolution.labels,
-                    datasets: [
-                        {
-                            data: topicEvolution.data,
-                            borderColor: "#55acee",
-                            fill: false,
-                            borderWidth: 1,
-                            pointRadius: 0,
-                            pointTension: 0
-                        }
-                    ]
-                },
-                options: {
-                    maintainAspectRatio: false,
-                    legend: {
-                        display: false
+            this.topicEvolutionSeries[0].data = this.formatTopicEvolution(
+                topicEvolution.data
+            );
+
+            this.topicEvolutionChartOptions = {
+                ...this.topicEvolutionChartOptions,
+                ...{
+                    xaxis: {
+                        categories: topicEvolution.labels
                     }
                 }
-            });
+            };
         },
         loadNewData() {
-            this.destroyChart();
             this.fetchData();
         },
-        destroyChart() {
-            this.wordChart.destroy();
-            this.topicChart.destroy();
+        goToWord(event) {
+            let seriesIndex = parseInt(event.target.getAttribute("j"));
+            this.$router.push(
+                `/word/${this.wordDistributionChartOptions.xaxis.categories[seriesIndex]}`
+            );
         }
     }
 };

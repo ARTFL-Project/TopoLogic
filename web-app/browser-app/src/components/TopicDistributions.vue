@@ -29,31 +29,11 @@
                     ></span>
                 </template>
             </b-table>
-            <!-- <b-row
-                v-for="topic in sortedTopicDistribution"
-                :key="topic.name"
-                class="mb-1 mr-1"
-                style="padding: .1rem; cursor: pointer"
-                @click="goToTopic(topic.name)"
-            >
-                <b-col cols="2" style="text-align: right">
-                    <b>Topic {{topic.name}}</b>
-                    ({{(topic.frequency*100).toFixed(2)}}%):
-                </b-col>
-                <b-col cols="8" class="position-relative pl-2">
-                    {{topic.description}}
-                    <span
-                        class="position-absolute"
-                        :style="`display: inline-block; background-color: rgba(85,172,238, .4); height: 100%; left: 0; top: 0; width: ${topic.frequency*frequencyMultiplier}%;`"
-                    ></span>
-                </b-col>
-            </b-row>-->
         </b-card>
     </b-container>
 </template>
 
 <script>
-import Chart from "chart.js/dist/Chart.js";
 import topicData from "../../topic_words.json";
 
 export default {
@@ -65,10 +45,9 @@ export default {
         };
     },
     mounted() {
-        var vm = this;
         document
             .querySelectorAll("tr > td:nth-child(3)")
-            .forEach(function(element, index) {
+            .forEach(function(element) {
                 element.style.position = "relative";
                 element.style.padding = "0.75rem";
             });

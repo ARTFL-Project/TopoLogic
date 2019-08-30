@@ -1,38 +1,52 @@
 <template>
     <b-container fluid class="mt-4">
-        <div class="card shadow-sm">
-            <div class="card-header">
-                <h5>
-                    Distribution of
-                    <b>{{ word }}</b> in the corpus
-                </h5>
+        <h5 class="text-center">
+            Distribution of
+            <b>{{ word }}</b> in the corpus
+        </h5>
+        <div class="row mt-4 p-2">
+            <div class="col-7">
+                <b-card
+                    no-body
+                    class="shadow-sm"
+                    :header="`Word distribution of ${word} across topics`"
+                >
+                    <div class="p-2">
+                        <apexchart
+                            type="bar"
+                            width="100%"
+                            height="400px"
+                            :options="options"
+                            :series="series"
+                        ></apexchart>
+                    </div>
+                </b-card>
             </div>
-            <div class="row mt-4 p-2">
-                <div class="col-7">
-                    <div class="card shadow-sm p-2">
-                        <h5 class="mb-2">Word distribution of "{{ word }}" across topics</h5>
-                        <canvas id="word-distribution" width="400" max-height="400"></canvas>
-                    </div>
-                </div>
-                <div class="col-5">
-                    <div class="card shadow-sm">
-                        <h5 class="p-2">Top {{ documents.length }} documents by relevance</h5>
-                        <ul class="list-group">
-                            <li
-                                v-for="doc in documents"
-                                :key="doc.doc_id"
-                                class="list-group-item"
-                                style="border-radius: 0px; border-width: 1px 0px; font-size: 90%"
-                            >
-                                <router-link :to="`/document/${doc.doc_id}`">
-                                    <i>{{ doc.metadata.title }}</i>
-                                </router-link>
-                                &#9702;&nbsp;{{ doc.metadata.author }}
-                                (score: {{doc.score.toFixed( 2 )}})
-                            </li>
-                        </ul>
-                    </div>
-                </div>
+            <div class="col-5">
+                <b-card
+                    no-body
+                    class="shadow-sm"
+                    :header="`Top ${documents.length} documents by relevance`"
+                >
+                    <b-list-group flush>
+                        <b-list-group-item
+                            v-for="doc in documents"
+                            :key="doc.doc_id"
+                            class="list-group-item"
+                            style="border-radius: 0px; border-width: 1px 0px; font-size: 90%"
+                        >
+                            <router-link :to="`/document/${doc.doc_id}`">
+                                <i>{{ doc.metadata.title }}</i>
+                            </router-link>
+                            &#9702;&nbsp;{{ doc.metadata.author }}
+                            <b-badge
+                                variant="primary"
+                                pill
+                                class="float-right"
+                            >{{doc.score.toFixed(3)}}</b-badge>
+                        </b-list-group-item>
+                    </b-list-group>
+                </b-card>
             </div>
         </div>
     </b-container>
@@ -45,7 +59,52 @@ export default {
     data() {
         return {
             word: "",
-            documents: []
+            documents: [],
+            options: {
+                chart: {
+                    id: "topic-distribution",
+                    toolbar: {
+                        show: false
+                    },
+                    events: {
+                        click: this.goToTopic
+                    }
+                },
+                xaxis: {
+                    categories: []
+                },
+                yaxis: {
+                    labels: {
+                        formatter: val => val.toFixed(2)
+                    }
+                },
+                grid: {
+                    padding: {
+                        left: 0,
+                        right: 0,
+                        top: 0,
+                        bottom: 0
+                    }
+                },
+                dataLabels: {
+                    enabled: false
+                },
+                tooltip: {
+                    x: {
+                        formatter: val =>
+                            `Topic ${val}: ${topicData[val].description}`
+                    },
+                    y: {
+                        formatter: val => val.toFixed(4)
+                    }
+                }
+            },
+            series: [
+                {
+                    name: "",
+                    data: []
+                }
+            ]
         };
     },
     mounted() {
@@ -54,9 +113,6 @@ export default {
     watch: {
         // call again the method if the route changes
         $route: "loadNewData"
-    },
-    beforeDestroy() {
-        this.destroyChart();
     },
     methods: {
         fetchData() {
@@ -73,75 +129,18 @@ export default {
                 });
         },
         build_topic_distribution(topicDistribution) {
-            var ctx = document.getElementById("word-distribution");
-            Chart.defaults.global.responsive = true;
-            Chart.defaults.global.animation.duration = 400;
-            Chart.defaults.global.tooltipCornerRadius = 0;
-            // Chart.defaults.global.maintainAspectRatio = false;
-            Chart.defaults.bar.scales.xAxes[0].gridLines.display = false;
-            var vm = this;
-            vm.topicChart = new Chart(ctx, {
-                type: "bar",
-                data: {
-                    labels: topicDistribution.labels,
-                    datasets: [
-                        {
-                            label: "weight",
-                            data: topicDistribution.data,
-                            backgroundColor: "#55acee"
-                        }
-                    ]
-                },
-                options: {
-                    legend: {
-                        display: false
-                    },
-                    tooltips: {
-                        callbacks: {
-                            title: function() {
-                                return "";
-                            },
-                            label: function(tooltipItem) {
-                                return `Topic ${tooltipItem.xLabel}: ${
-                                    topicData[tooltipItem.xLabel].description
-                                } (${tooltipItem.yLabel.toFixed(3)})`;
-                            }
-                        }
-                    },
-                    scales: {
-                        yAxes: {
-                            scaleLabel: {
-                                display: true,
-                                labelString: "weight"
-                            }
-                        },
-                        yAxes: {
-                            scaleLabel: {
-                                display: true,
-                                labelString: "topics"
-                            }
-                        }
+            this.series[0].data = topicDistribution.data;
+            this.options = {
+                ...this.options,
+                ...{
+                    xaxis: {
+                        categories: topicDistribution.labels
                     }
                 }
-            });
-            ctx.addEventListener(
-                "click",
-                function(e) {
-                    let target = vm.topicChart.getElementAtEvent(e);
-                    if (typeof target[0] !== "undefined") {
-                        let topic = target[0]._view.label;
-                        vm.$router.push(`../topic/${topic}`);
-                    }
-                },
-                false
-            );
+            };
         },
         loadNewData() {
-            this.destroyChart();
             this.fetchData();
-        },
-        destroyChart() {
-            this.topicChart.destroy();
         }
     }
 };
