@@ -128,28 +128,20 @@ export default {
             return shuffled;
         },
         clearAllSeries() {
-            this.series = [
-                { name: "", data: this.options.xaxis.categories.map(i => 0.0) }
-            ];
+            this.series = this.series.map(series => ({
+                name: series.name,
+                data: this.options.xaxis.categories.map(i => 0.0)
+            }));
             document
                 .querySelectorAll(".topic-legend")
                 .forEach(el => (el.style.backgroundColor = "#fff"));
+            this.seriesActive = [];
         },
         selectTopic(topic) {
-            if (this.allSeriesVisible) {
-                this.series = [
-                    {
-                        name: topic,
-                        data: this.topicsOverTime[topic].topic_evolution.data
-                    }
-                ];
-                this.allSeriesVisible = false;
-                this.seriesActive = [topic];
-                this.highlightTopic(topic, topic, this.series.length);
-            } else if (this.seriesActive.includes(topic)) {
+            if (this.seriesActive.includes(topic)) {
                 for (let i = 0; i < this.series.length; i += 1) {
                     if (topic == this.series[i].name) {
-                        this.series.splice(i, 1);
+                        this.series[i].data = [];
                     }
                 }
                 this.seriesActive.splice(this.seriesActive.indexOf(topic), 1);
@@ -158,13 +150,10 @@ export default {
                 ).style.backgroundColor = "#fff";
             } else {
                 let localSeries = JSON.parse(JSON.stringify(this.series));
-                localSeries.push({
+                localSeries[topic] = {
                     name: topic,
                     data: this.topicsOverTime[topic].topic_evolution.data
-                });
-                localSeries.sort(function(a, b) {
-                    return a.name - b.name;
-                });
+                };
                 this.series = localSeries;
                 this.seriesActive.push(topic);
                 this.highlightTopic(topic, topic, this.series.length);
@@ -174,7 +163,7 @@ export default {
         highlightTopic(topic, indexNum, arrayLength) {
             document.getElementById(
                 `topic-${topic}`
-            ).style.backgroundColor = this.options.colors[arrayLength - 1];
+            ).style.backgroundColor = this.options.colors[indexNum];
         },
         randomizeColors(colors, colorNum) {
             colorNum += 1;
@@ -220,13 +209,6 @@ export default {
 
                 return "rgb(" + r + "," + g + "," + b + ")";
             };
-            console.log(
-                colorNum - 1,
-                "out of",
-                colors,
-                "returns",
-                HSLToRGB((colorNum * (360 / colors)) % 360, 100, 60)
-            );
             return HSLToRGB((colorNum * (360 / colors)) % 360, 100, 60);
         }
     }
@@ -239,6 +221,7 @@ export default {
     text-overflow: ellipsis;
     white-space: nowrap;
     overflow: hidden;
+    cursor: pointer;
 }
 .topic-legend {
     padding: 8px;
@@ -248,6 +231,5 @@ export default {
     border-color: rgb(0, 0, 0);
     border-style: solid;
     border-width: 2px;
-    cursor: pointer;
 }
 </style>
