@@ -130,11 +130,14 @@ export default {
         clearAllSeries() {
             this.series = this.series.map(series => ({
                 name: series.name,
-                data: this.options.xaxis.categories.map(i => 0.0)
+                data: this.options.xaxis.categories.map(() => 0.0)
             }));
             document
                 .querySelectorAll(".topic-legend")
                 .forEach(el => (el.style.backgroundColor = "#fff"));
+            document
+                .querySelectorAll(".topic")
+                .forEach(el => (el.style.color = "rgba(0, 0, 0, 0.35)"));
             this.seriesActive = [];
         },
         selectTopic(topic) {
@@ -145,9 +148,9 @@ export default {
                     }
                 }
                 this.seriesActive.splice(this.seriesActive.indexOf(topic), 1);
-                document.getElementById(
-                    `topic-${topic}`
-                ).style.backgroundColor = "#fff";
+                let el = document.getElementById(`topic-${topic}`);
+                el.style.backgroundColor = "#fff";
+                el.parentNode.style.color = "rgba(0, 0, 0, .35)";
             } else {
                 let localSeries = JSON.parse(JSON.stringify(this.series));
                 localSeries[topic] = {
@@ -157,10 +160,12 @@ export default {
                 this.series = localSeries;
                 this.seriesActive.push(topic);
                 this.highlightTopic(topic, topic, this.series.length);
+                let el = document.getElementById(`topic-${topic}`);
+                el.parentNode.style.color = "inherit";
             }
             window.scrollTo({ top: 0, behavior: "smooth" });
         },
-        highlightTopic(topic, indexNum, arrayLength) {
+        highlightTopic(topic, indexNum) {
             document.getElementById(
                 `topic-${topic}`
             ).style.backgroundColor = this.options.colors[indexNum];

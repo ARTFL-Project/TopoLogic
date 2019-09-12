@@ -9,6 +9,9 @@ from scipy import cluster, spatial
 from scipy.sparse import coo_matrix
 from sklearn.decomposition import NMF
 from sklearn.decomposition import LatentDirichletAllocation as LDA
+from sklearn.metrics import pairwise_distances
+from multiprocess import Pool
+from tqdm import tqdm
 
 from .corpus import Corpus
 from .stats import agreement_score, symmetric_kl
@@ -59,7 +62,10 @@ class TopicModel(object):
             doc_count += 1
         self.document_topic_matrix = coo_matrix((data, (row, col)), shape=(self.corpus.size, self.nb_topics)).tocsr()
 
-    def greene_metric(self, min_num_topics=10, step=5, max_num_topics=50, top_n_words=10, tao=10):
+    def most_similar_topic_by_doc_distribution(self):
+        return pairwise_distances(self.document_topic_matrix.transpose())
+
+    def greene_metric(self, corpus, min_num_topics=10, step=5, max_num_topics=50, top_n_words=10, tao=10, workers=4):
         """
         Implements Greene metric to compute the optimal number of topics. Taken from How Many Topics?
         Stability Analysis for Topic Models from Greene et al. 2014.
@@ -70,96 +76,44 @@ class TopicModel(object):
         :param tao: Number of sampled models to build
         :return: A list of len (max_num_topics - min_num_topics) with the stability of each tested k
         """
-        stability = []
         # Build reference topic model
         # Generate tao topic models with tao samples of the corpus
-        for k in range(min_num_topics, max_num_topics + 1, step):
+        # stability = []
+        # for k in range(min_num_topics, max_num_topics + 1, step):
+        #     self.infer_topics(k)
+        #     reference_rank = [list(zip(*self.top_words(i, top_n_words)))[0] for i in range(k)]
+        #     agreement_score_list = []
+        #     for t in range(tao):
+        #         print(f"\rEvaluating {k} topics... {t}/{tao}", end="", flush=True)
+        #         corpus.sample_corpus()
+        #         tao_model = type(self)(corpus)
+        #         tao_model.infer_topics(k)
+        #         tao_rank = [next(zip(*tao_model.top_words(i, top_n_words))) for i in range(k)]
+        #         agreement_score_list.append(agreement_score(reference_rank, tao_rank))
+        #     stability.append(np.mean(agreement_score_list))
+        # print()
+
+        def inner_greene(k):
             self.infer_topics(k)
             reference_rank = [list(zip(*self.top_words(i, top_n_words)))[0] for i in range(k)]
             agreement_score_list = []
             for t in range(tao):
-                print(f"\rEvaluating {k} topics... {t}/{tao}", end="", flush=True)
-                tao_corpus = Corpus(
-                    source_file_path=self.corpus._source_file_path,
-                    language=self.corpus._language,
-                    n_gram=self.corpus._n_gram,
-                    vectorization=self.corpus._vectorization,
-                    max_relative_frequency=self.corpus._max_relative_frequency,
-                    min_absolute_frequency=self.corpus._min_absolute_frequency,
-                    sample=True,
-                )
-                tao_model = type(self)(tao_corpus)
+                corpus.sample_corpus()
+                tao_model = type(self)(corpus)
                 tao_model.infer_topics(k)
                 tao_rank = [next(zip(*tao_model.top_words(i, top_n_words))) for i in range(k)]
                 agreement_score_list.append(agreement_score(reference_rank, tao_rank))
-            stability.append(np.mean(agreement_score_list))
-        print()
+            return k, np.mean(agreement_score_list)
+
+        steps = list(range(min_num_topics, max_num_topics + 1, step))
+        stability = []
+        with tqdm(total=len(steps), smoothing=0, leave=False, desc="Evaluating topic numbers") as pbar:
+            with Pool(workers) as pool:
+                for result in pool.imap_unordered(inner_greene, steps):
+                    stability.append(result)
+                    pbar.update()
+        stability = [i for _, i in sorted(stability, key=lambda x: x[0])]
         return stability
-
-    def arun_metric(self, min_num_topics=10, max_num_topics=50, iterations=10):
-        """
-        Implements Arun metric to estimate the optimal number of topics:
-        Arun, R., V. Suresh, C. V. Madhavan, and M. N. Murthy
-        On finding the natural number of topics with latent dirichlet allocation: Some observations.
-        In PAKDD (2010), pp. 391–402.
-        :param min_num_topics: Minimum number of topics to test
-        :param max_num_topics: Maximum number of topics to test
-        :param iterations: Number of iterations per value of k
-        :return: A list of len (max_num_topics - min_num_topics) with the average symmetric KL divergence for each k
-        """
-        kl_matrix = []
-        for j in range(iterations):
-            kl_list = []
-            l = np.array(
-                [sum(self.corpus.vector_for_document(doc_id)) for doc_id in range(self.corpus.size)]
-            )  # document length
-            norm = np.linalg.norm(l)
-            for i in range(min_num_topics, max_num_topics + 1):
-                print(f"\rIteration {j+1}/{iterations}... {i}/{max_num_topics} topics", end="", flush=True)
-                self.infer_topics(i)
-                c_m1 = np.linalg.svd(self.topic_word_matrix.todense(), compute_uv=False)
-                c_m2 = l.dot(self.document_topic_matrix.todense())
-                c_m2 += 0.0001  # we need this to prevent components equal to zero
-                c_m2 /= norm
-                kl_list.append(symmetric_kl(c_m1.tolist(), c_m2.tolist()[0]))
-            kl_matrix.append(kl_list)
-        ouput = np.array(kl_matrix)
-        return ouput.mean(axis=0)
-
-    def brunet_metric(self, min_num_topics=10, max_num_topics=50, iterations=10):
-        """
-        Implements a consensus-based metric to estimate the optimal number of topics:
-        Brunet, J.P., Tamayo, P., Golub, T.R., Mesirov, J.P.
-        Metagenes and molecular pattern discovery using matrix factorization.
-        Proc. National Academy of Sciences 101(12) (2004), pp. 4164–4169
-        :param min_num_topics:
-        :param max_num_topics:
-        :param iterations:
-        :return:
-        """
-        cophenetic_correlation = []
-        for i in range(min_num_topics, max_num_topics + 1):
-            average_C = np.zeros((self.corpus.size, self.corpus.size))
-            for j in range(iterations):
-                print(f"\rEvaluating {i} topics... {j}/{iterations}", end="", flush=True)
-                self.infer_topics(i)
-                for p in range(self.corpus.size):
-                    for q in range(self.corpus.size):
-                        if self.most_likely_topic_for_document(p) == self.most_likely_topic_for_document(q):
-                            average_C[p, q] += float(1.0 / iterations)
-
-            clustering = cluster.hierarchy.linkage(average_C, method="average")
-            Z = cluster.hierarchy.dendrogram(clustering, orientation="right")
-            index = Z["leaves"]
-            average_C = average_C[index, :]
-            average_C = average_C[:, index]
-            (c, d) = cluster.hierarchy.cophenet(Z=clustering, Y=spatial.distance.pdist(average_C))
-            # plt.clf()
-            # f, ax = plt.subplots(figsize=(11, 9))
-            # ax = sns.heatmap(average_C)
-            # plt.savefig('reorderedC.png')
-            cophenetic_correlation.append(c)
-        return cophenetic_correlation
 
     def print_topics(self, num_words=10, sort_by_freq=""):
         frequency = self.topics_frequency()
@@ -195,7 +149,7 @@ class TopicModel(object):
         if num_docs is not None:
             return weighted_docs[:num_docs]
         else:
-            return [d for d in weighted_docs if d[1] > 0][:1000]
+            return [d for d in weighted_docs if d[1] > 0]
 
     def word_distribution_for_topic(self, topic_id):
         vector = self.topic_word_matrix[topic_id].toarray()
@@ -208,13 +162,6 @@ class TopicModel(object):
     def topic_distribution_for_word(self, word_id):
         vector = self.topic_word_matrix[:, word_id].toarray()
         return vector.T[0]
-
-    def topic_distribution_for_author(self, author_name):
-        all_weights = []
-        for document_id in self.corpus.documents_by_author(author_name):
-            all_weights.append(self.topic_distribution_for_document(document_id))
-        output = np.array(all_weights)
-        return output.mean(axis=0)
 
     def most_likely_topic_for_document(self, doc_id):
         weights = list(self.topic_distribution_for_document(doc_id))
@@ -261,22 +208,16 @@ class LatentDirichletAllocation(TopicModel):
         self.nb_topics = num_topics
         lda_model = None
         topic_document = None
-        if algorithm == "variational":
-            self.model = LDA(
-                n_components=num_topics,
-                learning_method="batch",
-                n_jobs=-1,
-                random_state=0,
-                max_iter=20,
-                doc_topic_prior=1.0 / num_topics,
-                topic_word_prior=0.01 / num_topics,
-            )
-            topic_document = self.model.fit_transform(self.corpus.sklearn_vector_space)
-        elif algorithm == "gibbs":
-            self.model = lda.LDA(n_topics=num_topics, n_iter=500)
-            topic_document = self.model.fit_transform(self.corpus.sklearn_vector_space)
-        else:
-            raise ValueError("algorithm must be either 'variational' or 'gibbs', got '%s'" % algorithm)
+        self.model = LDA(
+            n_components=num_topics,
+            learning_method="batch",
+            n_jobs=-1,
+            random_state=0,
+            max_iter=20,
+            doc_topic_prior=1.0 / num_topics,
+            topic_word_prior=0.01 / num_topics,
+        )
+        topic_document = self.model.fit_transform(self.corpus.sklearn_vector_space)
         self.topic_word_matrix = []
         self.document_topic_matrix = []
         vocabulary_size = len(self.corpus.vectorizer.vocabulary_)
@@ -309,7 +250,7 @@ class LatentDirichletAllocation(TopicModel):
 class NonNegativeMatrixFactorization(TopicModel):
     def infer_topics(self, num_topics=10, **kwargs):
         self.nb_topics = num_topics
-        self.model = NMF(n_components=num_topics, init="nndsvd", solver="cd", random_state=0, verbose=1)
+        self.model = NMF(n_components=num_topics, init="nndsvd", solver="cd", random_state=0)
         topic_document = self.model.fit_transform(self.corpus.sklearn_vector_space)
         self.topic_word_matrix = []
         self.document_topic_matrix = []

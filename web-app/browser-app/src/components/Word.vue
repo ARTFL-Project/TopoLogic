@@ -4,7 +4,12 @@
             Distribution of
             <b>{{ word }}</b> in the corpus
         </h5>
-        <div class="row mt-4 p-2">
+        <div v-if="notFound" class="p-4">
+            <b>{{ word }}</b> not in vocabulary used for modeling.
+            See
+            <router-link to="/view/word">here</router-link>&nbsp;for available tokens
+        </div>
+        <div class="row mt-4 p-2" v-if="!notFound">
             <div class="col-7">
                 <b-card
                     no-body
@@ -35,12 +40,9 @@
                             class="list-group-item"
                             style="border-radius: 0px; border-width: 1px 0px; font-size: 90%"
                         >
-                            <router-link :to="`/document/${doc.doc_id}`">
-                                <i>{{ doc.metadata.title }}</i>
-                            </router-link>
-                            &#9702;&nbsp;{{ doc.metadata.author }}
+                            <citations :doc="doc"></citations>
                             <b-badge
-                                variant="primary"
+                                variant="secondary"
                                 pill
                                 class="float-right"
                             >{{doc.score.toFixed(3)}}</b-badge>
@@ -53,12 +55,15 @@
 </template>
 <script>
 import topicData from "../../topic_words.json";
+import Citations from "./Citations";
 
 export default {
     name: "Word",
+    components: { Citations },
     data() {
         return {
             word: "",
+            notFound: false,
             documents: [],
             options: {
                 chart: {
@@ -126,6 +131,10 @@ export default {
                     this.build_topic_distribution(
                         response.data.topic_distribution
                     );
+                })
+                .catch(error => {
+                    this.word = this.$route.params.word;
+                    this.notFound = true;
                 });
         },
         build_topic_distribution(topicDistribution) {
@@ -141,6 +150,12 @@ export default {
         },
         loadNewData() {
             this.fetchData();
+        },
+        goToTopic() {
+            let seriesIndex = parseInt(event.target.getAttribute("j"));
+            this.$router.push(
+                `/topic/${this.options.xaxis.categories[seriesIndex]}`
+            );
         }
     }
 };

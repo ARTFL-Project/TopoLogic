@@ -14,8 +14,22 @@
                         >Topic {{ topic.name }}: {{ topic.description }}</b-dropdown-item>
                     </b-nav-item-dropdown>
                     <b-nav-item to="/view/word">Vocabulary</b-nav-item>
-                    <b-nav-item to="/view/author">Topics in Authors</b-nav-item>
+                    <b-nav-item
+                        v-for="field in metadataDistributions"
+                        :key="field"
+                        :to="`/view/${field}`"
+                    >Topics in {{field}}s</b-nav-item>
                     <b-nav-item to="/time">Topics across Time</b-nav-item>
+                </b-navbar-nav>
+                <b-navbar-nav class="ml-auto">
+                    <b-nav-form>
+                        <b-input-group size="sm">
+                            <b-form-input placeholder="Search for tokens" v-model="wordSelected"></b-form-input>
+                            <b-input-group-append>
+                                <b-button @click="searchVocab()">Search</b-button>
+                            </b-input-group-append>
+                        </b-input-group>
+                    </b-nav-form>
                 </b-navbar-nav>
             </b-collapse>
         </b-navbar>
@@ -36,8 +50,16 @@ export default {
     data() {
         return {
             topicData: topics,
-            topicIds: []
+            topicIds: [],
+            metadataDistributions: this.$globalConfig.metadataDistributions,
+            wordSelected: ""
         };
+    },
+    methods: {
+        searchVocab() {
+            this.$router.push(`/word/${this.wordSelected}`);
+            this.wordSelected = "";
+        }
     }
 };
 </script>
@@ -47,116 +69,6 @@ export default {
     overflow: scroll;
     max-height: 440px;
 }
-section {
-    font-family: OpenSans-Bold;
-    font-size: 20px;
-    line-height: 44px;
-    color: #333333;
-}
-
-select {
-    height: 30px;
-    line-height: 40px;
-    font-size: 12px;
-    margin: auto;
-    background-color: #fff;
-}
-
-button {
-    height: 20px;
-    line-height: 40px;
-    font: 11px OpenSans;
-    margin: auto;
-}
-
-#navigation {
-    background-color: #444444;
-    height: 40px;
-    line-height: 40px;
-}
-
-#header {
-    background-color: #333333;
-    line-height: 40px;
-}
-
-#left_column {
-    text-align: left;
-    width: 600px;
-    margin: 0 auto;
-    float: left;
-}
-
-#five_columns {
-    text-align: left;
-    width: 200px;
-    margin: 0 auto;
-    float: left;
-}
-
-#three_columns {
-    text-align: left;
-    width: 333px;
-    margin: 0 auto;
-    float: left;
-}
-
-#one_column {
-    text-align: left;
-    width: 1000px;
-    margin: 0 auto;
-    float: left;
-}
-
-#right_column {
-    text-align: left;
-    width: 400px;
-    margin: 0 auto;
-    float: right;
-}
-
-.main-content {
-    max-width: 900px;
-    min-width: 900px;
-    text-align: justify;
-    margin: auto;
-    padding: 5px;
-}
-
-a.class1 {
-    font: 12px OpenSans-Bold;
-}
-
-a.class1:link {
-    color: #444;
-    text-decoration: none;
-}
-
-a.class1:visited {
-    color: #444;
-}
-
-a.class1:hover {
-    color: #55acee;
-}
-
-a.class2 {
-    font: 11px OpenSans;
-}
-
-a.class2:link {
-    color: #888;
-    text-decoration: none;
-}
-
-a.class2:visited {
-    color: #888;
-}
-
-a.class2:hover {
-    color: #55acee;
-}
-
 a:link {
     color: #55acee;
 }

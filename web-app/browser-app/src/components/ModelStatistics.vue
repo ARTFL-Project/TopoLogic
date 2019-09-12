@@ -3,7 +3,7 @@
         <div class="card shadow-sm">
             <div class="card-header">
                 Corpus Statistics: {{ config.corpusSize }} documents with
-                <router-link to="/vocabulary">{{ config.vocabularySize }} unique tokens</router-link>
+                <router-link to="/view/word">{{ config.vocabularySize }} unique tokens</router-link>
             </div>
             <div class="card-text p-4">
                 <div class="row">

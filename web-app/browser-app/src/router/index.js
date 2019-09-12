@@ -11,6 +11,7 @@ import TimeView from '../components/TimeView'
 
 import globalConfig from '../../appConfig.json'
 
+
 Vue.use(Router)
 
 export default new Router({

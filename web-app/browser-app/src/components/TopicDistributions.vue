@@ -132,4 +132,7 @@ export default {
     background-color: rgba(85, 172, 238, 0.4);
     background-clip: content-box;
 }
+/deep/ td {
+    cursor: pointer;
+}
 </style>

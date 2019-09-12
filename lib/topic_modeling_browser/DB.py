@@ -2,23 +2,13 @@
 
 import codecs
 import json
-import pickle
-from psycopg2.extras import RealDictCursor
-import psycopg2
 import os
-import numpy as np
 from math import log
-from tqdm import trange
 
-
-def print_matrix(matrix):
-    n_r = len(matrix[:, 0])
-    for i in range(n_r):
-        print(matrix[i, :])
-
-
-def fast_cosine(X, Y):
-    return np.inner(X, Y) / np.sqrt(np.dot(X, X) * np.dot(Y, Y))
+import numpy as np
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from tqdm import trange, tqdm
 
 
 class DBHandler:
@@ -30,30 +20,14 @@ class DBHandler:
         self.table = table
 
     def save_topics(self, topic_words_path, topic_model, corpus, start_date, end_date, metadata, step=1):
-        # Save topics
         topic_words = []
-        for i in range(topic_model.nb_topics):
-            description = []
-            for weighted_word in topic_model.top_words(i, 10):
-                description.append(weighted_word[0])
-            topic_words.append(
-                {
-                    "name": i,
-                    "frequency": topic_model.topic_frequency(i),
-                    "description": ", ".join(description),
-                    "group": i,
-                }
-            )
-        with open(topic_words_path, "w") as out_file:
-            json.dump(topic_words, out_file)
-
         self.cursor.execute(f"DROP TABLE IF EXISTS {self.table}_topics")
         self.cursor.execute(
-            f"CREATE TABLE {self.table}_topics(topic_id INTEGER, word_distribution TEXT, topic_evolution TEXT, frequency FLOAT, docs TEXT)"
+            f"CREATE TABLE {self.table}_topics(topic_id INTEGER, word_distribution JSONB, topic_evolution JSONB, frequency FLOAT, docs JSONB)"
         )
-        for topic_id in trange(topic_model.nb_topics, leave=False):
+        for topic_id in trange(topic_model.nb_topics, leave=False, desc="Generating topic stats"):
             # Get word distributions
-            words, weights = zip(*topic_model.top_words(topic_id, 20))
+            words, weights = zip(*topic_model.top_words(topic_id, 50))
             word_distribution = json.dumps({"labels": words, "data": weights})
 
             # Compute topic evolution
@@ -81,6 +55,20 @@ class DBHandler:
                 f"INSERT INTO {self.table}_topics (topic_id, word_distribution, topic_evolution, frequency, docs) VALUES (%s, %s, %s, %s, %s)",
                 (topic_id, word_distribution, topic_evolution, frequency, docs),
             )
+            description = []
+            for weighted_word in topic_model.top_words(topic_id, 10):
+                description.append(weighted_word[0])
+            topic_words.append(
+                {
+                    "name": topic_id,
+                    "frequency": topic_model.topic_frequency(topic_id),
+                    "description": ", ".join(description),
+                }
+            )
+
+        with open(topic_words_path, "w") as out_file:
+            json.dump(topic_words, out_file)
+
         self.cursor.execute(f"CREATE INDEX {self.table}_topic_id_index on {self.table}_topics USING HASH(topic_id)")
         self.db.commit()
 
@@ -94,9 +82,9 @@ class DBHandler:
                 metadata_fields.append(f"{field} TEXT")
         self.cursor.execute(f"DROP TABLE IF EXISTS {self.table}_docs")
         self.cursor.execute(
-            f"CREATE TABLE {self.table}_docs(doc_id INTEGER, topic_distribution TEXT, topic_similarity TEXT, vector_similarity TEXT, word_list TEXT, {', '.join(metadata_fields)})"
+            f"CREATE TABLE {self.table}_docs(doc_id INTEGER, topic_distribution JSONB, topic_similarity JSONB, vector_similarity JSONB, word_list JSONB, {', '.join(metadata_fields)})"
         )
-        for doc_id in trange(topic_model.corpus.size, leave=False):
+        for doc_id in trange(topic_model.corpus.size, leave=False, desc="Generating doc stats"):
             # Get topic distributions
             topics = []
             weights = []
@@ -146,17 +134,24 @@ class DBHandler:
                 values,
             )
         self.cursor.execute(f"CREATE INDEX {self.table}_doc_id_index ON {self.table}_docs USING HASH(doc_id)")
+        for field in field_names:
+            self.cursor.execute(f"CREATE INDEX {self.table}_{field}_index ON {self.table}_docs USING HASH({field})")
         self.db.commit()
 
     def save_words(self, topic_model, corpus):
         self.cursor.execute(f"DROP TABLE IF EXISTS {self.table}_words")
         self.cursor.execute(
-            f"CREATE TABLE {self.table}_words(word_id INTEGER, word TEXT, distribution_across_topics TEXT, docs TEXT, docs_by_topic TEXT)"
+            f"CREATE TABLE {self.table}_words(word_id INTEGER, word TEXT, distribution_across_topics JSONB, docs JSONB, docs_by_topic JSONB)"
         )
 
         # Get word weights across docs
         word_weights = {}
-        for doc_id, doc_vector in enumerate(corpus.sklearn_vector_space):
+        for doc_id, doc_vector in tqdm(
+            enumerate(corpus.sklearn_vector_space),
+            leave=False,
+            total=corpus.size,
+            desc="Getting all token weights across docs",
+        ):
             doc_vector = doc_vector.toarray()[0]
             for word_id in np.argsort(doc_vector)[::-1]:
                 weight = doc_vector[word_id]
@@ -166,7 +161,7 @@ class DBHandler:
                     word_weights[word_id] = []
                 word_weights[word_id].append((doc_id, weight))
 
-        for word_id, docs in word_weights.items():
+        for word_id, docs in tqdm(word_weights.items(), leave=False, desc="Generating TF-IDF scores for all tokens"):
             word = corpus.word_for_id(word_id)
             idf = log(corpus.size / len(docs))
             sorted_docs = sorted(
@@ -180,9 +175,6 @@ class DBHandler:
                 weights.append(word_distribution[i])
 
             sim_doc_by_distribution = []
-            # for inner_doc_id, doc_topic_matrix in enumerate(topic_model.document_topic_matrix):
-            #     sim_score = fast_cosine(word_distribution, doc_topic_matrix)
-            #     sim_doc_by_distribution.append((inner_doc_id, float(sim_score)))
             self.cursor.execute(
                 f"INSERT INTO {self.table}_words (word_id, word, distribution_across_topics, docs, docs_by_topic) VALUES (%s, %s, %s, %s, %s)",
                 (
@@ -209,9 +201,19 @@ class DBHandler:
         self.cursor.execute(f"SELECT {', '.join(metadata_fields)} FROM {self.table}_docs WHERE doc_id=%s", (doc_id,))
         return self.cursor.fetchone()
 
+    def get_doc_ids_by_metadata(self, field, value):
+        self.cursor.execute(f"SELECT distinct doc_id FROM {self.table}_docs WHERE {field}=%s", (value,))
+        return set(row["doc_id"] for row in self.cursor)
+
     def get_topic_data(self, topic_id):
         self.cursor.execute(f"SELECT * FROM {self.table}_topics WHERE topic_id=%s", (topic_id,))
         return self.cursor.fetchone()
+
+    def get_topic_evolutions(self, topic_id):
+        self.cursor.execute(
+            f"SELECT topic_id, topic_evolution FROM {self.table}_topics WHERE topic_id!=%s", (topic_id,)
+        )
+        return [(row["topic_id"], row["topic_evolution"]) for row in self.cursor]
 
     def get_word_data(self, word):
         self.cursor.execute(f"SELECT * FROM {self.table}_words WHERE word=%s", (word,))
@@ -231,11 +233,10 @@ class DBHandler:
         for row in self.cursor:
             if not topic_distribution:
                 topic_distribution = [
-                    {"name": pos, "frequency": weight}
-                    for pos, weight in enumerate(json.loads(row["topic_distribution"])["data"])
+                    {"name": pos, "frequency": weight} for pos, weight in enumerate(row["topic_distribution"]["data"])
                 ]
             else:
-                for pos, weight in enumerate(json.loads(row["topic_distribution"])["data"]):
+                for pos, weight in enumerate(row["topic_distribution"]["data"]):
                     topic_distribution[pos]["frequency"] += weight
         coeff = 1.0 / sum([topic["frequency"] for topic in topic_distribution])
         topic_distribution = [
@@ -247,64 +248,5 @@ class DBHandler:
         distributions_over_time = []
         self.cursor.execute(f"SELECT topic_id, topic_evolution FROM {self.table}_topics")
         for row in self.cursor:
-            distributions_over_time.append(
-                {"topic": row["topic_id"], "topic_evolution": json.loads(row["topic_evolution"])}
-            )
+            distributions_over_time.append({"topic": row["topic_id"], "topic_evolution": row["topic_evolution"]})
         return distributions_over_time
-
-    def old_get_topic_distribution_by_years(self, interval):
-        topic_distribution = {}
-        self.cursor.execute(f"SELECT year, topic_distribution FROM {self.table}_docs")
-        labels = []
-        for row in self.cursor:
-            distribution = json.loads(row["topic_distribution"])
-            if not labels:
-                labels = list(range(len(distribution["data"])))
-            if row["year"] not in topic_distribution:
-                topic_distribution[row["year"]] = distribution["data"]
-            else:
-                for pos, weight in enumerate(distribution["data"]):
-                    topic_distribution[row["year"]][pos] += weight
-        topic_distributions_list = []
-        if interval == 1:
-            for year, distribution in topic_distribution.items():
-                coeff = 1.0 / sum(distribution)
-                topic_distributions_list.append(
-                    {"year": year, "data": [weight * coeff for weight in distribution], "labels": labels}
-                )
-            topic_distributions_list.sort(key=lambda x: x["year"])
-        else:
-            sorted_results = sorted(topic_distribution.items(), key=lambda x: x[0])
-            self.cursor.execute(f"SELECT MIN(year) FROM {self.table}_docs")
-            current_min = self.cursor.fetchone()["min"]
-            current_max = current_min + interval
-            current_group = {"year": f"{current_min}-{current_max}", "labels": labels}
-            for year, distribution in sorted_results:
-                print("YEAR", year, current_max)
-                if year < current_max:
-                    if "data" not in current_group:
-                        current_group["data"] = distribution
-                    else:
-                        for pos, weight in enumerate(distribution):
-                            current_group["data"][pos] += weight
-                else:
-                    coeff = 1.0 / sum(current_group["data"])
-                    current_group["data"] = [weight * coeff for weight in current_group["data"]]
-                    topic_distributions_list.append(current_group)
-                    current_min += interval
-                    current_max += interval
-                    while year > current_max:
-                        current_group = {
-                            "year": f"{current_min}-{current_max}",
-                            "labels": labels,
-                            "data": [0.0 for _ in range(len(labels))],
-                        }
-                        topic_distributions_list.append((current_group))
-                        current_min += interval
-                        current_max += interval
-                    current_group = {"year": f"{current_min}-{current_max}", "labels": labels, "data": distribution}
-            coeff = 1.0 / sum(current_group["data"])
-            current_group["data"] = [weight * coeff for weight in current_group["data"]]
-            topic_distributions_list.append(current_group)
-            # topic_distributions_list.sort(key=lambda x: int(x["year"].split("-")[0]))
-        return topic_distributions_list

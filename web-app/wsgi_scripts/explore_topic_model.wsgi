@@ -7,6 +7,7 @@ import pickle
 import random
 import re
 import shutil
+from collections import defaultdict
 from html import unescape as unescape_html
 from xml.sax.saxutils import unescape as unescape_xml
 
@@ -14,8 +15,9 @@ from flask_cors import CORS
 import numpy as np
 import tom_lib.utils as utils
 from flask import Flask, jsonify, request
-from numpy import NaN, any
+from numpy import NaN, any, array
 from topic_modeling_browser.DB import DBHandler
+from sklearn.metrics.pairwise import cosine_similarity
 
 
 global_config = configparser.ConfigParser()
@@ -59,19 +61,43 @@ def clean_text(text: str) -> str:
     return text
 
 
-@application.route("/get_config")
-def get_config():
-    response = jsonify(read_config(request.args["table"]))
+def build_label_map(min_year, max_year, interval):
+    label_map = {}
+    current_min = min_year
+    current_max = min_year + interval
+    for year in range(min_year, max_year + 1):
+        if year >= current_max:
+            current_min = current_max
+            current_max += interval
+        label_map[year] = f"{current_min}"
+    return label_map
+
+
+def group_distributions_over_time(distribution_over_time, label_map):
+    grouped_evolution = defaultdict(float)
+    print("DISTRO", distribution_over_time)
+    print("LABEL", label_map)
+    for year, weight in zip(distribution_over_time["labels"], distribution_over_time["data"]):
+        grouped_evolution[label_map[year]] += weight
+    labels, data = zip(*grouped_evolution.items())
+    return {"labels": labels, "data": data}
+
+
+def response(data):
+    response = jsonify(data)
     response.headers.add("Access-Control-Allow-Origin", "*")
     return response
+
+
+@application.route("/get_config")
+def get_config():
+    return response(read_config(request.args["table"]))
 
 
 @application.route("/get_topic_ids")
 def get_topic_ids():
     config = read_config(request.args["table"])
-    response = jsonify(list(range(config["topics"])))
-    response.headers.add("Access-Control-Allow-Origin", "*")
-    return response
+    return response(list(range(config["topics"])))
 
 
 @application.route("/get_topic_data/<topic_id>")
@@ -79,21 +105,50 @@ def get_topic_data(topic_id):
     config = read_config(request.args["table"])
     db = DBHandler(DATABASE, request.args["table"])
     topic_data = db.get_topic_data(int(topic_id))
-    doc_ids = json.loads(topic_data["docs"])
     documents = []
-    for document_id, weight in doc_ids[:50]:
+    for document_id, weight in topic_data["docs"][:50]:
         metadata = db.get_metadata(document_id, config["metadata_fields"])
-        documents.append((metadata["title"].capitalize(), metadata["author"], metadata["year"], document_id, weight))
-    response = jsonify(
+        documents.append({"doc_id": document_id, "metadata": metadata, "score": weight})
+    interval = int(request.args["interval"])
+    current_topic_evolution = topic_data["topic_evolution"]
+    min_year = current_topic_evolution["labels"][0]
+    max_year = current_topic_evolution["labels"][-1]
+    if interval == 1:
+        label_map = {year: str(year) for year in range(min_year, max_year + 1)}
+    elif interval != 1:
+        label_map = build_label_map(min_year, max_year, interval)
+        current_topic_evolution = group_distributions_over_time(topic_data["topic_evolution"], label_map)
+    current_topic_evolution_array = array([current_topic_evolution["data"]])
+    similar_topics = []
+    for topic, topic_evolution in db.get_topic_evolutions(int(topic_id)):
+        topic_evolution = group_distributions_over_time(topic_evolution, label_map)
+        similarity = float(cosine_similarity(current_topic_evolution_array, array([topic_evolution["data"]]))[0, 0])
+        similar_topics.append({"topic": topic, "topic_evolution": topic_evolution, "score": similarity})
+    similar_topics.sort(key=lambda x: x["score"], reverse=True)
+
+    return response(
         {
-            "word_distribution": json.loads(topic_data["word_distribution"]),
-            "topic_evolution": json.loads(topic_data["topic_evolution"]),
+            "word_distribution": topic_data["word_distribution"],
+            "topic_evolution": current_topic_evolution,
             "documents": documents,
             "frequency": topic_data["frequency"],
+            "similar_topics": similar_topics,
         }
     )
-    response.headers.add("Access-Control-Allow-Origin", "*")
-    return response
+
+
+@application.route("/get_docs_in_topic_by_year/<topic_id>/<year>")
+def get_docs_in_topic_by_year(topic_id, year):
+    config = read_config(request.args["table"])
+    db = DBHandler(DATABASE, request.args["table"])
+    doc_ids = db.get_doc_ids_by_metadata("year", year)
+    topic_data = db.get_topic_data(int(topic_id))
+    documents = []
+    for doc_id, weight in topic_data["docs"]:
+        if doc_id in doc_ids:
+            metadata = db.get_metadata(doc_id, config["metadata_fields"])
+            documents.append({"doc_id": doc_id, "metadata": metadata, "score": weight})
+    return response(documents)
 
 
 @application.route("/get_doc_data/<doc_id>")
@@ -101,8 +156,7 @@ def get_doc_data(doc_id):
     config = read_config(request.args["table"])
     db = DBHandler(DATABASE, request.args["table"])
     doc_data = db.get_doc_data(int(doc_id))
-    word_list = json.loads(doc_data["word_list"])
-    word_list = [(w[0], w[1] * 10, w[2]) for w in word_list[:21] if w[1] > 0]
+    word_list = [(w[0], w[1] * 10, w[2]) for w in doc_data["word_list"][:21] if w[1] > 0]
     highest_value = word_list[0][1]
     if len(word_list) > 1:
         lowest_value = word_list[-1][1]
@@ -137,28 +191,30 @@ def get_doc_data(doc_id):
     weighted_word_list.sort(key=lambda x: x[0])
 
     topic_similarity = []
-    for doc_id, score in json.loads(doc_data["topic_similarity"]):
+    for doc_id, score in doc_data["topic_similarity"]:
         doc_metadata = db.get_metadata(doc_id, config["metadata_fields"])
         topic_similarity.append({"doc_id": doc_id, "metadata": doc_metadata, "score": score})
     vector_similarity = []
-    for doc_id, score in json.loads(doc_data["vector_similarity"]):
+    for doc_id, score in doc_data["vector_similarity"]:
         doc_metadata = db.get_metadata(doc_id, config["metadata_fields"])
         vector_similarity.append({"doc_id": doc_id, "metadata": doc_metadata, "score": score})
 
     metadata = {field: doc_data[field] for field in config["metadata_fields"]}
-    print("METADATA", repr(metadata))
-    with open(os.path.join(config["file_path"], metadata["filename"]), "rb") as text_file:
-        length = int(metadata["end_byte"]) - int(metadata["start_byte"])
-        text_file.seek(int(metadata["start_byte"]))
-        text = text_file.read(length).decode("utf8", "ignore")
-        text = clean_text(text)
-        if len(text) > 5000:
-            text = text[:5000] + " [...]"
+    philo_db = True  # currently hardcoded to using only PhiloLogic for getting source texts
+    if philo_db is True:
+        with open(os.path.join(config["file_path"], metadata["filename"]), "rb") as text_file:
+            length = int(metadata["end_byte"]) - int(metadata["start_byte"])
+            text_file.seek(int(metadata["start_byte"]))
+            text = text_file.read(length).decode("utf8", "ignore")
+            text = clean_text(text)
+            if len(text) > 5000:
+                text = text[:5000] + " [...]"
+    else:
+        text = ""
 
-    topic_distribution = json.loads(doc_data["topic_distribution"])
-    response = jsonify(
+    return response(
         {
-            "topic_distribution": topic_distribution,
+            "topic_distribution": doc_data["topic_distribution"],
             "metadata": metadata,
             "vector_sim_docs": vector_similarity[:100],
             "topic_sim_docs": topic_similarity[:100],
@@ -166,8 +222,6 @@ def get_doc_data(doc_id):
             "words": weighted_word_list,
         }
     )
-    response.headers.add("Access-Control-Allow-Origin", "*")
-    return response
 
 
 @application.route("/get_word_data/<word>")
@@ -175,23 +229,20 @@ def get_word_data(word):
     config = read_config(request.args["table"])
     db = DBHandler(DATABASE, request.args["table"])
     word_data = db.get_word_data(word)
-    sorted_docs = json.loads(word_data["docs"])
+    sorted_docs = word_data["docs"]
     documents = []
     for document_id, score in sorted_docs[:50]:
         metadata = db.get_metadata(document_id, config["metadata_fields"])
         documents.append({"metadata": metadata, "doc_id": document_id, "score": score})
-
-    response = jsonify(
+    return response(
         {
             "word": word,
             "word_id": word_data["word_id"],
             "topic_ids": list(range(config["topics"])),
-            "topic_distribution": json.loads(word_data["distribution_across_topics"]),
+            "topic_distribution": word_data["distribution_across_topics"],
             "documents": documents[:100],
         }
     )
-    response.headers.add("Access-Control-Allow-Origin", "*")
-    return response
 
 
 @application.route("/get_all_field_values")
@@ -203,9 +254,7 @@ def get_all_field_values():
         field_values = db.get_vocabulary()
     else:
         field_values = db.get_all_metadata_values(field)
-    response = jsonify(field_values=field_values, size=len(field_values))
-    response.headers.add("Access-Control-Allow-Origin", "*")
-    return response
+    return response({"field_values": field_values, "size": len(field_values)})
 
 
 @application.route("/get_field_distribution/<field>")
@@ -214,17 +263,22 @@ def get_field_distribution(field):
     db = DBHandler(DATABASE, request.args["table"])
     field_value = request.args["value"]
     topic_distribution = db.get_topic_distribution_by_metadata(field, field_value)
-    response = jsonify(topic_distribution=topic_distribution)
-    response.headers.add("Access-Control-Allow-Origin", "*")
-    return response
+    return response({"topic_distribution": topic_distribution})
 
 
 @application.route("/get_time_distributions")
 def get_time_distributions():
     config = read_config(request.args["table"])
     db = DBHandler(DATABASE, request.args["table"])
-    # topic_distribution = db.old_get_topic_distribution_by_years(int(request.args["interval"]))
-    distributions_over_time = db.get_topic_distributions_over_time(int(request.args["interval"]))
-    response = jsonify(distributions_over_time=distributions_over_time)
-    response.headers.add("Access-Control-Allow-Origin", "*")
-    return response
+    interval = int(request.args["interval"])
+    distributions_over_time = db.get_topic_distributions_over_time(interval)
+    if interval != 1:
+        grouped_distributions_over_time = []
+        min_year = distributions_over_time[0]["topic_evolution"]["labels"][0]
+        max_year = distributions_over_time[0]["topic_evolution"]["labels"][-1]
+        label_map = build_label_map(min_year, max_year, interval)
+        for topic in distributions_over_time:
+            grouped_distribution = group_distributions_over_time(topic["topic_evolution"], label_map)
+            grouped_distributions_over_time.append({"topic": topic["topic"], "topic_evolution": grouped_distribution})
+        return response({"distributions_over_time": grouped_distributions_over_time})
+    return response({"distributions_over_time": distributions_over_time})

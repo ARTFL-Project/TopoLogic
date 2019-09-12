@@ -6,14 +6,15 @@ import json
 import os
 import re
 import shutil
-import sys
 
 import dill as pickle
-from tqdm import tqdm
-from topic_modeling_browser.topic_model import LatentDirichletAllocation, NonNegativeMatrixFactorization
+from text_preprocessing import PreProcessor
+from topic_modeling_browser import read_config, write_app_config
 from topic_modeling_browser.corpus import Corpus
 from topic_modeling_browser.DB import DBHandler
-from text_preprocessing import PreProcessor
+from topic_modeling_browser.topic_model import LatentDirichletAllocation, NonNegativeMatrixFactorization
+from topic_modeling_browser.visualization import Visualization
+from tqdm import tqdm
 
 TAGS = re.compile(r"<[^>]+>")
 START_TAG = re.compile(r"^[^<]*?>")
@@ -24,70 +25,30 @@ GLOBAL_CONFIG.read("/etc/topic-modeling-browser/global_settings.ini")
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Define files to process")
-    parser.add_argument("--corpus", dest="corpus", type=str, default="")
     parser.add_argument("--config", help="Configuration file", default="", type=str)
-    parser.add_argument(
-        "--is_philo_db", help="Define if input files are preprocessed by PhiloLogic", action="store_true", default=False
-    )
     parser.add_argument(
         "--data_output", help="path to local data to be saved during processing", default="/tmp", type=str
     )
     parser.add_argument(
         "--workers", help="How many threads or cores to use for preprocessing and modeling", type=int, default=4
     )
+    parser.add_argument(
+        "--evaluate",
+        help="Evaluate topic model. No topic models or web app will be saved",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument("--min_num_topic", help="minimum number of topics for evaluation", type=int, default=10)
+    parser.add_argument("--max_num_topic", help="maximum number of topics for evaluation", type=int, default=20)
     args = parser.parse_args()
     return args
-
-
-def read_config(config_path):
-    config = configparser.ConfigParser()
-    config.read(config_path)
-    preprocessing = {}
-    for key, value in config["PREPROCESSING"].items():
-        if key == "pos_to_keep" and value != "":
-            preprocessing[key] = [i.strip() for i in value.split(",")]
-        else:
-            preprocessing[key] = value
-    vectorization = {}
-    for key, value in config["VECTORIZATION"].items():
-        if key in ("min_freq", "max_freq"):
-            vectorization[key] = float(value.strip())
-        elif key in ("ngram", "min_tokens_per_doc"):
-            vectorization[key] = int(value.strip())
-        elif key == "max_features":
-            if value:
-                vectorization[key] = int(value.strip())
-            else:
-                vectorization[key] = None
-        else:
-            vectorization[key] = value
-    topic_modeling = {}
-    for key, value in config["TOPIC_MODELING"].items():
-        if key in ("number_of_topics", "max_iter"):
-            topic_modeling[key] = int(value.strip())
-        else:
-            topic_modeling[key] = value
-    return config["DATABASE"]["database_name"], preprocessing, vectorization, topic_modeling
-
-
-def write_app_config(db_path, database_name):
-    with open(os.path.join(db_path, "appConfig.json"), "w") as app_config:
-        json.dump(
-            {
-                "webServer": "Apache",
-                "apiServer": os.path.join(GLOBAL_CONFIG["WEB_APP"]["server_name"], "topic-modeling-browser-api"),
-                "databaseName": database_name,
-                "appPath": os.path.join("topic-modeling-browser", database_name),
-            },
-            app_config,
-        )
 
 
 def main(args):
     if args.config == "":
         print("No configuration file provided, exiting...")
         exit()
-    database_name, prep_config, vector_config, model_config = read_config(args.config)
+    source_data, database_name, prep_config, vector_config, model_config = read_config(args.config)
     if args.data_output == "/tmp":
         args.data_output = os.path.join(args.data_output, database_name)
     print(f"Saving temporary files to {args.data_output}...", flush=True)
@@ -105,7 +66,8 @@ def main(args):
         stopwords=prep_config["stopwords"],
         pos_to_keep=prep_config["pos_to_keep"],
         ascii=prep_config["ascii"],
-        is_philo_db=args.is_philo_db,
+        min_word_length=prep_config["minimum_word_length"],
+        is_philo_db=True,
         workers=args.workers,
         progress=False,
     )
@@ -114,45 +76,78 @@ def main(args):
     os.system(f"mkdir -p {texts_path}")
 
     metadata = {}
-    for pos, text in enumerate(preproc.process_texts((f.path for f in os.scandir(args.corpus)))):
-        with open(os.path.join(texts_path, str(pos)), "w") as output:
-            output.write(" ".join(text))
-        metadata[pos] = text.metadata
+    source_data_path = os.path.join(source_data["philologic_database_path"], "data/words_and_philo_ids")
+    with tqdm(
+        total=sum(1 for _ in os.scandir(source_data_path)), smoothing=0, leave=False, desc="Preprocessing files"
+    ) as pbar:
+        for pos, text in enumerate(
+            preproc.process_texts((f.path for f in os.scandir(source_data_path)), progress=False)
+        ):
+            with open(os.path.join(texts_path, str(pos)), "w") as output:
+                output.write(" ".join(text))
+            metadata[pos] = text.metadata
+            pbar.update()
+        pbar.close()
 
-    if args.is_philo_db is True:
-        source_file_path = os.path.join(os.path.dirname(args.corpus.rstrip("/")), "TEXT")
-    else:
-        source_file_path = args.corpus
-
-    build_model(
+    source_file_path = os.path.join(source_data["philologic_database_path"], "data/TEXT")
+    topic_model, full_corpus = build_model(
         texts_path,
         metadata,
-        source_file_path,
-        database_name,
         algorithm=model_config["algorithm"],
         number_of_topics=model_config["number_of_topics"],
         vectorization=vector_config["vectorization"],
         max_freq=vector_config["max_freq"],
         min_freq=vector_config["min_freq"],
         max_features=vector_config["max_features"] or None,
-        n_gram=vector_config["ngram"],
+        ngram=vector_config["ngram"],
         min_tokens_per_doc=vector_config["min_tokens_per_doc"],
+        evaluate=args.evaluate,
     )
+
+    if args.evaluate is False:
+        build_web_app(
+            database_name,
+            metadata,
+            topic_model,
+            full_corpus,
+            source_file_path,
+            source_data["philologic_database_url"],
+            algorithm=model_config["algorithm"],
+            number_of_topics=model_config["number_of_topics"],
+            vectorization=vector_config["vectorization"],
+            max_freq=vector_config["max_freq"],
+            min_freq=vector_config["min_freq"],
+            max_features=vector_config["max_features"] or None,
+            ngram=vector_config["ngram"],
+            min_tokens_per_doc=vector_config["min_tokens_per_doc"],
+        )
+    else:
+        print("Estimating the number of topics...")
+        viz = Visualization(topic_model)
+        os.system("mkdir -p ./evaluation_output")
+        viz.plot_greene_metric(
+            full_corpus,
+            min_num_topics=args.min_num_topic,
+            max_num_topics=args.max_num_topic,
+            tao=10,
+            step=1,
+            top_n_words=10,
+            workers=args.workers,
+        )
 
 
 def build_model(
     texts_path,
     doc_metadata,
-    source_file_path,
-    database_name,
     algorithm="lda",
     number_of_topics=100,
     vectorization="tf",
     max_freq=0.9,
     min_freq=0.1,
     max_features=None,
-    n_gram=2,
+    ngram=2,
     min_tokens_per_doc=0,
+    evaluate=False,
 ):
 
     # Load and prepare a corpus
@@ -163,14 +158,14 @@ def build_model(
         vectorization=vectorization,
         max_relative_frequency=max_freq,
         min_absolute_frequency=min_freq,
-        n_gram=n_gram,
+        ngram=ngram,
         min_tokens_per_doc=min_tokens_per_doc,
         max_features=max_features,
     )
     print("corpus size:", partial_corpus.size)
     print("vocabulary size:", len(partial_corpus.vectorizer.vocabulary_))
 
-    if min_tokens_per_doc == 0:
+    if min_tokens_per_doc == 0 or evaluate is True:
         full_corpus = partial_corpus
     else:
         full_corpus = Corpus(
@@ -179,9 +174,43 @@ def build_model(
             vectorizer=partial_corpus.vectorizer,
             max_relative_frequency=partial_corpus._max_relative_frequency,
             min_absolute_frequency=partial_corpus._min_absolute_frequency,
-            n_gram=partial_corpus._n_gram,
+            ngram=partial_corpus.ngram,
         )
 
+    # Instantiate a topic model
+    if algorithm == "nmf":
+        topic_model = NonNegativeMatrixFactorization(partial_corpus)
+    else:
+        topic_model = LatentDirichletAllocation(partial_corpus)
+
+    if evaluate is False:
+        # Infer topics
+        print("Inferring topics...", flush=True)
+        topic_model.infer_topics(num_topics=number_of_topics)
+        topic_model.infer_and_replace(full_corpus)
+
+        print("Compute document similarity...", flush=True)
+        full_corpus.similar_documents_by_topic_distribution(topic_model)
+
+    return topic_model, full_corpus
+
+
+def build_web_app(
+    database_name,
+    doc_metadata,
+    topic_model,
+    full_corpus,
+    source_file_path,
+    source_database_link,
+    algorithm="lda",
+    number_of_topics=100,
+    vectorization="tf",
+    max_freq=0.9,
+    min_freq=0.1,
+    max_features=None,
+    ngram=2,
+    min_tokens_per_doc=0,
+):
     db_path = os.path.join(GLOBAL_CONFIG["WEB_APP"]["web_app_path"], database_name)
     if os.path.exists(db_path) is True:
         os.system(f"rm -rf {db_path}")
@@ -195,6 +224,7 @@ def build_model(
         "vectorization": vectorization,
         "max_freq": max_freq,
         "min_freq": min_freq,
+        "ngram": ngram,
     }
 
     years = set()
@@ -217,20 +247,6 @@ def build_model(
     with open(os.path.join(db_path, "model_config.ini"), "w") as configfile:
         config.write(configfile)
 
-    # Instantiate a topic model
-    if algorithm == "nmf":
-        topic_model = NonNegativeMatrixFactorization(partial_corpus)
-    else:
-        topic_model = LatentDirichletAllocation(partial_corpus)
-
-    # Infer topics
-    print("Inferring topics...", flush=True)
-    topic_model.infer_topics(num_topics=number_of_topics)
-    topic_model.infer_and_replace(full_corpus)
-
-    print("Compute document similarity...", flush=True)
-    full_corpus.similar_documents_by_topic_distribution(topic_model)
-
     db = DBHandler(GLOBAL_CONFIG["DATABASE"], database_name)
     print("Saving words...", flush=True)
     db.save_words(topic_model, full_corpus)
@@ -243,7 +259,7 @@ def build_model(
         f"{db_path}/topic_words.json", topic_model, full_corpus, min(years), max(years), doc_metadata, step=1
     )
 
-    write_app_config(db_path, database_name)
+    write_app_config(source_database_link, db_path, database_name, GLOBAL_CONFIG["WEB_APP"]["server_name"])
     os.system(f"cd {db_path}; npm install; npm run build")
 
 
