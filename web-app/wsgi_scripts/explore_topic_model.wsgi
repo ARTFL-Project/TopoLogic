@@ -156,7 +156,7 @@ def get_doc_data(doc_id):
     config = read_config(request.args["table"])
     db = DBHandler(DATABASE, request.args["table"])
     doc_data = db.get_doc_data(int(doc_id))
-    word_list = [(w[0], w[1] * 10, w[2]) for w in doc_data["word_list"][:21] if w[1] > 0]
+    word_list = [(w[0], w[1] * 10, w[2]) for w in doc_data["word_list"][:100] if w[1] > 0]
     highest_value = word_list[0][1]
     if len(word_list) > 1:
         lowest_value = word_list[-1][1]

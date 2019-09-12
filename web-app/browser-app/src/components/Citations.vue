@@ -7,8 +7,8 @@
         >
             <router-link
                 :to="`/document/${doc.doc_id}`"
-                v-if="citation.field == 'title' && doc.doc_id != ''"
-            >{{ doc.metadata.title }}</router-link>
+                v-if="citation.link && doc.doc_id != ''"
+            >{{ doc.metadata[citation.field] || "Unnamed section" }}</router-link>
             <span v-else>{{ doc.metadata[citation.field] }}</span>
             <span class="separator" v-if="citeIndex != citations.length - 1">&#9679;</span>
         </span>

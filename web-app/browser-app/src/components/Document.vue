@@ -70,7 +70,11 @@
                     <div class="col-4">
                         <div class="row">
                             <div class="col-12">
-                                <b-card no-body style="height: 100%" header="Vector Representation">
+                                <b-card
+                                    no-body
+                                    style="height: 100%"
+                                    :header="`Vector Representation (top ${words.length} tokens)`"
+                                >
                                     <div
                                         style="display: flex; height: 100%; justify-content: center; align-items: center;"
                                         class="card-text"

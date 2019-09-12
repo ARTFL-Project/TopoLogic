@@ -4,20 +4,14 @@ import argparse
 import configparser
 import json
 import os
-import re
-import shutil
 
-import dill as pickle
 from text_preprocessing import PreProcessor
 from topic_modeling_browser import read_config, write_app_config
 from topic_modeling_browser.corpus import Corpus
 from topic_modeling_browser.DB import DBHandler
 from topic_modeling_browser.topic_model import LatentDirichletAllocation, NonNegativeMatrixFactorization
 from topic_modeling_browser.visualization import Visualization
-from tqdm import tqdm
 
-TAGS = re.compile(r"<[^>]+>")
-START_TAG = re.compile(r"^[^<]*?>")
 
 GLOBAL_CONFIG = configparser.ConfigParser()
 GLOBAL_CONFIG.read("/etc/topic-modeling-browser/global_settings.ini")
@@ -38,8 +32,8 @@ def parse_args():
         action="store_true",
         default=False,
     )
-    parser.add_argument("--min_num_topic", help="minimum number of topics for evaluation", type=int, default=10)
-    parser.add_argument("--max_num_topic", help="maximum number of topics for evaluation", type=int, default=20)
+    parser.add_argument("--min_num_topics", help="minimum number of topics for evaluation", type=int, default=10)
+    parser.add_argument("--max_num_topics", help="maximum number of topics for evaluation", type=int, default=20)
     args = parser.parse_args()
     return args
 
@@ -77,17 +71,10 @@ def main(args):
 
     metadata = {}
     source_data_path = os.path.join(source_data["philologic_database_path"], "data/words_and_philo_ids")
-    with tqdm(
-        total=sum(1 for _ in os.scandir(source_data_path)), smoothing=0, leave=False, desc="Preprocessing files"
-    ) as pbar:
-        for pos, text in enumerate(
-            preproc.process_texts((f.path for f in os.scandir(source_data_path)), progress=False)
-        ):
-            with open(os.path.join(texts_path, str(pos)), "w") as output:
-                output.write(" ".join(text))
-            metadata[pos] = text.metadata
-            pbar.update()
-        pbar.close()
+    for pos, text in enumerate(preproc.process_texts((f.path for f in os.scandir(source_data_path)))):
+        with open(os.path.join(texts_path, str(pos)), "w") as output:
+            output.write(" ".join(text))
+        metadata[pos] = text.metadata
 
     source_file_path = os.path.join(source_data["philologic_database_path"], "data/TEXT")
     topic_model, full_corpus = build_model(
@@ -127,8 +114,8 @@ def main(args):
         os.system("mkdir -p ./evaluation_output")
         viz.plot_greene_metric(
             full_corpus,
-            min_num_topics=args.min_num_topic,
-            max_num_topics=args.max_num_topic,
+            min_num_topics=args.min_num_topics,
+            max_num_topics=args.max_num_topics,
             tao=10,
             step=1,
             top_n_words=10,

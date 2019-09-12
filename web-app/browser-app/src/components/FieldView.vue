@@ -5,7 +5,7 @@
         </div>
         <h5 class="text-center mt-4 mb-4" v-if="!loading">{{ header }}</h5>
         <div class="row">
-            <div class="col-4" v-for="(halfGroup, halfIndex) in fieldValues" :key="halfIndex">
+            <div class="col-6" v-for="(halfGroup, halfIndex) in fieldValues" :key="halfIndex">
                 <b-card
                     no-body
                     :header="group.firstLetter"
@@ -47,33 +47,6 @@ export default {
         };
     },
     computed: {
-        alphaFields: function() {
-            let sortedFields = [];
-            if (this.fieldValues.length) {
-                let firstLetter = this.fieldValues[0][0].toUpperCase();
-                let currentGroup = [];
-                for (let field of this.fieldValues) {
-                    let currentFirstLetter = field[0].toUpperCase();
-                    if (currentFirstLetter === firstLetter) {
-                        currentGroup.push(field);
-                    } else {
-                        sortedFields.push({
-                            firstLetter: firstLetter,
-                            fields: currentGroup
-                        });
-                        firstLetter = currentFirstLetter;
-                        currentGroup = [field];
-                    }
-                }
-                let third = Math.floor(sortedFields.length / 3);
-                return [
-                    sortedFields.slice(0, third),
-                    sortedFields.slice(third, third + third),
-                    sortedFields.slice(third + third, sortedFields.length)
-                ];
-            }
-            return [];
-        },
         header: function() {
             if (this.fieldName == "word") {
                 return `${this.totalFields} distinct tokens across the corpus`;
@@ -100,13 +73,11 @@ export default {
                     `${this.$globalConfig.apiServer}/get_all_field_values?table=${this.$globalConfig.databaseName}&field=${this.$route.params.fieldName}`
                 )
                 .then(response => {
-                    console.log("GOT IT", response.data.field_values.length);
                     this.totalFields = response.data.field_values.length;
                     this.fieldValues = this.splitResults(
                         response.data.field_values
                     );
                     this.$nextTick(() => {
-                        console.log("DONE");
                         this.loading = false;
                     });
                 });
@@ -128,12 +99,15 @@ export default {
                     currentGroup = [field];
                 }
             }
-            let third = Math.floor(sortedFields.length / 3);
+            sortedFields.push({
+                firstLetter: firstLetter,
+                fields: Object.freeze(currentGroup)
+            });
+            let half = Math.floor(sortedFields.length / 2);
 
             return Object.freeze([
-                sortedFields.slice(0, third),
-                sortedFields.slice(third, third + third),
-                sortedFields.slice(third + third, sortedFields.length)
+                sortedFields.slice(0, half),
+                sortedFields.slice(half, sortedFields.length)
             ]);
         }
     }
