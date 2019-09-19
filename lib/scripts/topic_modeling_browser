@@ -10,7 +10,8 @@ from topic_modeling_browser import read_config, write_app_config
 from topic_modeling_browser.corpus import Corpus
 from topic_modeling_browser.DB import DBHandler
 from topic_modeling_browser.topic_model import LatentDirichletAllocation, NonNegativeMatrixFactorization
-from topic_modeling_browser.visualization import Visualization
+from topic_modeling_browser import topic_num_evaluator
+from joblib import dump
 
 
 GLOBAL_CONFIG = configparser.ConfigParser()
@@ -45,10 +46,15 @@ def main(args):
     source_data, database_name, prep_config, vector_config, model_config = read_config(args.config)
     if args.data_output == "/tmp":
         args.data_output = os.path.join(args.data_output, database_name)
-    print(f"Saving temporary files to {args.data_output}...", flush=True)
     if os.path.exists(args.data_output) is True:
         os.system(f"rm -rf {args.data_output}")
+    texts_path = os.path.join(args.data_output, "texts")
+    os.system(f"mkdir -p {texts_path}")
+    metadata = {}
+    source_data_path = os.path.join(source_data["philologic_database_path"], "data/words_and_philo_ids")
 
+    print("## PREPROCESSING ##", flush=True)
+    print(f"Processing {sum(1 for _ in os.scandir(source_data_path))} files...", flush=True)
     preproc = PreProcessor(
         text_object_type=prep_config["text_object_level"],
         language=prep_config["language"],
@@ -65,19 +71,13 @@ def main(args):
         workers=args.workers,
         progress=False,
     )
-
-    texts_path = os.path.join(args.data_output, "texts")
-    os.system(f"mkdir -p {texts_path}")
-
-    metadata = {}
-    source_data_path = os.path.join(source_data["philologic_database_path"], "data/words_and_philo_ids")
     for pos, text in enumerate(preproc.process_texts((f.path for f in os.scandir(source_data_path)))):
         with open(os.path.join(texts_path, str(pos)), "w") as output:
             output.write(" ".join(text))
         metadata[pos] = text.metadata
 
     source_file_path = os.path.join(source_data["philologic_database_path"], "data/TEXT")
-    topic_model, full_corpus = build_model(
+    topic_model, full_corpus, partial_corpus = build_model(
         texts_path,
         metadata,
         algorithm=model_config["algorithm"],
@@ -110,17 +110,21 @@ def main(args):
         )
     else:
         print("Estimating the number of topics...")
-        viz = Visualization(topic_model)
+        corpus_path = os.path.join(args.data_output, "corpus")
+        dump(partial_corpus, corpus_path)
         os.system("mkdir -p ./evaluation_output")
-        viz.plot_greene_metric(
-            full_corpus,
-            min_num_topics=args.min_num_topics,
-            max_num_topics=args.max_num_topics,
-            tao=10,
+        topic_num_evaluator(
+            corpus_path,
+            args.min_num_topics,
+            args.max_num_topics,
+            model_config["algorithm"],
+            iterations=10,
             step=1,
             top_n_words=10,
             workers=args.workers,
         )
+
+    os.system(f"rm -rf {args.data_output}")
 
 
 def build_model(
@@ -176,10 +180,7 @@ def build_model(
         topic_model.infer_topics(num_topics=number_of_topics)
         topic_model.infer_and_replace(full_corpus)
 
-        print("Compute document similarity...", flush=True)
-        full_corpus.similar_documents_by_topic_distribution(topic_model)
-
-    return topic_model, full_corpus
+    return topic_model, full_corpus, partial_corpus
 
 
 def build_web_app(

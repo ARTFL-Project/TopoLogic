@@ -95,32 +95,30 @@ class DBHandler:
             topic_distribution = json.dumps({"labels": topics, "data": weights})
 
             # Get similar docs
-            topic_similarity = []
-            for another_doc, score in corpus.similar_documents(doc_id, 20):
-                another_doc = int(another_doc)
-                score = float(score)
-                topic_similarity.append((another_doc, round(score, 3)))
-            vector_similarity = []
-            for another_doc, score in (
-                (d, 1.0 - corpus.similarity_matrix[doc_id][d])
-                for d in np.argsort(corpus.similarity_matrix[doc_id])[:21]
-                if d != doc_id
-            ):
-                another_doc = int(another_doc)
-                score = float(score)
-                vector_similarity.append((another_doc, round(score, 3)))
-            topic_similarity = json.dumps(topic_similarity)
-            vector_similarity = json.dumps(vector_similarity)
+            topic_similarity = json.dumps(
+                [
+                    (int(another_doc), round(float(score), 3))
+                    for another_doc, score in corpus.similar_docs_by_vector(
+                        doc_id, 20, topic_model.document_topic_matrix
+                    )
+                ]
+            )
+            vector_similarity = json.dumps(
+                [
+                    (int(another_doc), round(float(score), 3))
+                    for another_doc, score in corpus.similar_docs_by_topic_distribution(doc_id, 20)
+                ]
+            )
 
             # Get word_list
             vector = corpus.sklearn_vector_space[doc_id].toarray()[0]
-            word_list = []
-            for word_id, weight in enumerate(vector):
-                if weight > 0:
-                    word_list.append((corpus.word_for_id(word_id), weight, word_id))
-            word_list.sort(key=lambda x: x[1])
-            word_list.reverse()
-            word_list = json.dumps(word_list)
+            non_zero = vector != 0
+            word_list = json.dumps(
+                [
+                    (corpus.feature_names[word_id], float(vector[word_id]), int(word_id))
+                    for word_id in np.where(non_zero, vector, np.nan).argsort()[: non_zero.sum()][::-1]
+                ]
+            )
 
             field_values = []
             for field in field_names:
@@ -162,7 +160,7 @@ class DBHandler:
                 word_weights[word_id].append((doc_id, weight))
 
         for word_id, docs in tqdm(word_weights.items(), leave=False, desc="Generating TF-IDF scores for all tokens"):
-            word = corpus.word_for_id(word_id)
+            word = corpus.feature_names[word_id]
             idf = log(corpus.size / len(docs))
             sorted_docs = sorted(
                 [(doc_id, float(weight * idf)) for doc_id, weight in docs], key=lambda x: x[1], reverse=True

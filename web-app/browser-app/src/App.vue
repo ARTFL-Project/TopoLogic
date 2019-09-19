@@ -16,9 +16,9 @@
                     <b-nav-item to="/view/word">Vocabulary</b-nav-item>
                     <b-nav-item
                         v-for="field in metadataDistributions"
-                        :key="field"
-                        :to="`/view/${field}`"
-                    >Topics in {{field}}s</b-nav-item>
+                        :key="field.field"
+                        :to="`/view/${field.field}`"
+                    >Topics in {{field.label}}s</b-nav-item>
                     <b-nav-item to="/time">Topics across Time</b-nav-item>
                 </b-navbar-nav>
                 <b-navbar-nav class="ml-auto">

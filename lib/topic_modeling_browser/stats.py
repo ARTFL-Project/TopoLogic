@@ -7,10 +7,6 @@ __author__ = "Adrien Guille"
 __email__ = "adrien.guille@univ-lyon2.fr"
 
 
-def symmetric_kl(distrib_p, distrib_q):
-    return numpy.sum([stats.entropy(distrib_p, distrib_q), stats.entropy(distrib_p, distrib_q)])
-
-
 def myjaccard(r_i, r_j):
     return len(set.intersection(set(r_i), r_j)) / float(len(set.union(set(r_i), r_j)))
 
@@ -20,7 +16,7 @@ def average_jaccard(r_i, r_j):
         raise Exception("Ranked lists should have at least one element.")
     if len(r_i) != len(r_j):
         raise Exception("Both ranked term list should have the same dimension.")
-    jacc_sum = [myjaccard(r_i[:d + 1], r_j[:d + 1]) for d in range(len(r_i))]
+    jacc_sum = [myjaccard(r_i[: d + 1], r_j[: d + 1]) for d in range(len(r_i))]
     return sum(jacc_sum) / float(len(r_i))
 
 

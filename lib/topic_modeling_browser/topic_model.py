@@ -14,7 +14,6 @@ from multiprocess import Pool
 from tqdm import tqdm
 
 from .corpus import Corpus
-from .stats import agreement_score, symmetric_kl
 
 
 class TopicModel(object):
@@ -65,56 +64,6 @@ class TopicModel(object):
     def most_similar_topic_by_doc_distribution(self):
         return pairwise_distances(self.document_topic_matrix.transpose())
 
-    def greene_metric(self, corpus, min_num_topics=10, step=5, max_num_topics=50, top_n_words=10, tao=10, workers=4):
-        """
-        Implements Greene metric to compute the optimal number of topics. Taken from How Many Topics?
-        Stability Analysis for Topic Models from Greene et al. 2014.
-        :param step:
-        :param min_num_topics: Minimum number of topics to test
-        :param max_num_topics: Maximum number of topics to test
-        :param top_n_words: Top n words for topic to use
-        :param tao: Number of sampled models to build
-        :return: A list of len (max_num_topics - min_num_topics) with the stability of each tested k
-        """
-        # Build reference topic model
-        # Generate tao topic models with tao samples of the corpus
-        # stability = []
-        # for k in range(min_num_topics, max_num_topics + 1, step):
-        #     self.infer_topics(k)
-        #     reference_rank = [list(zip(*self.top_words(i, top_n_words)))[0] for i in range(k)]
-        #     agreement_score_list = []
-        #     for t in range(tao):
-        #         print(f"\rEvaluating {k} topics... {t}/{tao}", end="", flush=True)
-        #         corpus.sample_corpus()
-        #         tao_model = type(self)(corpus)
-        #         tao_model.infer_topics(k)
-        #         tao_rank = [next(zip(*tao_model.top_words(i, top_n_words))) for i in range(k)]
-        #         agreement_score_list.append(agreement_score(reference_rank, tao_rank))
-        #     stability.append(np.mean(agreement_score_list))
-        # print()
-
-        def inner_greene(k):
-            self.infer_topics(k)
-            reference_rank = [list(zip(*self.top_words(i, top_n_words)))[0] for i in range(k)]
-            agreement_score_list = []
-            for t in range(tao):
-                corpus.sample_corpus()
-                tao_model = type(self)(corpus)
-                tao_model.infer_topics(k)
-                tao_rank = [next(zip(*tao_model.top_words(i, top_n_words))) for i in range(k)]
-                agreement_score_list.append(agreement_score(reference_rank, tao_rank))
-            return k, np.mean(agreement_score_list)
-
-        steps = list(range(min_num_topics, max_num_topics + 1, step))
-        stability = []
-        with tqdm(total=len(steps), smoothing=0, leave=False, desc="Evaluating topic numbers") as pbar:
-            with Pool(workers) as pool:
-                for result in pool.imap_unordered(inner_greene, steps):
-                    stability.append(result)
-                    pbar.update()
-        stability = [i for _, i in sorted(stability, key=lambda x: x[0])]
-        return stability
-
     def print_topics(self, num_words=10, sort_by_freq=""):
         frequency = self.topics_frequency()
         topic_list = []
@@ -135,7 +84,7 @@ class TopicModel(object):
         cx = vector.tocoo()
         weighted_words = [()] * len(self.corpus.vectorizer.vocabulary_)
         for row, word_id, weight in itertools.zip_longest(cx.row, cx.col, cx.data):
-            weighted_words[word_id] = (self.corpus.word_for_id(word_id), weight)
+            weighted_words[word_id] = (self.corpus.feature_names[word_id], weight)
         weighted_words.sort(key=lambda x: x[1], reverse=True)
         return weighted_words[:num_words]
 

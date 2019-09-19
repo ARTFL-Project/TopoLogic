@@ -15,5 +15,16 @@ setup(
     author_email="clovisgladstone@gmail.com",
     packages=["topic_modeling_browser"],
     scripts=["scripts/topic_modeling_browser"],
-    install_requires=["scikit-learn", "networkx", "pandas", "scipy", "numpy", "nltk", "flask", "flask_cors", "tqdm"],
+    install_requires=[
+        "scikit-learn",
+        "networkx",
+        "pandas",
+        "scipy",
+        "numpy",
+        "nltk",
+        "flask",
+        "flask_cors",
+        "tqdm",
+        "joblib",
+    ],
 )

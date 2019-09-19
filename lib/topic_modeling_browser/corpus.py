@@ -12,7 +12,8 @@ from networkx.readwrite import json_graph
 from scipy import spatial
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.metrics import pairwise_distances
-from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.metrics.pairwise import linear_kernel, cosine_similarity
+from scipy.spatial.distance import cdist
 
 
 class savedTexts:
@@ -87,14 +88,9 @@ class Corpus:
             self.sklearn_vector_space = self.vectorizer.transform(t for t in self.texts_to_vectorize)
         self.size = self.sklearn_vector_space.shape[0]
         self.feature_names = self.vectorizer.get_feature_names()
-        self.similarity_matrix = pairwise_distances(self.sklearn_vector_space, metric="cosine", n_jobs=1)
 
     def sample_corpus(self):
-        self.full_sklearn_vector_space = self.sklearn_vector_space.copy()
         self.sklearn_vector_space = self.vectorizer.transform(t for t in self.texts_to_vectorize.random_sample())
-
-    def unsample_corpus(self):
-        self.sklearn_vector_space = self.full_sklearn_vector_space
 
     def docs_for_word(self, word_id):
         ids = []
@@ -112,33 +108,23 @@ class Corpus:
             weights[word_id] = weight
         return weights
 
-    def word_for_id(self, word):
-        return self.feature_names[word]
-
     def id_for_word(self, word_id):
         try:
             return self.vectorizer.vocabulary_[word_id]
         except KeyError:
             return -1
 
-    def similar_documents(self, doc_id, num_docs):
-        similarities = [
-            (d, 1.0 - self.topic_distances[doc_id][d])
-            for d in np.argsort(self.topic_distances[doc_id])[: num_docs + 1]
-            if d != doc_id
-        ]
-        return similarities
+    def similar_docs_by_vector(self, doc_id, num_docs, topic_model_doc_matrix):
+        if self._vectorization == "tfidf":
+            vectors = linear_kernel(topic_model_doc_matrix[doc_id], topic_model_doc_matrix)
+        else:
+            vectors = cosine_similarity(topic_model_doc_matrix[doc_id], topic_model_doc_matrix)
+        for d in np.argsort(vectors)[0][::-1][: num_docs + 1]:
+            if d != doc_id:
+                yield (d, vectors[0, d])
 
-    def similar_documents_by_topic_distribution(self, topic_model):
-        self.topic_distances = pairwise_distances(topic_model.document_topic_matrix, metric="cosine")
-
-
-def save_corpus(path, corpus):
-    with open(os.path.join(path, "corpus"), "wb") as output_file:
-        dump(corpus, output_file)
-
-
-def load_corpus(path):
-    with open(path, "rb") as input_file:
-        corpus = load(input_file)
-    return corpus
+    def similar_docs_by_topic_distribution(self, doc_id, num_docs):
+        vectors = cosine_similarity(self.sklearn_vector_space[doc_id], self.sklearn_vector_space)
+        for d in np.argsort(vectors)[0][::-1][: num_docs + 1]:
+            if d != doc_id:
+                yield (d, vectors[0, d])
