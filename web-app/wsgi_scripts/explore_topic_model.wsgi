@@ -148,7 +148,7 @@ def get_docs_in_topic_by_year(topic_id, year):
         if doc_id in doc_ids:
             metadata = db.get_metadata(doc_id, config["metadata_fields"])
             documents.append({"doc_id": doc_id, "metadata": metadata, "score": weight})
-    return response(documents)
+    return response(documents[:50])
 
 
 @application.route("/get_doc_data/<doc_id>")

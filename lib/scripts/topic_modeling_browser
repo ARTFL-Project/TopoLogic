@@ -71,8 +71,11 @@ def main(args):
         workers=args.workers,
         progress=False,
     )
+    count = 0
     for pos, text in enumerate(preproc.process_texts((f.path for f in os.scandir(source_data_path)))):
-        with open(os.path.join(texts_path, str(pos)), "w") as output:
+        with open(
+            os.path.join(texts_path, str(pos)), "w", 65536
+        ) as output:  ## Set buffer to 64K to speed up writes and avoid build-up in RAM
             output.write(" ".join(text))
         metadata[pos] = text.metadata
 
