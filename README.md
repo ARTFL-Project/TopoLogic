@@ -2,7 +2,7 @@
 
 Yet Another Topic Modeling Browser...
 
-Originally based-off https://github.com/AdrienGuille/TOM with various enhancements and tied to PhiloLogic
+Originally based off https://github.com/AdrienGuille/TOM with various enhancements and tied to PhiloLogic
 
 ## INSTALLATION ##
 * You will need a functionning mod_wsgi setup with Apache running
