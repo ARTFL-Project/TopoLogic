@@ -17,5 +17,5 @@ Originally based-off https://github.com/AdrienGuille/TOM with various enhancemen
 
 `topic_modeling_browser --config=topic_modeling_browser_config.ini --workers=32`
 
-## NOTE ##
+### NOTE ###
 If you run out of memory when processing the text files, use fewer cores. This will lower the chance the data accumulates in RAM while waiting to be written out to disk.
