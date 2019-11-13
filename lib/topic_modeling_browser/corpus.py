@@ -44,7 +44,7 @@ class Corpus:
         source_files_path,
         metadata,
         language=None,
-        ngram=1,
+        ngram=(1, 1),
         vectorization="tfidf",
         max_relative_frequency=1.0,
         min_absolute_frequency=0,
@@ -63,6 +63,8 @@ class Corpus:
         self.max_features = max_features
         self.texts_to_vectorize = savedTexts(source_files_path, min_tokens_per_doc)
         self._vectorization = vectorization
+        if len(ngram) == 1:
+            ngram = (ngram[0], ngram[0])
         if vectorizer is None:
             if vectorization == "tfidf":
                 self.vectorizer = TfidfVectorizer(

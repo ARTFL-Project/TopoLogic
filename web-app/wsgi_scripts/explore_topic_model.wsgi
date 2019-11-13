@@ -16,7 +16,7 @@ import numpy as np
 import tom_lib.utils as utils
 from flask import Flask, jsonify, request
 from numpy import NaN, any, array
-from topic_modeling_browser.DB import DBHandler
+from topic_modeling_browser.DB import DBSearch
 from sklearn.metrics.pairwise import cosine_similarity
 
 
@@ -75,8 +75,6 @@ def build_label_map(min_year, max_year, interval):
 
 def group_distributions_over_time(distribution_over_time, label_map):
     grouped_evolution = defaultdict(float)
-    print("DISTRO", distribution_over_time)
-    print("LABEL", label_map)
     for year, weight in zip(distribution_over_time["labels"], distribution_over_time["data"]):
         grouped_evolution[label_map[year]] += weight
     labels, data = zip(*grouped_evolution.items())
@@ -103,7 +101,7 @@ def get_topic_ids():
 @application.route("/get_topic_data/<topic_id>")
 def get_topic_data(topic_id):
     config = read_config(request.args["table"])
-    db = DBHandler(DATABASE, request.args["table"])
+    db = DBSearch(DATABASE, request.args["table"])
     topic_data = db.get_topic_data(int(topic_id))
     documents = []
     for document_id, weight in topic_data["docs"][:50]:
@@ -140,7 +138,7 @@ def get_topic_data(topic_id):
 @application.route("/get_docs_in_topic_by_year/<topic_id>/<year>")
 def get_docs_in_topic_by_year(topic_id, year):
     config = read_config(request.args["table"])
-    db = DBHandler(DATABASE, request.args["table"])
+    db = DBSearch(DATABASE, request.args["table"])
     doc_ids = db.get_doc_ids_by_metadata("year", year)
     topic_data = db.get_topic_data(int(topic_id))
     documents = []
@@ -154,7 +152,7 @@ def get_docs_in_topic_by_year(topic_id, year):
 @application.route("/get_doc_data/<doc_id>")
 def get_doc_data(doc_id):
     config = read_config(request.args["table"])
-    db = DBHandler(DATABASE, request.args["table"])
+    db = DBSearch(DATABASE, request.args["table"])
     doc_data = db.get_doc_data(int(doc_id))
     word_list = [(w[0], w[1] * 10, w[2]) for w in doc_data["word_list"][:100] if w[1] > 0]
     highest_value = word_list[0][1]
@@ -227,7 +225,7 @@ def get_doc_data(doc_id):
 @application.route("/get_word_data/<word>")
 def get_word_data(word):
     config = read_config(request.args["table"])
-    db = DBHandler(DATABASE, request.args["table"])
+    db = DBSearch(DATABASE, request.args["table"])
     word_data = db.get_word_data(word)
     sorted_docs = word_data["docs"]
     documents = []
@@ -248,7 +246,7 @@ def get_word_data(word):
 @application.route("/get_all_field_values")
 def get_all_field_values():
     config = read_config(request.args["table"])
-    db = DBHandler(DATABASE, request.args["table"])
+    db = DBSearch(DATABASE, request.args["table"])
     field = request.args["field"]
     if field == "word":
         field_values = db.get_vocabulary()
@@ -260,7 +258,7 @@ def get_all_field_values():
 @application.route("/get_field_distribution/<field>")
 def get_field_distribution(field):
     config = read_config(request.args["table"])
-    db = DBHandler(DATABASE, request.args["table"])
+    db = DBSearch(DATABASE, request.args["table"])
     field_value = request.args["value"]
     topic_distribution = db.get_topic_distribution_by_metadata(field, field_value)
     return response({"topic_distribution": topic_distribution})
@@ -269,7 +267,7 @@ def get_field_distribution(field):
 @application.route("/get_time_distributions")
 def get_time_distributions():
     config = read_config(request.args["table"])
-    db = DBHandler(DATABASE, request.args["table"])
+    db = DBSearch(DATABASE, request.args["table"])
     interval = int(request.args["interval"])
     distributions_over_time = db.get_topic_distributions_over_time(interval)
     if interval != 1:

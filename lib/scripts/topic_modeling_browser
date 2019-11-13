@@ -238,17 +238,17 @@ def build_web_app(
     with open(os.path.join(db_path, "model_config.ini"), "w") as configfile:
         config.write(configfile)
 
-    db = DBHandler(GLOBAL_CONFIG["DATABASE"], database_name)
+    db = DBHandler.set_class_attributes(
+        GLOBAL_CONFIG["DATABASE"], database_name, topic_model, full_corpus, doc_metadata
+    )
     print("Saving words...", flush=True)
-    db.save_words(topic_model, full_corpus)
+    db.save_words()
 
     print("Saving docs...", flush=True)
-    db.save_docs(topic_model, full_corpus, doc_metadata)
+    db.save_docs()
 
     print("Saving topics...", flush=True)
-    db.save_topics(
-        f"{db_path}/topic_words.json", topic_model, full_corpus, min(years), max(years), doc_metadata, step=1
-    )
+    db.save_topics(f"{db_path}/topic_words.json", min(years), max(years), step=1)
 
     write_app_config(source_database_link, db_path, database_name, GLOBAL_CONFIG["WEB_APP"]["server_name"])
     os.system(f"cd {db_path}; npm install; npm run build")
