@@ -304,11 +304,14 @@ export default {
         },
         formatTopicEvolution(topicEvolution) {
             let arrSum = this.sumArray(topicEvolution);
-            let coeff = 1.0 / arrSum;
+            // let coeff = 1.0 / arrSum;
             let weightedTopicEvolution = [];
             for (let value of topicEvolution) {
-                weightedTopicEvolution.push((coeff * value).toFixed(2));
+                weightedTopicEvolution.push(
+                    ((value / arrSum) * 100).toFixed(2)
+                );
             }
+            console.log(arrSum, this.sumArray(weightedTopicEvolution));
             return weightedTopicEvolution;
         },
         formatWordDistribution(wordDistribution) {

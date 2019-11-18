@@ -26,6 +26,6 @@ setup(
         "flask_cors",
         "tqdm",
         "joblib",
-        "text_preprocessing @ git+https://github.com/ARTFL-Project/text-preprocessing@v0.7.2#egg=text_preprocessing"
+        "text_preprocessing @ git+https://github.com/ARTFL-Project/text-preprocessing@v0.8#egg=text_preprocessing",
     ],
 )

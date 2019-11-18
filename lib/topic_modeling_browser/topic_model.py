@@ -24,6 +24,7 @@ class TopicModel(object):
         self.document_topic_matrix = None  # document x topic matrix
         self.topic_word_matrix = None  # topic x word matrix
         self.nb_topics = None  # a scalar value > 1
+        self.model = None
 
     @abstractmethod
     def infer_topics(self, num_topics=10, **kwargs):
@@ -60,30 +61,17 @@ class TopicModel(object):
                 topic_count += 1
             doc_count += 1
         self.document_topic_matrix = coo_matrix((data, (row, col)), shape=(self.corpus.size, self.nb_topics)).tocsr()
+        topic_frequencies = np.sum(self.document_topic_matrix.transpose(), axis=1)
+        self.topic_frequencies = topic_frequencies / np.sum(topic_frequencies)
 
     def most_similar_topic_by_doc_distribution(self):
         return pairwise_distances(self.document_topic_matrix.transpose())
-
-    def print_topics(self, num_words=10, sort_by_freq=""):
-        frequency = self.topics_frequency()
-        topic_list = []
-        for topic_id in range(self.nb_topics):
-            word_list = []
-            for weighted_word in self.top_words(topic_id, num_words):
-                word_list.append(weighted_word[0])
-            topic_list.append((topic_id, frequency[topic_id], word_list))
-        if sort_by_freq == "asc":
-            topic_list.sort(key=lambda x: x[1], reverse=False)
-        elif sort_by_freq == "desc":
-            topic_list.sort(key=lambda x: x[1], reverse=True)
-        for topic_id, frequency, topic_desc in topic_list:
-            print("topic %d\t%f\t%s" % (topic_id, frequency, " ".join(topic_desc)))
 
     def top_words(self, topic_id, num_words):
         vector = self.topic_word_matrix[topic_id]
         cx = vector.tocoo()
         weighted_words = [()] * len(self.corpus.vectorizer.vocabulary_)
-        for row, word_id, weight in itertools.zip_longest(cx.row, cx.col, cx.data):
+        for word_id, weight in itertools.zip_longest(cx.col, cx.data):
             weighted_words[word_id] = (self.corpus.feature_names[word_id], weight)
         weighted_words.sort(key=lambda x: x[1], reverse=True)
         return weighted_words[:num_words]
@@ -112,44 +100,14 @@ class TopicModel(object):
         vector = self.topic_word_matrix[:, word_id].toarray()
         return vector.T[0]
 
-    def most_likely_topic_for_document(self, doc_id):
-        weights = list(self.topic_distribution_for_document(doc_id))
-        return weights.index(max(weights))
+    def get_topic_frequency(self, topic_id):
+        return self.topic_frequencies[topic_id, 0]
 
-    def topic_frequency(self, topic, date=None):
-        return self.topics_frequency(date=date)[topic]
-
-    def topics_frequency(self, date=None):
-        frequency = np.zeros(self.nb_topics)
-        if date is None:
-            ids = range(self.corpus.size)
-        else:
-            ids = self.corpus.doc_ids(date)
-        for i in ids:
-            topic = self.most_likely_topic_for_document(i)
-            frequency[topic] += 1.0 / len(ids)
-        return frequency
-
-    def documents_for_topic(self, topic_id):
-        doc_ids = []
-        for doc_id in range(self.corpus.size):
-            most_likely_topic = self.most_likely_topic_for_document(doc_id)
-            if most_likely_topic == topic_id:
-                doc_ids.append(doc_id)
-        return doc_ids
-
-    def documents_per_topic(self):
-        topic_associations = {}
-        for i in range(self.corpus.size):
-            topic_id = self.most_likely_topic_for_document(i)
-            if topic_associations.get(topic_id):
-                documents = topic_associations[topic_id]
-                documents.append(i)
-                topic_associations[topic_id] = documents
-            else:
-                documents = [i]
-                topic_associations[topic_id] = documents
-        return topic_associations
+    def most_likely_topics_for_document(self, doc_id):
+        topic_vector = self.topic_distribution_for_document(doc_id)
+        topics = np.argsort(topic_vector)
+        weights = zip(topics, (topic_vector[topic] for topic in topics))
+        return weights
 
 
 class LatentDirichletAllocation(TopicModel):

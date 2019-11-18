@@ -22,7 +22,7 @@
                 <template slot="[frequency]" slot-scope="data">
                     <span
                         class="frequency-value pl-2"
-                    >{{ (data.value.toFixed(4) * 100).toFixed(2) }}%</span>
+                    >{{ (data.value.toFixed(8) * 100).toFixed(4) }}%</span>
                     <span
                         class="frequency-bar"
                         :style="`width: ${data.value*frequencyMultiplier}%;`"

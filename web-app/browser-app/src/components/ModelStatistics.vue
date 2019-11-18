@@ -17,7 +17,7 @@
                                 <li style="padding: 5px">Tokens include unigrams and bigrams</li>
                                 <li
                                     style="padding: 5px"
-                                >The top {{ 100 - config.maxTf * 100 }}% and bottom {{ config.minTf*100 }}% of tokens were filtered out.</li>
+                                >Tokens occurring in more than {{ 100 - config.maxTf * 100 }}% and less than {{ config.minTf*100 }}% of documents were filtered out.</li>
                             </ul>
                         </div>
                     </div>

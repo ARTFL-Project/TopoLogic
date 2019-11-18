@@ -167,14 +167,7 @@ class DBHandler:
         )
         with tqdm(total=cls.model.nb_topics, leave=False, desc="Generating topic stats") as pbar:
             with Pool(cpu_count() - 1) as pool:
-                for (
-                    topic_id,
-                    word_distribution,
-                    topic_evolution,
-                    frequency,
-                    docs,
-                    topic_word_object,
-                ) in pool.imap_unordered(
+                for (topic_id, word_distribution, topic_evolution, frequency, docs, description) in pool.imap_unordered(
                     cls.compute_topic,
                     zip(range(cls.model.nb_topics), repeat(start_date), repeat(end_date), repeat(step)),
                 ):
@@ -182,9 +175,12 @@ class DBHandler:
                         f"INSERT INTO {cls.table}_topics (topic_id, word_distribution, topic_evolution, frequency, docs) VALUES (%s, %s, %s, %s, %s)",
                         (topic_id, word_distribution, topic_evolution, frequency, docs),
                     )
-                    topic_words.append(topic_word_object)
+                    topic_words.append(
+                        {"name": topic_id, "frequency": frequency, "description": ", ".join(description)}
+                    )
                     pbar.update()
 
+        topic_words.sort(key=lambda x: x["name"])
         with open(topic_words_path, "w") as out_file:
             json.dump(topic_words, out_file)
 
@@ -199,13 +195,10 @@ class DBHandler:
         word_distribution = json.dumps({"labels": words, "data": weights})
 
         # Compute topic evolution
-        evolution = []
         years = {year: 0.0 for year in range(start_date, end_date + step, step)}
         for doc_id in range(cls.model.corpus.size):
             year = int(cls.metadata[doc_id]["year"])
-            topic = cls.model.most_likely_topic_for_document(doc_id)
-            if topic == topic_id:
-                years[year] += 1.0 / cls.model.corpus.size
+            years[year] += float(cls.model.topic_distribution_for_document(doc_id)[topic_id])
         dates, frequencies = zip(*list(years.items()))
         topic_evolution = json.dumps({"labels": dates, "data": frequencies})
 
@@ -216,17 +209,12 @@ class DBHandler:
             document_array = cls.model.corpus.sklearn_vector_space[document_id]
             if np.max(document_array.todense()) > 0:
                 documents.append((int(document_id), float(weight)))
-        frequency = float(round(cls.model.topic_frequency(topic_id) * 100, 2))
+        frequency = cls.model.get_topic_frequency(topic_id)
         docs = json.dumps(documents)
         description = []
         for weighted_word in cls.model.top_words(topic_id, 10):
             description.append(weighted_word[0])
-        topic_word_object = {
-            "name": topic_id,
-            "frequency": cls.model.topic_frequency(topic_id),
-            "description": ", ".join(description),
-        }
-        return topic_id, word_distribution, topic_evolution, frequency, docs, topic_word_object
+        return topic_id, word_distribution, topic_evolution, frequency, docs, description
 
 
 class DBSearch:
