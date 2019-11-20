@@ -35,6 +35,9 @@ def parse_args():
     )
     parser.add_argument("--min_num_topics", help="minimum number of topics for evaluation", type=int, default=10)
     parser.add_argument("--max_num_topics", help="maximum number of topics for evaluation", type=int, default=20)
+    parser.add_argument(
+        "--debug", help="debug mode: temp file in /tmp will not be deleted.", action="store_true", default=False
+    )
     args = parser.parse_args()
     return args
 
@@ -127,7 +130,8 @@ def main(args):
             workers=args.workers,
         )
 
-    os.system(f"rm -rf {args.data_output}")
+    if args.debug is False:
+        os.system(f"rm -rf {args.data_output}")
 
 
 def build_model(

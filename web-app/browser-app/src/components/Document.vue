@@ -9,15 +9,26 @@
                     <div class="col-8">
                         <div class="row">
                             <div class="col-12">
-                                <b-card no-body header="Topic Distribution">
+                                <b-card no-body header="Top 5 Topics">
                                     <div class="pl-2 pr-2">
-                                        <apexchart
-                                            height="300px"
-                                            width="100%"
-                                            type="bar"
-                                            :options="options"
-                                            :series="series"
-                                        ></apexchart>
+                                        <b-table
+                                            hover
+                                            :items="topicDistribution"
+                                            :fields="fields"
+                                            @row-clicked="goToTopic"
+                                        >
+                                            <template slot="[name]" slot-scope="data">
+                                                <span
+                                                    class="frequency-parent"
+                                                >Topic {{ data.value }}</span>
+                                            </template>
+                                            <template slot="[description]" slot-scope="data">
+                                                <span class="frequency-parent">{{ data.value }}</span>
+                                            </template>
+                                            <template slot="[frequency]" slot-scope="data">
+                                                <span class="frequency-value pl-2">{{ data.value }}%</span>
+                                            </template>
+                                        </b-table>
                                     </div>
                                 </b-card>
                             </div>
@@ -38,7 +49,7 @@
                                                 variant="secondary"
                                                 pill
                                                 class="float-right"
-                                            >{{(doc.score *100).toFixed(0) }}%</b-badge>
+                                            >{{(doc.score * 100).toFixed(2)}}%</b-badge>
                                         </b-list-group-item>
                                     </b-list-group>
                                 </b-card>
@@ -116,53 +127,18 @@ export default {
             mainDoc: null,
             text: "",
             words: [],
+            fields: [
+                { key: "name", label: "Topic", sortable: false },
+                { key: "description", label: "Top 10 tokens", sortable: false },
+                {
+                    key: "frequency",
+                    label: "Topic weight",
+                    sortable: false
+                }
+            ],
             vectorSimDocs: [],
             topicSimDocs: [],
-            options: {
-                chart: {
-                    id: "topic-distribution",
-                    toolbar: {
-                        show: false
-                    },
-                    events: {
-                        click: this.goToTopic
-                    }
-                },
-                xaxis: {
-                    categories: []
-                },
-                yaxis: {
-                    labels: {
-                        formatter: val => val.toFixed(2)
-                    }
-                },
-                grid: {
-                    padding: {
-                        left: 0,
-                        right: 0,
-                        top: 0,
-                        bottom: 0
-                    }
-                },
-                dataLabels: {
-                    enabled: false
-                },
-                tooltip: {
-                    x: {
-                        formatter: val =>
-                            `Topic ${val}: ${topicData[val].description}`
-                    },
-                    y: {
-                        formatter: val => val.toFixed(4)
-                    }
-                }
-            },
-            series: [
-                {
-                    name: "",
-                    data: []
-                }
-            ]
+            topicDistribution: []
         };
     },
     mounted() {
@@ -183,12 +159,11 @@ export default {
                     this.words = response.data.words;
                     this.vectorSimDocs = response.data.vector_sim_docs;
                     this.topicSimDocs = response.data.topic_sim_docs;
-                    // this.text = response.data.text;
                     this.mainDoc = {
                         metadata: response.data.metadata,
                         doc_id: ""
                     };
-                    this.buildTopicDistribution(
+                    this.topicDistribution = this.buildTopicDistribution(
                         response.data.topic_distribution
                     );
                     this.$http
@@ -201,24 +176,39 @@ export default {
                 });
         },
         buildTopicDistribution(topicDistribution) {
-            this.series[0].data = topicDistribution.data;
-            this.options = {
-                ...this.options,
-                ...{
-                    xaxis: {
-                        categories: topicDistribution.labels
-                    }
+            let total = topicDistribution.data.reduce((a, b) => a + b, 0);
+            let data = topicDistribution.data.map(x => (x / total) * 100);
+            let modData = [];
+            let modLabels = [];
+            let othersAddedWeight = 0;
+            for (let label = 0; data.length > label; label += 1) {
+                modData.push(data[label].toFixed(2));
+                modLabels.push(label);
+            }
+            let zippedData = modLabels.map((e, i) => [e, modData[i]]);
+            zippedData.sort(function(a, b) {
+                return b[1] - a[1];
+            });
+            let sortedDistribution = [];
+            let count = 0;
+            for (let topic of zippedData) {
+                sortedDistribution.push({
+                    name: topic[0],
+                    frequency: topic[1],
+                    description: topicData[topic[0]].description
+                });
+                count++;
+                if (count == 5) {
+                    break;
                 }
-            };
+            }
+            return sortedDistribution;
         },
         loadNewData() {
             this.fetchData();
         },
-        goToTopic(event) {
-            let seriesIndex = parseInt(event.target.getAttribute("j"));
-            this.$router.push(
-                `/topic/${this.options.xaxis.categories[seriesIndex]}`
-            );
+        goToTopic(topic) {
+            this.$router.push(`/topic/${topic.name}`);
         }
     }
 };
@@ -226,6 +216,9 @@ export default {
 <style scoped>
 /deep/ .philologic-fragment a {
     display: none;
+}
+/deep/ s {
+    text-decoration-line: none;
 }
 /deep/ .xml-pb {
     display: block;

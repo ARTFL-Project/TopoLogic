@@ -11,20 +11,29 @@
         </div>
         <div class="row mt-4 p-2" v-if="!notFound">
             <div class="col-7">
-                <b-card
-                    no-body
-                    class="shadow-sm"
-                    :header="`Word distribution of ${word} across topics`"
-                >
-                    <div class="p-2">
-                        <apexchart
-                            type="bar"
-                            width="100%"
-                            height="400px"
-                            :options="options"
-                            :series="series"
-                        ></apexchart>
-                    </div>
+                <b-card no-body class="shadow-sm">
+                    <template v-slot:header>
+                        <span class="mb-0">
+                            5 most important topics for
+                            <b>{{word}}</b>
+                        </span>
+                    </template>
+                    <b-table
+                        hover
+                        :items="topicDistribution"
+                        :fields="fields"
+                        @row-clicked="goToTopic"
+                    >
+                        <template slot="[name]" slot-scope="data">
+                            <span class="frequency-parent">Topic {{ data.value }}</span>
+                        </template>
+                        <template slot="[description]" slot-scope="data">
+                            <span class="frequency-parent">{{ data.value }}</span>
+                        </template>
+                        <template slot="[frequency]" slot-scope="data">
+                            <span class="frequency-value pl-2">{{ data.value.toFixed(2) }}%</span>
+                        </template>
+                    </b-table>
                 </b-card>
             </div>
             <div class="col-5">
@@ -45,7 +54,7 @@
                                 variant="secondary"
                                 pill
                                 class="float-right"
-                            >{{doc.score.toFixed(3)}}</b-badge>
+                            >{{doc.score.toFixed(2)}}</b-badge>
                         </b-list-group-item>
                     </b-list-group>
                 </b-card>
@@ -65,49 +74,14 @@ export default {
             word: "",
             notFound: false,
             documents: [],
-            options: {
-                chart: {
-                    id: "topic-distribution",
-                    toolbar: {
-                        show: false
-                    },
-                    events: {
-                        click: this.goToTopic
-                    }
-                },
-                xaxis: {
-                    categories: []
-                },
-                yaxis: {
-                    labels: {
-                        formatter: val => val.toFixed(2)
-                    }
-                },
-                grid: {
-                    padding: {
-                        left: 0,
-                        right: 0,
-                        top: 0,
-                        bottom: 0
-                    }
-                },
-                dataLabels: {
-                    enabled: false
-                },
-                tooltip: {
-                    x: {
-                        formatter: val =>
-                            `Topic ${val}: ${topicData[val].description}`
-                    },
-                    y: {
-                        formatter: val => val.toFixed(4)
-                    }
-                }
-            },
-            series: [
+            topicDistribution: [],
+            fields: [
+                { key: "name", label: "Topic", sortable: false },
+                { key: "description", label: "Top 10 tokens", sortable: false },
                 {
-                    name: "",
-                    data: []
+                    key: "frequency",
+                    label: "Word weight in topic",
+                    sortable: false
                 }
             ]
         };
@@ -128,34 +102,36 @@ export default {
                 .then(response => {
                     this.word = response.data.word;
                     this.documents = response.data.documents;
-                    this.build_topic_distribution(
+                    this.topicDistribution = this.build_topic_distribution(
                         response.data.topic_distribution
                     );
                 })
                 .catch(error => {
+                    console.log(error);
                     this.word = this.$route.params.word;
                     this.notFound = true;
                 });
         },
         build_topic_distribution(topicDistribution) {
-            this.series[0].data = topicDistribution.data;
-            this.options = {
-                ...this.options,
-                ...{
-                    xaxis: {
-                        categories: topicDistribution.labels
-                    }
-                }
-            };
+            let joinedDistribution = [];
+            for (let i = 0; i < topicData.length; i += 1) {
+                joinedDistribution.push({
+                    name: i,
+                    frequency: topicDistribution.data[i],
+                    description: topicData[i].description
+                });
+            }
+            joinedDistribution.sort(function(a, b) {
+                return b.frequency - a.frequency;
+            });
+            console.log(joinedDistribution.slice(0, 5));
+            return joinedDistribution.slice(0, 5);
         },
         loadNewData() {
             this.fetchData();
         },
-        goToTopic() {
-            let seriesIndex = parseInt(event.target.getAttribute("j"));
-            this.$router.push(
-                `/topic/${this.options.xaxis.categories[seriesIndex]}`
-            );
+        goToTopic(topic) {
+            this.$router.push(`/topic/${topic.name}`);
         }
     }
 };

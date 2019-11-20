@@ -59,7 +59,7 @@ export default {
                 { key: "description", label: "Top 10 tokens", sortable: false },
                 {
                     key: "frequency",
-                    label: "Proportion across corpus",
+                    label: "Relative global weight across corpus",
                     sortable: true
                 }
             ];

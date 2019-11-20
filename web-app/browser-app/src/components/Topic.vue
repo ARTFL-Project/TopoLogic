@@ -68,6 +68,13 @@
                             :header="`Top ${documents.length} documents for this topic (${year})`"
                             class="mt-4 shadow-sm"
                         >
+                            <div
+                                class="d-flex justify-content-center position-absolute"
+                                style="left: 0; right: 0; top: 4rem; z-index: 1;"
+                                v-if="loading"
+                            >
+                                <b-spinner style="width: 4rem; height: 4rem;" label="Large Spinner"></b-spinner>
+                            </div>
                             <b-list-group flush>
                                 <b-list-group-item v-for="doc in documents" :key="doc.doc_id">
                                     <citations :doc="doc"></citations>
@@ -99,6 +106,7 @@ export default {
             topicData: topicData,
             documents: [],
             similarTopics: [],
+            loading: false,
             frequency: 0,
             year: 0,
             topic: this.$route.params.topic,
@@ -270,7 +278,7 @@ export default {
                 )
                 .then(response => {
                     this.documents = response.data.documents;
-                    this.frequency = response.data.frequency;
+                    this.frequency = (response.data.frequency * 100).toFixed(4);
                     this.similarTopics = response.data.similar_topics;
                     this.year = `${response.data.topic_evolution.labels[0]}-${
                         response.data.topic_evolution.labels[
@@ -304,14 +312,12 @@ export default {
         },
         formatTopicEvolution(topicEvolution) {
             let arrSum = this.sumArray(topicEvolution);
-            // let coeff = 1.0 / arrSum;
             let weightedTopicEvolution = [];
             for (let value of topicEvolution) {
                 weightedTopicEvolution.push(
                     ((value / arrSum) * 100).toFixed(2)
                 );
             }
-            console.log(arrSum, this.sumArray(weightedTopicEvolution));
             return weightedTopicEvolution;
         },
         formatWordDistribution(wordDistribution) {
@@ -361,6 +367,7 @@ export default {
             let year = this.topicEvolutionChartOptions.xaxis.categories[
                 seriesIndex
             ];
+            this.loading = true;
             this.$http
                 .get(
                     `${this.$globalConfig.apiServer}/get_docs_in_topic_by_year/${this.$route.params.topic}/${year}?table=${this.$globalConfig.databaseName}`
@@ -368,6 +375,7 @@ export default {
                 .then(response => {
                     this.documents = response.data;
                     this.year = year;
+                    this.loading = false;
                 });
         },
         goToTopic(topic) {

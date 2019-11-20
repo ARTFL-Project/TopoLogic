@@ -161,6 +161,8 @@ def get_doc_data(doc_id):
     else:
         lowest_value = 0
     coeff = (highest_value - lowest_value) / 10
+    if coeff == 0.0:
+        coeff = 1.0
 
     def adjust_weight(weight):
         adjusted_weight = round((weight - lowest_value) / coeff, 0)

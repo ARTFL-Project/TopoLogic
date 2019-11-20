@@ -148,7 +148,6 @@ class DBHandler:
                 for word_id in np.where(non_zero, vector, np.nan).argsort()[: non_zero.sum()][::-1]
             ]
         )
-
         field_values = []
         for field in cls.metadata[0].keys():
             try:
