@@ -180,7 +180,6 @@ export default {
             let data = topicDistribution.data.map(x => (x / total) * 100);
             let modData = [];
             let modLabels = [];
-            let othersAddedWeight = 0;
             for (let label = 0; data.length > label; label += 1) {
                 modData.push(data[label].toFixed(2));
                 modLabels.push(label);

@@ -74,7 +74,6 @@ def main(args):
         workers=args.workers,
         progress=False,
     )
-    count = 0
     for pos, text in enumerate(preproc.process_texts((f.path for f in os.scandir(source_data_path)))):
         with open(
             os.path.join(texts_path, str(pos)), "w", 65536
@@ -254,7 +253,9 @@ def build_web_app(
     print("Saving topics...", flush=True)
     db.save_topics(f"{db_path}/topic_words.json", min(years), max(years), step=1)
 
-    write_app_config(source_database_link, db_path, database_name, GLOBAL_CONFIG["WEB_APP"]["server_name"])
+    write_app_config(
+        source_database_link, db_path, database_name, GLOBAL_CONFIG["WEB_APP"]["server_name"], min(years), max(years)
+    )
     os.system(f"cd {db_path}; npm install; npm run build")
 
 

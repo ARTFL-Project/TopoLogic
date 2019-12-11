@@ -47,7 +47,7 @@ def read_config(config_path):
     return config["SOURCE_DATA"], config["DATABASE"]["database_name"], preprocessing, vectorization, topic_modeling
 
 
-def write_app_config(philologic_link, db_path, database_name, server_name):
+def write_app_config(philologic_link, db_path, database_name, server_name, start_date, end_date):
     """Write app config used to build topic modeling browser web app"""
     with open(os.path.join(db_path, "appConfig.json"), "w") as app_config:
         json.dump(
@@ -62,7 +62,7 @@ def write_app_config(philologic_link, db_path, database_name, server_name):
                     {"field": "title", "style": {"font-style": "italic"}, "link": True},
                     {"field": "year", "style": {}, "link": False},
                 ],
-                "timeSeriesInterval": 1,
+                "timeSeriesConfig": {"interval": 1, "startDate": start_date, "endDate": end_date},
                 "metadataDistributions": [{"label": "author", "field": "author"}],
             },
             app_config,

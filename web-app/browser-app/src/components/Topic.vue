@@ -2,8 +2,8 @@
     <div class="container-fluid">
         <h5 class="mb-4" style="text-align: center">
             Representation of topic
-            <b>{{topic}}</b>
-            across corpus (overall frequency of {{frequency}}%)
+            <b>{{ topic }}</b>
+            across corpus (overall frequency of {{ frequency }}%)
         </h5>
         <b-row>
             <b-col cols="4">
@@ -21,7 +21,11 @@
             <b-col cols="8">
                 <b-row>
                     <b-col cols="12">
-                        <b-card no-body class="shadow-sm" header="Topic frequency over time">
+                        <b-card
+                            no-body
+                            class="shadow-sm"
+                            header="Topic frequency over time"
+                        >
                             <div class="p-2">
                                 <apexchart
                                     width="100%"
@@ -47,7 +51,8 @@
                                 :options="similarEvolutionOptions"
                             ></apexchart>
                             <div
-                                v-for="(topic, seriesIndex) in similarEvolutionSeries"
+                                v-for="(topic,
+                                seriesIndex) in similarEvolutionSeries"
                                 :key="topic.name"
                                 class="topic pl-2 pr-2 pb-1"
                                 style="font-size: 80%"
@@ -56,16 +61,23 @@
                                 <span
                                     :id="`topic-${topic.name}`"
                                     class="topic-legend"
-                                    :style="`background-color: ${similarEvolutionOptions.colors[seriesIndex]}`"
+                                    :style="
+                                        `background-color: ${similarEvolutionOptions.colors[seriesIndex]}`
+                                    "
                                 ></span>
-                                Topic {{ topic.name }}: {{ topicData[parseInt(topic.name)].description }}
+                                Topic {{ topic.name }}:
+                                {{
+                                    topicData[parseInt(topic.name)].description
+                                }}
                             </div>
                         </b-card>
                     </b-col>
                     <b-col cols="6">
                         <b-card
                             no-body
-                            :header="`Top ${documents.length} documents for this topic (${year})`"
+                            :header="
+                                `Top ${documents.length} documents for this topic (${year})`
+                            "
                             class="mt-4 shadow-sm"
                         >
                             <div
@@ -73,16 +85,25 @@
                                 style="left: 0; right: 0; top: 4rem; z-index: 1;"
                                 v-if="loading"
                             >
-                                <b-spinner style="width: 4rem; height: 4rem;" label="Large Spinner"></b-spinner>
+                                <b-spinner
+                                    style="width: 4rem; height: 4rem;"
+                                    label="Large Spinner"
+                                ></b-spinner>
                             </div>
                             <b-list-group flush>
-                                <b-list-group-item v-for="doc in documents" :key="doc.doc_id">
+                                <b-list-group-item
+                                    v-for="doc in documents"
+                                    :key="doc.doc_id"
+                                >
                                     <citations :doc="doc"></citations>
                                     <b-badge
                                         variant="secondary"
                                         pill
                                         class="float-right"
-                                    >{{(doc.score * 100).toFixed(2)}}%</b-badge>
+                                        >{{
+                                            (doc.score * 100).toFixed(2)
+                                        }}%</b-badge
+                                    >
                                 </b-list-group-item>
                             </b-list-group>
                         </b-card>
@@ -139,7 +160,7 @@ export default {
                     x: {
                         formatter: year => {
                             return `${year}-${parseInt(year) +
-                                this.$globalConfig.timeSeriesInterval -
+                                this.$globalConfig.timeSeriesConfig.interval -
                                 1}`;
                         }
                     }
@@ -274,7 +295,7 @@ export default {
         fetchData() {
             this.$http
                 .get(
-                    `${this.$globalConfig.apiServer}/get_topic_data/${this.$route.params.topic}?table=${this.$globalConfig.databaseName}&interval=${this.$globalConfig.timeSeriesInterval}`
+                    `${this.$globalConfig.apiServer}/get_topic_data/${this.$route.params.topic}?table=${this.$globalConfig.databaseName}&interval=${this.$globalConfig.timeSeriesConfig.interval}`
                 )
                 .then(response => {
                     this.documents = response.data.documents;
@@ -286,21 +307,36 @@ export default {
                         ]
                     }`;
                     this.buildWordDistribution(response.data.word_distribution);
-                    this.buildTopicEvolution(response.data.topic_evolution);
+                    let startIndex = response.data.topic_evolution.labels.indexOf(
+                        this.$globalConfig.timeSeriesConfig.startDate
+                    );
+                    let endIndex =
+                        response.data.topic_evolution.labels.indexOf(
+                            this.$globalConfig.timeSeriesConfig.endDate
+                        ) + 1;
+                    this.buildTopicEvolution(
+                        response.data.topic_evolution,
+                        startIndex,
+                        endIndex
+                    );
                     this.similarEvolutionOptions = {
                         ...this.similarEvolutionOptions,
                         ...{
                             xaxis: {
-                                categories:
-                                    response.data.similar_topics[0]
-                                        .topic_evolution.labels
+                                categories: response.data.similar_topics[0].topic_evolution.labels.slice(
+                                    startIndex,
+                                    endIndex
+                                )
                             }
                         }
                     };
                     this.similarEvolutionSeries = response.data.similar_topics
                         .slice(0, 5)
                         .map(topic => ({
-                            data: topic.topic_evolution.data,
+                            data: topic.topic_evolution.data.slice(
+                                startIndex,
+                                endIndex
+                            ),
                             name: topic.topic.toString()
                         }));
                 });
@@ -339,7 +375,15 @@ export default {
                 wordDistribution.data
             );
         },
-        buildTopicEvolution(topicEvolution) {
+        buildTopicEvolution(topicEvolution, startIndex, endIndex) {
+            topicEvolution.data = topicEvolution.data.slice(
+                startIndex,
+                endIndex
+            );
+            topicEvolution.labels = topicEvolution.labels.slice(
+                startIndex,
+                endIndex
+            );
             this.topicEvolutionSeries[0].data = this.formatTopicEvolution(
                 topicEvolution.data
             );

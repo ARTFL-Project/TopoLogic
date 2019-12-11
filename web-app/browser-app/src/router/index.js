@@ -1,7 +1,6 @@
 import Vue from 'vue'
 import Router from 'vue-router'
 
-import TopicDistributions from '../components/TopicDistributions'
 import Topic from '../components/Topic'
 import Document from '../components/Document'
 import Word from '../components/Word'

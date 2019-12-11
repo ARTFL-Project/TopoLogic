@@ -8,7 +8,8 @@
                             class="btn btn-sm btn-outline-danger"
                             style="cursor: pointer"
                             @click="clearAllSeries()"
-                        >Clear all topics</span>
+                            >Clear all topics</span
+                        >
                     </div>
                     <div
                         v-for="topic in topicData"
@@ -19,7 +20,11 @@
                         <span
                             :id="`topic-${topic.name}`"
                             class="topic-legend"
-                            :style="`background-color: ${options.colors[topic.name]}`"
+                            :style="
+                                `background-color: ${
+                                    options.colors[topic.name]
+                                }`
+                            "
                         ></span>
                         Topic {{ topic.name }}: {{ topic.description }}
                     </div>
@@ -98,21 +103,33 @@ export default {
             this.fieldName = this.$route.params.fieldName;
             this.$http
                 .get(
-                    `${this.$globalConfig.apiServer}/get_time_distributions?table=${this.$globalConfig.databaseName}&interval=${this.$globalConfig.timeSeriesInterval}`
+                    `${this.$globalConfig.apiServer}/get_time_distributions?table=${this.$globalConfig.databaseName}&interval=${this.$globalConfig.timeSeriesConfig.interval}`
                 )
                 .then(response => {
                     this.topicsOverTime = response.data.distributions_over_time;
+                    let startIndex = this.topicsOverTime[0].topic_evolution.labels.indexOf(
+                        this.$globalConfig.timeSeriesConfig.startDate
+                    );
+                    let endIndex =
+                        this.topicsOverTime[0].topic_evolution.labels.indexOf(
+                            this.$globalConfig.timeSeriesConfig.endDate
+                        ) + 1;
                     this.options = {
                         ...this.options,
                         ...{
                             xaxis: {
-                                categories: this.topicsOverTime[0]
-                                    .topic_evolution.labels
+                                categories: this.topicsOverTime[0].topic_evolution.labels.slice(
+                                    startIndex,
+                                    endIndex
+                                )
                             }
                         }
                     };
                     this.series = this.topicsOverTime.map(topic => ({
-                        data: topic.topic_evolution.data,
+                        data: topic.topic_evolution.data.slice(
+                            startIndex,
+                            endIndex
+                        ),
                         name: topic.topic
                     }));
                 });
