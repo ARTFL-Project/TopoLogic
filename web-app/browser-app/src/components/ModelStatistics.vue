@@ -50,7 +50,7 @@ export default {
     created() {
         this.$http
             .get(
-                `${this.$globalConfig.apiServer}/${this.$globalConfig.databaseName}/get_config`
+                `${this.$globalConfig.apiServer}/get_config/${this.$globalConfig.databaseName}`
             )
             .then(response => {
                 this.config = response.data;

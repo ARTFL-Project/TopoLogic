@@ -13,13 +13,13 @@
                 :sort-desc.sync="sortDesc"
                 @row-clicked="goToTopic"
             >
-                <template slot="[name]" slot-scope="data">
+                <template v-slot:cell(name)="data">
                     <span class="frequency-parent">Topic {{ data.value }}</span>
                 </template>
-                <template slot="[description]" slot-scope="data">
+                <template v-slot:cell(description)="data">
                     <span class="frequency-parent">{{ data.value }}</span>
                 </template>
-                <template slot="[frequency]" slot-scope="data">
+                <template v-slot:cell(frequency)="data">
                     <span
                         class="frequency-value pl-2"
                     >{{ (data.value.toFixed(8) * 100).toFixed(4) }}%</span>
@@ -68,21 +68,31 @@ export default {
             }
             return fields;
         },
-        sortBy: function() {
-            if (this.$route.name == "home") {
-                return "name";
-            } else {
-                return "frequency";
+        sortBy: {
+            get: function() {
+                if (this.$route.name == "home") {
+                    return "name";
+                } else {
+                    return "frequency";
+                }
+            },
+            set: value => {
+                return value;
             }
         },
-        sortDesc: function() {
-            if (this.$route.name == "home") {
-                return false;
-            } else {
-                return true;
+        sortDesc: {
+            get: function() {
+                if (this.$route.name == "home") {
+                    return false;
+                } else {
+                    return true;
+                }
+            },
+            set: value => {
+                return value;
             }
         },
-        frequencyMultiplier: function() {
+        frequencyMultiplier() {
             let maxFrequency = 0.0;
             for (let topic of this.topics) {
                 if (topic.frequency > maxFrequency) {

@@ -88,9 +88,9 @@ def response(data):
     return response
 
 
-@application.route("/get_config")
-def get_config():
-    return response(read_config(request.args["table"]))
+@application.route("/get_config/<table>")
+def get_config(table):
+    return response(read_config(table))
 
 
 @application.route("/get_topic_ids")
