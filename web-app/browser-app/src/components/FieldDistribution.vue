@@ -29,7 +29,7 @@ export default {
         fetchData() {
             this.$http
                 .get(
-                    `${this.$globalConfig.apiServer}/get_field_distribution/${this.$route.params.fieldName}?table=${this.$globalConfig.databaseName}&value=${this.$route.params.fieldValue}`
+                    `${this.$globalConfig.apiServer}/get_field_distribution/${this.$globalConfig.databaseName}/${this.$route.params.fieldName}?value=${this.$route.params.fieldValue}`
                 )
                 .then(response => {
                     this.topics = response.data.topic_distribution;

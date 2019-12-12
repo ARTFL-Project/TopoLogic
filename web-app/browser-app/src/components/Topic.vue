@@ -21,11 +21,7 @@
             <b-col cols="8">
                 <b-row>
                     <b-col cols="12">
-                        <b-card
-                            no-body
-                            class="shadow-sm"
-                            header="Topic frequency over time"
-                        >
+                        <b-card no-body class="shadow-sm" header="Topic frequency over time">
                             <div class="p-2">
                                 <apexchart
                                     width="100%"
@@ -67,7 +63,7 @@
                                 ></span>
                                 Topic {{ topic.name }}:
                                 {{
-                                    topicData[parseInt(topic.name)].description
+                                topicData[parseInt(topic.name)].description
                                 }}
                             </div>
                         </b-card>
@@ -85,25 +81,16 @@
                                 style="left: 0; right: 0; top: 4rem; z-index: 1;"
                                 v-if="loading"
                             >
-                                <b-spinner
-                                    style="width: 4rem; height: 4rem;"
-                                    label="Large Spinner"
-                                ></b-spinner>
+                                <b-spinner style="width: 4rem; height: 4rem;" label="Large Spinner"></b-spinner>
                             </div>
                             <b-list-group flush>
-                                <b-list-group-item
-                                    v-for="doc in documents"
-                                    :key="doc.doc_id"
-                                >
+                                <b-list-group-item v-for="doc in documents" :key="doc.doc_id">
                                     <citations :doc="doc"></citations>
-                                    <b-badge
-                                        variant="secondary"
-                                        pill
-                                        class="float-right"
-                                        >{{
-                                            (doc.score * 100).toFixed(2)
-                                        }}%</b-badge
-                                    >
+                                    <b-badge variant="secondary" pill class="float-right">
+                                        {{
+                                        (doc.score * 100).toFixed(2)
+                                        }}%
+                                    </b-badge>
                                 </b-list-group-item>
                             </b-list-group>
                         </b-card>
@@ -295,7 +282,7 @@ export default {
         fetchData() {
             this.$http
                 .get(
-                    `${this.$globalConfig.apiServer}/get_topic_data/${this.$route.params.topic}?table=${this.$globalConfig.databaseName}&interval=${this.$globalConfig.timeSeriesConfig.interval}`
+                    `${this.$globalConfig.apiServer}/get_topic_data/${this.$globalConfig.databaseName}/${this.$route.params.topic}?interval=${this.$globalConfig.timeSeriesConfig.interval}`
                 )
                 .then(response => {
                     this.documents = response.data.documents;
@@ -414,7 +401,7 @@ export default {
             this.loading = true;
             this.$http
                 .get(
-                    `${this.$globalConfig.apiServer}/get_docs_in_topic_by_year/${this.$route.params.topic}/${year}?table=${this.$globalConfig.databaseName}`
+                    `${this.$globalConfig.apiServer}/get_docs_in_topic_by_year/${this.$globalConfig.databaseName}/${this.$route.params.topic}/${year}`
                 )
                 .then(response => {
                     this.documents = response.data;

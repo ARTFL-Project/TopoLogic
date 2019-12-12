@@ -8,8 +8,7 @@
                             class="btn btn-sm btn-outline-danger"
                             style="cursor: pointer"
                             @click="clearAllSeries()"
-                            >Clear all topics</span
-                        >
+                        >Clear all topics</span>
                     </div>
                     <div
                         v-for="topic in topicData"
@@ -103,7 +102,7 @@ export default {
             this.fieldName = this.$route.params.fieldName;
             this.$http
                 .get(
-                    `${this.$globalConfig.apiServer}/get_time_distributions?table=${this.$globalConfig.databaseName}&interval=${this.$globalConfig.timeSeriesConfig.interval}`
+                    `${this.$globalConfig.apiServer}/get_time_distributions/${this.$globalConfig.databaseName}?interval=${this.$globalConfig.timeSeriesConfig.interval}`
                 )
                 .then(response => {
                     this.topicsOverTime = response.data.distributions_over_time;

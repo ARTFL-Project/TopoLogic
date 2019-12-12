@@ -3,114 +3,113 @@
         <h5 class="pl-4 pr-4" style="text-align: center">
             <citations :doc="mainDoc" v-if="mainDoc"></citations>
         </h5>
-        <div class="card-body">
-            <div class="card-text" style="font-size: 90%">
-                <div class="row mb-4">
-                    <div class="col-8">
-                        <div class="row">
-                            <div class="col-12">
-                                <b-card no-body header="Top 5 Topics">
-                                    <div class="pl-2 pr-2">
-                                        <b-table
-                                            hover
-                                            :items="topicDistribution"
-                                            :fields="fields"
-                                            @row-clicked="goToTopic"
-                                        >
-                                            <template slot="[name]" slot-scope="data">
-                                                <span
-                                                    class="frequency-parent"
-                                                >Topic {{ data.value }}</span>
-                                            </template>
-                                            <template slot="[description]" slot-scope="data">
-                                                <span class="frequency-parent">{{ data.value }}</span>
-                                            </template>
-                                            <template slot="[frequency]" slot-scope="data">
-                                                <span class="frequency-value pl-2">{{ data.value }}%</span>
-                                            </template>
-                                        </b-table>
-                                    </div>
-                                </b-card>
-                            </div>
-                            <div class="col-6 mt-4">
-                                <b-card
-                                    no-body
-                                    :header="`Top ${topicSimDocs.length} documents with most similar topic distribution`"
-                                >
-                                    <b-list-group flush>
-                                        <b-list-group-item
-                                            v-for="doc in topicSimDocs"
-                                            :key="doc.doc_id"
-                                            class="list-group-item"
-                                            style="border-radius: 0px; border-width: 1px 0px"
-                                        >
-                                            <citations :doc="doc"></citations>
-                                            <b-badge
-                                                variant="secondary"
-                                                pill
-                                                class="float-right"
-                                            >{{(doc.score * 100).toFixed(2)}}%</b-badge>
-                                        </b-list-group-item>
-                                    </b-list-group>
-                                </b-card>
-                            </div>
-                            <div class="col-6 mt-4">
-                                <b-card
-                                    no-body
-                                    :header="`Top ${vectorSimDocs.length} documents with most similar vocabulary`"
-                                >
-                                    <b-list-group flush>
-                                        <b-list-group-item
-                                            v-for="doc in vectorSimDocs"
-                                            :key="doc.doc_id"
-                                            class="list-group-item"
-                                            style="border-radius: 0px; border-width: 1px 0px"
-                                        >
-                                            <citations :doc="doc"></citations>
-                                            <b-badge
-                                                variant="secondary"
-                                                pill
-                                                class="float-right"
-                                            >{{(doc.score * 100).toFixed(0)}}%</b-badge>
-                                        </b-list-group-item>
-                                    </b-list-group>
-                                </b-card>
-                            </div>
+
+        <b-row class="mb-4 mt-4">
+            <b-col cols="9">
+                <b-card no-body header="Top 10 Topics">
+                    <div class="pl-2 pr-2">
+                        <b-table
+                            hover
+                            :items="topicDistribution"
+                            :fields="fields"
+                            @row-clicked="goToTopic"
+                        >
+                            <template slot="[name]" slot-scope="data">
+                                <span class="frequency-parent">Topic {{ data.value }}</span>
+                            </template>
+                            <template slot="[description]" slot-scope="data">
+                                <span class="frequency-parent">
+                                    {{
+                                    data.value
+                                    }}
+                                </span>
+                            </template>
+                            <template slot="[frequency]" slot-scope="data">
+                                <span class="frequency-value pl-2">{{ data.value }}%</span>
+                            </template>
+                        </b-table>
+                    </div>
+                </b-card>
+            </b-col>
+            <b-col cols="3">
+                <b-card
+                    no-body
+                    style="height: 100%"
+                    :header="
+                        `Vector Representation (top ${words.length} tokens)`
+                    "
+                >
+                    <div
+                        style="display: flex; height: 100%; justify-content: center; align-items: center;"
+                        class="card-text"
+                    >
+                        <div>
+                            <router-link
+                                v-for="weightedWord in words"
+                                :key="weightedWord[2]"
+                                :to="`/word/${weightedWord[0]}`"
+                                :style="
+                                    `display:inline-block; padding: 5px; font-size: ${1 +
+                                        weightedWord[1]}rem; color: ${
+                                        weightedWord[3]
+                                    }`
+                                "
+                            >{{ weightedWord[0] }}</router-link>
                         </div>
                     </div>
-                    <div class="col-4">
-                        <div class="row">
-                            <div class="col-12">
-                                <b-card
-                                    no-body
-                                    style="height: 100%"
-                                    :header="`Vector Representation (top ${words.length} tokens)`"
-                                >
-                                    <div
-                                        style="display: flex; height: 100%; justify-content: center; align-items: center;"
-                                        class="card-text"
-                                    >
-                                        <div>
-                                            <router-link
-                                                v-for="weightedWord in words"
-                                                :key="weightedWord[2]"
-                                                :to="`/word/${weightedWord[0]}`"
-                                                :style="`display:inline-block; padding: 5px; font-size: ${1+weightedWord[1]}rem; color: ${weightedWord[3]}`"
-                                            >{{weightedWord[0]}}</router-link>
-                                        </div>
-                                    </div>
-                                </b-card>
-                            </div>
-                            <div class="col-12 text-justify mt-4">
-                                <b-card header="Original Text">
-                                    <div v-html="text"></div>
-                                </b-card>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                </b-card>
+            </b-col>
+        </b-row>
+        <b-row class="mt-2">
+            <div class="col-6">
+                <b-card
+                    no-body
+                    :header="
+                        `Top ${topicSimDocs.length} documents with most similar topic distribution`
+                    "
+                >
+                    <b-list-group flush>
+                        <b-list-group-item
+                            v-for="doc in topicSimDocs"
+                            :key="doc.doc_id"
+                            class="list-group-item"
+                            style="border-radius: 0px; border-width: 1px 0px"
+                        >
+                            <citations :doc="doc"></citations>
+                            <b-badge
+                                variant="secondary"
+                                pill
+                                class="float-right"
+                            >{{ (doc.score * 100).toFixed(2) }}%</b-badge>
+                        </b-list-group-item>
+                    </b-list-group>
+                </b-card>
             </div>
-        </div>
+            <div class="col-6">
+                <b-card
+                    no-body
+                    :header="
+                        `Top ${vectorSimDocs.length} documents with most similar vocabulary`
+                    "
+                >
+                    <b-list-group flush>
+                        <b-list-group-item
+                            v-for="doc in vectorSimDocs"
+                            :key="doc.doc_id"
+                            class="list-group-item"
+                            style="border-radius: 0px; border-width: 1px 0px"
+                        >
+                            <citations :doc="doc"></citations>
+                            <b-badge
+                                variant="secondary"
+                                pill
+                                class="float-right"
+                            >{{ (doc.score * 100).toFixed(0) }}%</b-badge>
+                        </b-list-group-item>
+                    </b-list-group>
+                </b-card>
+            </div>
+        </b-row>
     </b-container>
 </template>
 <script>
@@ -153,7 +152,7 @@ export default {
             this.text = "";
             this.$http
                 .get(
-                    `${this.$globalConfig.apiServer}/get_doc_data/${this.$route.params.doc}?table=${this.$globalConfig.databaseName}`
+                    `${this.$globalConfig.apiServer}/get_doc_data/${this.$globalConfig.databaseName}/${this.$route.params.doc}`
                 )
                 .then(response => {
                     this.words = response.data.words;
@@ -161,18 +160,13 @@ export default {
                     this.topicSimDocs = response.data.topic_sim_docs;
                     this.mainDoc = {
                         metadata: response.data.metadata,
-                        doc_id: ""
+                        doc_id: "",
+                        philo_id: response.data.metadata.philo_id,
+                        philo_type: response.data.metadata.philo_type
                     };
                     this.topicDistribution = this.buildTopicDistribution(
                         response.data.topic_distribution
                     );
-                    this.$http
-                        .get(
-                            `${this.$globalConfig.philoLogicUrl}/reports/navigation.py?report=navigation&philo_id=${response.data.metadata.philo_id}`
-                        )
-                        .then(philoResponse => {
-                            this.text = philoResponse.data.text;
-                        });
                 });
         },
         buildTopicDistribution(topicDistribution) {
@@ -197,7 +191,7 @@ export default {
                     description: topicData[topic[0]].description
                 });
                 count++;
-                if (count == 5) {
+                if (count == 10) {
                     break;
                 }
             }

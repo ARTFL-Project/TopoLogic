@@ -97,7 +97,7 @@ export default {
         fetchData() {
             this.$http
                 .get(
-                    `${this.$globalConfig.apiServer}/get_word_data/${this.$route.params.word}?table=${this.$globalConfig.databaseName}`
+                    `${this.$globalConfig.apiServer}/get_word_data/${this.$globalConfig.databaseName}/${this.$route.params.word}`
                 )
                 .then(response => {
                     this.word = response.data.word;

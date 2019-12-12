@@ -70,7 +70,7 @@ export default {
             this.loading = true;
             this.$http
                 .get(
-                    `${this.$globalConfig.apiServer}/get_all_field_values?table=${this.$globalConfig.databaseName}&field=${this.$route.params.fieldName}`
+                    `${this.$globalConfig.apiServer}/get_all_field_values/${this.$globalConfig.databaseName}?field=${this.$route.params.fieldName}`
                 )
                 .then(response => {
                     this.totalFields = response.data.field_values.length;

@@ -14,7 +14,7 @@ from xml.sax.saxutils import unescape as unescape_xml
 from flask_cors import CORS
 import numpy as np
 import tom_lib.utils as utils
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, redirect
 from numpy import NaN, any, array
 from topic_modeling_browser.DB import DBSearch
 from sklearn.metrics.pairwise import cosine_similarity
@@ -37,6 +37,7 @@ def read_config(table_name):
     local_config = configparser.ConfigParser()
     local_config.read(os.path.join(APP_PATH, table_name, "model_config.ini"))
     return {
+        "object_level": local_config["PARAMETERS"]["object_level"],
         "topics": int(local_config["PARAMETERS"]["number_of_topics"]),
         "method": local_config["PARAMETERS"]["algorithm"],
         "corpus_size": int(local_config["DATA"]["num_docs"]),
@@ -98,10 +99,10 @@ def get_topic_ids():
     return response(list(range(config["topics"])))
 
 
-@application.route("/get_topic_data/<topic_id>")
-def get_topic_data(topic_id):
-    config = read_config(request.args["table"])
-    db = DBSearch(DATABASE, request.args["table"])
+@application.route("/get_topic_data/<table>/<topic_id>")
+def get_topic_data(table, topic_id):
+    config = read_config(table)
+    db = DBSearch(DATABASE, table, config["object_level"])
     topic_data = db.get_topic_data(int(topic_id))
     documents = []
     for document_id, weight in topic_data["docs"][:50]:
@@ -135,10 +136,10 @@ def get_topic_data(topic_id):
     )
 
 
-@application.route("/get_docs_in_topic_by_year/<topic_id>/<year>")
-def get_docs_in_topic_by_year(topic_id, year):
-    config = read_config(request.args["table"])
-    db = DBSearch(DATABASE, request.args["table"])
+@application.route("/get_docs_in_topic_by_year/<table>/<topic_id>/<year>")
+def get_docs_in_topic_by_year(table, topic_id, year):
+    config = read_config(table)
+    db = DBSearch(DATABASE, table, config["object_level"])
     doc_ids = db.get_doc_ids_by_metadata("year", year)
     topic_data = db.get_topic_data(int(topic_id))
     documents = []
@@ -149,12 +150,12 @@ def get_docs_in_topic_by_year(topic_id, year):
     return response(documents[:50])
 
 
-@application.route("/get_doc_data/<doc_id>")
-def get_doc_data(doc_id):
-    config = read_config(request.args["table"])
-    db = DBSearch(DATABASE, request.args["table"])
-    doc_data = db.get_doc_data(int(doc_id))
-    word_list = [(w[0], w[1] * 10, w[2]) for w in doc_data["word_list"][:100] if w[1] > 0]
+@application.route("/get_doc_data/<table>/<philo_id>")
+def get_doc_data(table, philo_id):
+    config = read_config(table)
+    db = DBSearch(DATABASE, table, config["object_level"])
+    doc_data = db.get_doc_data(philo_id)
+    word_list = [(w[0], w[1] * 10, w[2]) for w in doc_data["word_list"][:50] if w[1] > 0]
     highest_value = word_list[0][1]
     if len(word_list) > 1:
         lowest_value = word_list[-1][1]
@@ -224,10 +225,10 @@ def get_doc_data(doc_id):
     )
 
 
-@application.route("/get_word_data/<word>")
-def get_word_data(word):
-    config = read_config(request.args["table"])
-    db = DBSearch(DATABASE, request.args["table"])
+@application.route("/get_word_data/<table>/<word>")
+def get_word_data(table, word):
+    config = read_config(table)
+    db = DBSearch(DATABASE, table, config["object_level"])
     word_data = db.get_word_data(word)
     sorted_docs = word_data["docs"]
     documents = []
@@ -245,10 +246,10 @@ def get_word_data(word):
     )
 
 
-@application.route("/get_all_field_values")
-def get_all_field_values():
-    config = read_config(request.args["table"])
-    db = DBSearch(DATABASE, request.args["table"])
+@application.route("/get_all_field_values/<table>")
+def get_all_field_values(table):
+    config = read_config(table)
+    db = DBSearch(DATABASE, table, config["object_level"])
     field = request.args["field"]
     if field == "word":
         field_values = db.get_vocabulary()
@@ -257,19 +258,19 @@ def get_all_field_values():
     return response({"field_values": field_values, "size": len(field_values)})
 
 
-@application.route("/get_field_distribution/<field>")
-def get_field_distribution(field):
-    config = read_config(request.args["table"])
-    db = DBSearch(DATABASE, request.args["table"])
+@application.route("/get_field_distribution/<table>/<field>")
+def get_field_distribution(table, field):
+    config = read_config(table)
+    db = DBSearch(DATABASE, table, config["object_level"])
     field_value = request.args["value"]
     topic_distribution = db.get_topic_distribution_by_metadata(field, field_value)
     return response({"topic_distribution": topic_distribution})
 
 
-@application.route("/get_time_distributions")
-def get_time_distributions():
-    config = read_config(request.args["table"])
-    db = DBSearch(DATABASE, request.args["table"])
+@application.route("/get_time_distributions/<table>/")
+def get_time_distributions(table):
+    config = read_config(table)
+    db = DBSearch(DATABASE, table, config["object_level"])
     interval = int(request.args["interval"])
     distributions_over_time = db.get_topic_distributions_over_time(interval)
     if interval != 1:
@@ -282,3 +283,4 @@ def get_time_distributions():
             grouped_distributions_over_time.append({"topic": topic["topic"], "topic_evolution": grouped_distribution})
         return response({"distributions_over_time": grouped_distributions_over_time})
     return response({"distributions_over_time": distributions_over_time})
+

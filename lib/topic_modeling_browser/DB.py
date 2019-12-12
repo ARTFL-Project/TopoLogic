@@ -217,19 +217,21 @@ class DBHandler:
 
 
 class DBSearch:
-    def __init__(self, config, table):
+    def __init__(self, config, table, object_level):
         self.db = psycopg2.connect(
             user=config["database_user"], password=config["database_password"], database=config["database_name"]
         )
         self.cursor = self.db.cursor(cursor_factory=RealDictCursor)
         self.table = table
+        self.object_level = object_level
 
     def get_vocabulary(self):
         self.cursor.execute(f"SELECT word FROM {self.table}_words")
         return sorted([result["word"] for result in self.cursor])
 
-    def get_doc_data(self, doc_id):
-        self.cursor.execute(f"SELECT * FROM {self.table}_docs WHERE doc_id=%s", (doc_id,))
+    def get_doc_data(self, philo_id):
+        philo_id = " ".join(i for i in philo_id.split() if i != 0)
+        self.cursor.execute(f"SELECT * FROM {self.table}_docs WHERE philo_{self.object_level}_id=%s", (philo_id,))
         return self.cursor.fetchone()
 
     def get_metadata(self, doc_id, metadata_fields):
