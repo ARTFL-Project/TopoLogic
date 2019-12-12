@@ -11,6 +11,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from tqdm import trange, tqdm
 from multiprocess import Pool, cpu_count
+from sklearn.metrics import pairwise_distances
 
 
 class DBHandler:
@@ -39,7 +40,19 @@ class DBHandler:
     def save_words(cls):
         cls.cursor.execute(f"DROP TABLE IF EXISTS {cls.table}_words")
         cls.cursor.execute(
-            f"CREATE TABLE {cls.table}_words(word_id INTEGER, word TEXT, distribution_across_topics JSONB, docs JSONB, docs_by_topic JSONB)"
+            f"CREATE TABLE {cls.table}_words(word_id INTEGER, word TEXT, distribution_across_topics JSONB, docs JSONB, similar_words_by_topic JSONB, similar_words_by_cooc JSONB)"
+        )
+
+        # Compute word similarity based on topic distributions
+        print("Compute word similarity by distribution over topics...", flush=True)
+        word_similarities_by_topic = pairwise_distances(
+            cls.model.topic_word_matrix.transpose(), metric="cosine", n_jobs=-1
+        )
+
+        # Compute word similarity based on document co-occurrence
+        print("Compute word similarity by document co-occurrence...", flush=True)
+        word_similarities_by_cooc = pairwise_distances(
+            cls.model.corpus.sklearn_vector_space.transpose(), metric="cosine", n_jobs=-1
         )
 
         # Get word weights across docs
@@ -72,15 +85,32 @@ class DBHandler:
                 topics.append(i)
                 weights.append(word_distribution[i])
 
-            sim_doc_by_distribution = []
+            similar_words_topic_array = 1.0 - word_similarities_by_topic[word_id]  # convert distance to similarity
+            similar_words_by_topic = []
+            for other_word in np.argsort(similar_words_topic_array)[::-1]:
+                similar_words_by_topic.append(
+                    {
+                        "word": cls.model.corpus.feature_names[other_word],
+                        "weight": similar_words_topic_array[other_word],
+                    }
+                )
+
+            similar_words_cooc_array = 1.0 - word_similarities_by_cooc[word_id]  # convert distance to similarity
+            similar_words_by_cooc = []
+            for other_word in np.argsort(similar_words_cooc_array)[::-1]:
+                similar_words_by_cooc.append(
+                    {"word": cls.model.corpus.feature_names[other_word], "weight": similar_words_cooc_array[other_word]}
+                )
+
             cls.cursor.execute(
-                f"INSERT INTO {cls.table}_words (word_id, word, distribution_across_topics, docs, docs_by_topic) VALUES (%s, %s, %s, %s, %s)",
+                f"INSERT INTO {cls.table}_words (word_id, word, distribution_across_topics, docs, similar_words_by_topic, similar_words_by_cooc) VALUES (%s, %s, %s, %s, %s, %s)",
                 (
                     int(word_id),
                     word,
                     json.dumps({"labels": topics, "data": weights}),
                     json.dumps(sorted_docs),
-                    json.dumps(sim_doc_by_distribution),
+                    json.dumps(similar_words_by_topic),
+                    json.dumps(similar_words_by_cooc),
                 ),
             )
         cls.cursor.execute(f"CREATE INDEX {cls.table}_word_id_index ON {cls.table}_words USING HASH(word_id)")

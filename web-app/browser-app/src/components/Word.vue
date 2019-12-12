@@ -11,30 +11,80 @@
         </div>
         <div class="row mt-4 p-2" v-if="!notFound">
             <div class="col-7">
-                <b-card no-body class="shadow-sm">
-                    <template v-slot:header>
-                        <span class="mb-0">
-                            5 most important topics for
-                            <b>{{word}}</b>
-                        </span>
-                    </template>
-                    <b-table
-                        hover
-                        :items="topicDistribution"
-                        :fields="fields"
-                        @row-clicked="goToTopic"
-                    >
-                        <template slot="[name]" slot-scope="data">
-                            <span class="frequency-parent">Topic {{ data.value }}</span>
-                        </template>
-                        <template slot="[description]" slot-scope="data">
-                            <span class="frequency-parent">{{ data.value }}</span>
-                        </template>
-                        <template slot="[frequency]" slot-scope="data">
-                            <span class="frequency-value pl-2">{{ data.value.toFixed(2) }}%</span>
-                        </template>
-                    </b-table>
-                </b-card>
+                <b-row>
+                    <b-col cols="12">
+                        <b-card no-body class="shadow-sm">
+                            <template v-slot:header>
+                                <span class="mb-0">
+                                    5 most important topics for
+                                    <b>{{word}}</b>
+                                </span>
+                            </template>
+                            <b-table
+                                hover
+                                :items="topicDistribution"
+                                :fields="fields"
+                                @row-clicked="goToTopic"
+                            >
+                                <template slot="[name]" slot-scope="data">
+                                    <span class="frequency-parent">Topic {{ data.value }}</span>
+                                </template>
+                                <template slot="[description]" slot-scope="data">
+                                    <span class="frequency-parent">{{ data.value }}</span>
+                                </template>
+                                <template slot="[frequency]" slot-scope="data">
+                                    <span class="frequency-value pl-2">{{ data.value.toFixed(2) }}%</span>
+                                </template>
+                            </b-table>
+                        </b-card>
+                    </b-col>
+                </b-row>
+                <b-row class="mt-4">
+                    <b-col cols="6">
+                        <b-card
+                            no-body
+                            :header="`${simWordsByTopics.length} most similar words by topic distribution`"
+                        >
+                            <b-list-group flush>
+                                <b-list-group-item
+                                    v-for="word in simWordsByTopics"
+                                    :key="word.word"
+                                    class="list-group-item"
+                                    style="border-radius: 0px; border-width: 1px 0px; font-size: 90%"
+                                >
+                                    <a :href="`/word/${word.word}`">{{ word.word }}</a>
+                                    <b-badge
+                                        variant="secondary"
+                                        pill
+                                        class="float-right"
+                                    >{{word.weight.toFixed(4)}}</b-badge>
+                                </b-list-group-item>
+                            </b-list-group>
+                        </b-card>
+                    </b-col>
+                    <b-col cols="6">
+                        <b-card
+                            no-body
+                            :header="`${simWordsByCooc.length} most similar words by document co-occurrence`"
+                        >
+                            <b-list-group flush>
+                                <b-list-group-item
+                                    v-for="word in simWordsByCooc"
+                                    :key="word.word"
+                                    class="list-group-item"
+                                    style="border-radius: 0px; border-width: 1px 0px; font-size: 90%"
+                                >
+                                    <a :href="`/word/${word.word}`">{{ word.word }}</a>
+                                    <b-badge
+                                        variant="secondary"
+                                        pill
+                                        class="float-right"
+                                    >{{word.weight.toFixed(4)}}</b-badge>
+                                </b-list-group-item>
+                            </b-list-group>
+                        </b-card>
+                    </b-col>
+                </b-row>
             </div>
             <div class="col-5">
                 <b-card
@@ -105,6 +155,9 @@ export default {
                     this.topicDistribution = this.build_topic_distribution(
                         response.data.topic_distribution
                     );
+                    this.simWordsByTopics =
+                        response.data.similar_words_by_topic;
+                    this.simWordsByCooc = response.data.similar_words_by_cooc;
                 })
                 .catch(error => {
                     console.log(error);

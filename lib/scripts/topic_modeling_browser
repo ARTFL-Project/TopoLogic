@@ -104,6 +104,7 @@ def main(args):
             full_corpus,
             source_file_path,
             source_data["philologic_database_url"],
+            prep_config["text_object_level"],
             algorithm=model_config["algorithm"],
             number_of_topics=model_config["number_of_topics"],
             vectorization=vector_config["vectorization"],
@@ -196,6 +197,7 @@ def build_web_app(
     full_corpus,
     source_file_path,
     source_database_link,
+    object_level,
     algorithm="lda",
     number_of_topics=100,
     vectorization="tf",
@@ -213,6 +215,7 @@ def build_web_app(
     os.system(f"cp /var/lib/topic-modeling-browser/web-app/apache_htaccess.conf {db_path}/.htaccess")
     config = configparser.ConfigParser()
     config["PARAMETERS"] = {
+        "object_level": object_level,
         "number_of_topics": number_of_topics,
         "algorithm": algorithm,
         "vectorization": vectorization,

@@ -242,6 +242,8 @@ def get_word_data(table, word):
             "topic_ids": list(range(config["topics"])),
             "topic_distribution": word_data["distribution_across_topics"],
             "documents": documents[:100],
+            "similar_words_by_topic": word_data["similar_words_by_topic"][1:21],
+            "similar_words_by_cooc": word_data["similar_words_by_cooc"][1:21],
         }
     )
 

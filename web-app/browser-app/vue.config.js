@@ -17,5 +17,5 @@ module.exports = {
 
 function getAppPath() {
     const globalConfig = require('./appConfig.json')
-    return globalConfig.appPath
+    return "/" + globalConfig.appPath
 }
