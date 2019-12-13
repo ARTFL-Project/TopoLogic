@@ -43,7 +43,7 @@
                     <b-col cols="6">
                         <b-card
                             no-body
-                            :header="`${simWordsByTopics.length} most similar words by topic distribution`"
+                            :header="`${simWordsByTopics.length} most associated words by topic distribution`"
                         >
                             <b-list-group flush>
                                 <b-list-group-item
@@ -52,7 +52,7 @@
                                     class="list-group-item"
                                     style="border-radius: 0px; border-width: 1px 0px; font-size: 90%"
                                 >
-                                    <a :href="`/word/${word.word}`">{{ word.word }}</a>
+                                    <router-link :to="`/word/${word.word}`">{{ word.word }}</router-link>
                                     <b-badge
                                         variant="secondary"
                                         pill
@@ -65,7 +65,7 @@
                     <b-col cols="6">
                         <b-card
                             no-body
-                            :header="`${simWordsByCooc.length} most similar words by document co-occurrence`"
+                            :header="`${simWordsByCooc.length} most associated words by document co-occurrence`"
                         >
                             <b-list-group flush>
                                 <b-list-group-item
@@ -74,7 +74,7 @@
                                     class="list-group-item"
                                     style="border-radius: 0px; border-width: 1px 0px; font-size: 90%"
                                 >
-                                    <a :href="`/word/${word.word}`">{{ word.word }}</a>
+                                    <router-link :to="`/word/${word.word}`">{{ word.word }}</router-link>
                                     <b-badge
                                         variant="secondary"
                                         pill

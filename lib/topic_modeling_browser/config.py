@@ -40,7 +40,7 @@ def read_config(config_path):
             vectorization[key] = value
     topic_modeling = {}
     for key, value in config["TOPIC_MODELING"].items():
-        if key in ("number_of_topics", "max_iter"):
+        if key in ("number_of_topics", "max_iter", "topics_over_time_interval"):
             topic_modeling[key] = int(value.strip())
         else:
             topic_modeling[key] = value

@@ -110,17 +110,9 @@ def get_topic_data(table, topic_id):
         documents.append({"doc_id": document_id, "metadata": metadata, "score": weight})
     interval = int(request.args["interval"])
     current_topic_evolution = topic_data["topic_evolution"]
-    min_year = current_topic_evolution["labels"][0]
-    max_year = current_topic_evolution["labels"][-1]
-    if interval == 1:
-        label_map = {year: str(year) for year in range(min_year, max_year + 1)}
-    elif interval != 1:
-        label_map = build_label_map(min_year, max_year, interval)
-        current_topic_evolution = group_distributions_over_time(topic_data["topic_evolution"], label_map)
     current_topic_evolution_array = array([current_topic_evolution["data"]])
     similar_topics = []
     for topic, topic_evolution in db.get_topic_evolutions(int(topic_id)):
-        topic_evolution = group_distributions_over_time(topic_evolution, label_map)
         similarity = float(cosine_similarity(current_topic_evolution_array, array([topic_evolution["data"]]))[0, 0])
         similar_topics.append({"topic": topic, "topic_evolution": topic_evolution, "score": similarity})
     similar_topics.sort(key=lambda x: x["score"], reverse=True)
@@ -275,14 +267,5 @@ def get_time_distributions(table):
     db = DBSearch(DATABASE, table, config["object_level"])
     interval = int(request.args["interval"])
     distributions_over_time = db.get_topic_distributions_over_time(interval)
-    if interval != 1:
-        grouped_distributions_over_time = []
-        min_year = distributions_over_time[0]["topic_evolution"]["labels"][0]
-        max_year = distributions_over_time[0]["topic_evolution"]["labels"][-1]
-        label_map = build_label_map(min_year, max_year, interval)
-        for topic in distributions_over_time:
-            grouped_distribution = group_distributions_over_time(topic["topic_evolution"], label_map)
-            grouped_distributions_over_time.append({"topic": topic["topic"], "topic_evolution": grouped_distribution})
-        return response({"distributions_over_time": grouped_distributions_over_time})
     return response({"distributions_over_time": distributions_over_time})
 

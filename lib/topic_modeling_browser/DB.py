@@ -3,15 +3,16 @@
 import codecs
 import json
 import os
-from math import log
+from collections import Counter
 from itertools import repeat
+from math import log
 
 import numpy as np
 import psycopg2
-from psycopg2.extras import RealDictCursor
-from tqdm import trange, tqdm
 from multiprocess import Pool, cpu_count
+from psycopg2.extras import RealDictCursor
 from sklearn.metrics import pairwise_distances
+from tqdm import tqdm, trange
 
 
 class DBHandler:
@@ -21,6 +22,7 @@ class DBHandler:
     model = None
     metadata = None
     table = None
+    docs_per_year = None
 
     def __init__(self):
         pass
@@ -34,6 +36,10 @@ class DBHandler:
         cls.model = model
         cls.metadata = metadata
         cls.table = table
+        docs_per_year = Counter()
+        for doc in range(cls.model.corpus.size):
+            docs_per_year[int(cls.metadata[doc]["year"])] += 1
+        cls.docs_per_year = docs_per_year
         return cls()
 
     @classmethod
@@ -227,7 +233,7 @@ class DBHandler:
         years = {year: 0.0 for year in range(start_date, end_date + step, step)}
         for doc_id in range(cls.model.corpus.size):
             year = int(cls.metadata[doc_id]["year"])
-            years[year] += float(cls.model.topic_distribution_for_document(doc_id)[topic_id])
+            years[year] += float(cls.model.topic_distribution_for_document(doc_id)[topic_id]) / cls.docs_per_year[year]
         dates, frequencies = zip(*list(years.items()))
         topic_evolution = json.dumps({"labels": dates, "data": frequencies})
 
@@ -313,7 +319,7 @@ class DBSearch:
 
     def get_topic_distributions_over_time(self, interval):
         distributions_over_time = []
-        self.cursor.execute(f"SELECT topic_id, topic_evolution FROM {self.table}_topics")
+        self.cursor.execute(f"SELECT topic_id, topic_evolution FROM {self.table}_topics ORDER BY topic_id asc")
         for row in self.cursor:
             distributions_over_time.append({"topic": row["topic_id"], "topic_evolution": row["topic_evolution"]})
         return distributions_over_time

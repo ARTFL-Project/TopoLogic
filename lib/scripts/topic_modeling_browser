@@ -51,38 +51,26 @@ def main(args):
         args.data_output = os.path.join(args.data_output, database_name)
     if os.path.exists(args.data_output) is True:
         os.system(f"rm -rf {args.data_output}")
-    texts_path = os.path.join(args.data_output, "texts")
-    os.system(f"mkdir -p {texts_path}")
-    metadata = {}
     source_data_path = os.path.join(source_data["philologic_database_path"], "data/words_and_philo_ids")
+    if (
+        prep_config["training_text_object_level"]
+        and prep_config["training_text_object_level"] != prep_config["text_object_level"]
+    ):
+        training_texts_path = os.path.join(args.data_output, "training/texts")
+        texts_path = os.path.join(args.data_output, "texts")
+    else:
+        training_texts_path = os.path.join(args.data_output, "texts")
+        texts_path = training_texts_path
+    os.system(f"mkdir -p {texts_path}")
+    os.system(f"mkdir -p {training_texts_path}")
 
     print("## PREPROCESSING ##", flush=True)
-    print(f"Processing {sum(1 for _ in os.scandir(source_data_path))} files...", flush=True)
-    preproc = PreProcessor(
-        text_object_type=prep_config["text_object_level"],
-        language=prep_config["language"],
-        stemmer=prep_config["stemmer"],
-        lemmatizer=prep_config["lemmatizer"],
-        modernize=prep_config["modernize"],
-        lowercase=prep_config["lowercase"],
-        strip_numbers=prep_config["numbers"],
-        stopwords=prep_config["stopwords"],
-        pos_to_keep=prep_config["pos_to_keep"],
-        ascii=prep_config["ascii"],
-        min_word_length=prep_config["minimum_word_length"],
-        is_philo_db=True,
-        workers=args.workers,
-        progress=False,
-    )
-    for pos, text in enumerate(preproc.process_texts((f.path for f in os.scandir(source_data_path)))):
-        with open(
-            os.path.join(texts_path, str(pos)), "w", 65536
-        ) as output:  ## Set buffer to 64K to speed up writes and avoid build-up in RAM
-            output.write(" ".join(text))
-        metadata[pos] = text.metadata
+    print(f"{sum(1 for _ in os.scandir(source_data_path))} texts to process...")
+    metadata = prepare_data(prep_config, source_data_path, training_texts_path, texts_path)
 
     source_file_path = os.path.join(source_data["philologic_database_path"], "data/TEXT")
-    topic_model, full_corpus, partial_corpus = build_model(
+    topic_model, full_corpus, training_corpus = build_model(
+        training_texts_path,
         texts_path,
         metadata,
         algorithm=model_config["algorithm"],
@@ -113,11 +101,12 @@ def main(args):
             max_features=vector_config["max_features"] or None,
             ngram=vector_config["ngram"],
             min_tokens_per_doc=vector_config["min_tokens_per_doc"],
+            topics_over_time_interval=model_config["topics_over_time_interval"],
         )
     else:
         print("Estimating the number of topics...")
         corpus_path = os.path.join(args.data_output, "corpus")
-        dump(partial_corpus, corpus_path)
+        dump(training_corpus, corpus_path)
         os.system("mkdir -p ./evaluation_output")
         topic_num_evaluator(
             corpus_path,
@@ -134,7 +123,56 @@ def main(args):
         os.system(f"rm -rf {args.data_output}")
 
 
+def prepare_data(prep_config, source_data_path, training_texts_path, texts_path):
+    if prep_config["training_text_object_level"]:
+        training_object_level = prep_config["training_text_object_level"]
+    else:
+        training_object_level = prep_config["text_object_level"]
+    preproc = PreProcessor(
+        text_object_type=training_object_level,
+        language=prep_config["language"],
+        stemmer=prep_config["stemmer"],
+        lemmatizer=prep_config["lemmatizer"],
+        modernize=prep_config["modernize"],
+        lowercase=prep_config["lowercase"],
+        strip_numbers=prep_config["numbers"],
+        stopwords=prep_config["stopwords"],
+        pos_to_keep=prep_config["pos_to_keep"],
+        ascii=prep_config["ascii"],
+        min_word_length=prep_config["minimum_word_length"],
+        is_philo_db=True,
+        workers=args.workers,
+        progress=False,
+    )
+    metadata = {}
+    for pos, text in enumerate(
+        preproc.process_texts(
+            (f.path for f in os.scandir(source_data_path)), progress_prefix="Processing training data..."
+        )
+    ):
+        with open(
+            os.path.join(training_texts_path, str(pos)), "w", 65536
+        ) as output:  ## Set buffer to 64K to speed up writes and avoid build-up in RAM
+            output.write(" ".join(text))
+        if texts_path == training_texts_path:
+            metadata[pos] = text.metadata
+    if texts_path != training_texts_path:
+        preproc.text_object_level = prep_config["text_object_level"]
+        for pos, text in enumerate(
+            preproc.process_texts(
+                (f.path for f in os.scandir(source_data_path)), progress_prefix="Processing data to be topic modeled..."
+            )
+        ):
+            with open(
+                os.path.join(texts_path, str(pos)), "w", 65536
+            ) as output:  ## Set buffer to 64K to speed up writes and avoid build-up in RAM
+                output.write(" ".join(text))
+            metadata[pos] = text.metadata
+    return metadata
+
+
 def build_model(
+    training_texts_path,
     texts_path,
     doc_metadata,
     algorithm="lda",
@@ -150,8 +188,8 @@ def build_model(
 
     # Load and prepare a corpus
     print("Vectorize documents...", flush=True)
-    partial_corpus = Corpus(
-        texts_path,
+    training_corpus = Corpus(
+        training_texts_path,
         doc_metadata,
         vectorization=vectorization,
         max_relative_frequency=max_freq,
@@ -160,26 +198,36 @@ def build_model(
         min_tokens_per_doc=min_tokens_per_doc,
         max_features=max_features,
     )
-    print("corpus size:", partial_corpus.size)
-    print("vocabulary size:", len(partial_corpus.vectorizer.vocabulary_))
+    print("training corpus size:", training_corpus.size)
+    print("vocabulary size:", len(training_corpus.vectorizer.vocabulary_))
 
-    if min_tokens_per_doc == 0 or evaluate is True:
-        full_corpus = partial_corpus
+    if training_texts_path == texts_path:
+        if min_tokens_per_doc == 0 or evaluate is True:
+            full_corpus = training_corpus
+        else:
+            full_corpus = Corpus(
+                training_texts_path,
+                doc_metadata,
+                vectorizer=training_corpus.vectorizer,
+                max_relative_frequency=training_corpus._max_relative_frequency,
+                min_absolute_frequency=training_corpus._min_absolute_frequency,
+                ngram=training_corpus.ngram,
+            )
     else:
         full_corpus = Corpus(
             texts_path,
             doc_metadata,
-            vectorizer=partial_corpus.vectorizer,
-            max_relative_frequency=partial_corpus._max_relative_frequency,
-            min_absolute_frequency=partial_corpus._min_absolute_frequency,
-            ngram=partial_corpus.ngram,
+            vectorizer=training_corpus.vectorizer,
+            max_relative_frequency=training_corpus._max_relative_frequency,
+            min_absolute_frequency=training_corpus._min_absolute_frequency,
+            ngram=training_corpus.ngram,
         )
 
     # Instantiate a topic model
     if algorithm == "nmf":
-        topic_model = NonNegativeMatrixFactorization(partial_corpus)
+        topic_model = NonNegativeMatrixFactorization(training_corpus)
     else:
-        topic_model = LatentDirichletAllocation(partial_corpus)
+        topic_model = LatentDirichletAllocation(training_corpus)
 
     if evaluate is False:
         # Infer topics
@@ -187,7 +235,7 @@ def build_model(
         topic_model.infer_topics(num_topics=number_of_topics)
         topic_model.infer_and_replace(full_corpus)
 
-    return topic_model, full_corpus, partial_corpus
+    return topic_model, full_corpus, training_corpus
 
 
 def build_web_app(
@@ -206,6 +254,7 @@ def build_web_app(
     max_features=None,
     ngram=2,
     min_tokens_per_doc=0,
+    topics_over_time_interval=1,
 ):
     db_path = os.path.join(GLOBAL_CONFIG["WEB_APP"]["web_app_path"], database_name)
     if os.path.exists(db_path) is True:
@@ -254,7 +303,7 @@ def build_web_app(
     db.save_docs()
 
     print("Saving topics...", flush=True)
-    db.save_topics(f"{db_path}/topic_words.json", min(years), max(years), step=1)
+    db.save_topics(f"{db_path}/topic_words.json", min(years), max(years), step=topics_over_time_interval)
 
     write_app_config(
         source_database_link, db_path, database_name, GLOBAL_CONFIG["WEB_APP"]["server_name"], min(years), max(years)

@@ -48,6 +48,8 @@ export default {
     name: "TimeVue",
     data() {
         return {
+            startIndex: 0,
+            endIndex: 0,
             topicsOverTime: [],
             topicData: topicData,
             allSeriesVisible: true,
@@ -106,10 +108,10 @@ export default {
                 )
                 .then(response => {
                     this.topicsOverTime = response.data.distributions_over_time;
-                    let startIndex = this.topicsOverTime[0].topic_evolution.labels.indexOf(
+                    this.startIndex = this.topicsOverTime[0].topic_evolution.labels.indexOf(
                         this.$globalConfig.timeSeriesConfig.startDate
                     );
-                    let endIndex =
+                    this.endIndex =
                         this.topicsOverTime[0].topic_evolution.labels.indexOf(
                             this.$globalConfig.timeSeriesConfig.endDate
                         ) + 1;
@@ -118,16 +120,16 @@ export default {
                         ...{
                             xaxis: {
                                 categories: this.topicsOverTime[0].topic_evolution.labels.slice(
-                                    startIndex,
-                                    endIndex
+                                    this.startIndex,
+                                    this.endIndex
                                 )
                             }
                         }
                     };
                     this.series = this.topicsOverTime.map(topic => ({
                         data: topic.topic_evolution.data.slice(
-                            startIndex,
-                            endIndex
+                            this.startIndex,
+                            this.endIndex
                         ),
                         name: topic.topic
                     }));
@@ -157,6 +159,7 @@ export default {
             this.seriesActive = [];
         },
         selectTopic(topic) {
+            console.log(topic, this.seriesActive.indexOf(topic));
             if (this.seriesActive.includes(topic)) {
                 for (let i = 0; i < this.series.length; i += 1) {
                     if (topic == this.series[i].name) {
@@ -164,6 +167,7 @@ export default {
                     }
                 }
                 this.seriesActive.splice(this.seriesActive.indexOf(topic), 1);
+                this.series.splice(this.series.indexOf(topic), 1);
                 let el = document.getElementById(`topic-${topic}`);
                 el.style.backgroundColor = "#fff";
                 el.parentNode.style.color = "rgba(0, 0, 0, .35)";
@@ -171,7 +175,10 @@ export default {
                 let localSeries = JSON.parse(JSON.stringify(this.series));
                 localSeries[topic] = {
                     name: topic,
-                    data: this.topicsOverTime[topic].topic_evolution.data
+                    data: this.topicsOverTime[topic].topic_evolution.data.slice(
+                        this.startIndex,
+                        this.endIndex
+                    )
                 };
                 this.series = localSeries;
                 this.seriesActive.push(topic);

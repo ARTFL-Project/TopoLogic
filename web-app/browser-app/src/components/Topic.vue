@@ -21,7 +21,11 @@
             <b-col cols="8">
                 <b-row>
                     <b-col cols="12">
-                        <b-card no-body class="shadow-sm" header="Topic frequency over time">
+                        <b-card
+                            no-body
+                            class="shadow-sm"
+                            header="Distribution of topic weight over time"
+                        >
                             <div class="p-2">
                                 <apexchart
                                     width="100%"
