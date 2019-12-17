@@ -122,7 +122,14 @@ export default {
     },
     methods: {
         goToTopic(topic) {
-            this.$router.push(`/topic/${topic.name}`);
+            if (this.routeName == "home") {
+                this.$router.push(`/topic/${topic.name}`);
+            } else {
+                window.open(
+                    `${this.$globalConfig.philoLogicUrl}/query?report=bibliography&${this.$route.params.fieldName}="${this.$route.params.fieldValue}"&topicmodel=${topic.name}`,
+                    "_blank"
+                );
+            }
         }
     }
 };

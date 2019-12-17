@@ -63,7 +63,7 @@ def write_app_config(philologic_link, db_path, database_name, server_name, start
                     {"field": "year", "style": {}, "link": False},
                 ],
                 "timeSeriesConfig": {"interval": 1, "startDate": start_date, "endDate": end_date},
-                "metadataDistributions": [{"label": "author", "field": "author"}],
+                "metadataDistributions": [{"label": "author", "field": "author", "filterFrequency": 1}],
             },
             app_config,
             indent=4,

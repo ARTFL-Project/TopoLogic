@@ -108,6 +108,8 @@ export default {
                 )
                 .then(response => {
                     this.topicsOverTime = response.data.distributions_over_time;
+
+                    // Get start and end index of data to display
                     this.startIndex = this.topicsOverTime[0].topic_evolution.labels.indexOf(
                         this.$globalConfig.timeSeriesConfig.startDate
                     );
@@ -115,6 +117,25 @@ export default {
                         this.topicsOverTime[0].topic_evolution.labels.indexOf(
                             this.$globalConfig.timeSeriesConfig.endDate
                         ) + 1;
+
+                    // Adjust weight of data so that the total weight of all weights equals to 100
+                    let topicWeightTotal = 0;
+                    for (let dist of this.topicsOverTime) {
+                        let topicTotal = dist.topic_evolution.data.reduce(
+                            (partialSum, b) => partialSum + b,
+                            0
+                        );
+                        topicWeightTotal += topicTotal;
+                    }
+                    let multiplier = 100 / topicWeightTotal;
+                    for (let dist of this.topicsOverTime) {
+                        this.topicsOverTime[
+                            dist.topic
+                        ].topic_evolution.data = dist.topic_evolution.data.map(
+                            weight => weight * multiplier
+                        );
+                    }
+
                     this.options = {
                         ...this.options,
                         ...{
@@ -159,7 +180,6 @@ export default {
             this.seriesActive = [];
         },
         selectTopic(topic) {
-            console.log(topic, this.seriesActive.indexOf(topic));
             if (this.seriesActive.includes(topic)) {
                 for (let i = 0; i < this.series.length; i += 1) {
                     if (topic == this.series[i].name) {

@@ -51,7 +51,10 @@ export default {
             if (this.fieldName == "word") {
                 return `${this.totalFields} distinct tokens across the corpus`;
             } else {
-                return `${this.totalFields} ${this.fieldName}s across the corpus`;
+                if (this.$route.query.filter == 1) {
+                    return `${this.totalFields} ${this.fieldName}s across the corpus`;
+                }
+                return `${this.totalFields} ${this.fieldName}s (with at least ${this.$route.query.filter} instances) across the corpus`;
             }
         }
     },
@@ -70,7 +73,7 @@ export default {
             this.loading = true;
             this.$http
                 .get(
-                    `${this.$globalConfig.apiServer}/get_all_field_values/${this.$globalConfig.databaseName}?field=${this.$route.params.fieldName}`
+                    `${this.$globalConfig.apiServer}/get_all_field_values/${this.$globalConfig.databaseName}?field=${this.$route.params.fieldName}&filter=${this.$route.query.filter}`
                 )
                 .then(response => {
                     this.totalFields = response.data.field_values.length;

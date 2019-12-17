@@ -33,7 +33,7 @@
                                     <span class="frequency-parent">{{ data.value }}</span>
                                 </template>
                                 <template slot="[frequency]" slot-scope="data">
-                                    <span class="frequency-value pl-2">{{ data.value.toFixed(2) }}%</span>
+                                    <span class="frequency-value pl-2">{{ data.value }}%</span>
                                 </template>
                             </b-table>
                         </b-card>
@@ -125,6 +125,8 @@ export default {
             notFound: false,
             documents: [],
             topicDistribution: [],
+            simWordsByTopics: [],
+            simWordsByCooc: [],
             fields: [
                 { key: "name", label: "Topic", sortable: false },
                 { key: "description", label: "Top 10 tokens", sortable: false },
@@ -170,14 +172,13 @@ export default {
             for (let i = 0; i < topicData.length; i += 1) {
                 joinedDistribution.push({
                     name: i,
-                    frequency: topicDistribution.data[i],
+                    frequency: topicDistribution.data[i].toFixed(3),
                     description: topicData[i].description
                 });
             }
             joinedDistribution.sort(function(a, b) {
                 return b.frequency - a.frequency;
             });
-            console.log(joinedDistribution.slice(0, 5));
             return joinedDistribution.slice(0, 5);
         },
         loadNewData() {

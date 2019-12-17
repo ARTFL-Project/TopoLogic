@@ -265,6 +265,13 @@ class DBSearch:
         self.cursor.execute(f"SELECT word FROM {self.table}_words")
         return sorted([result["word"] for result in self.cursor])
 
+    def get_all_metadata_values(self, field, frequency_filter=1):
+        if frequency_filter == 1:
+            self.cursor.execute(f"SELECT DISTINCT {field} FROM {self.table}_docs")
+            return sorted([row[field] for row in self.cursor if row[field]])
+        self.cursor.execute(f"SELECT {field}, COUNT(*) AS field_count FROM {self.table}_docs GROUP BY {field}")
+        return sorted([row[field] for row in self.cursor if row[field] and row["field_count"] >= frequency_filter])
+
     def get_doc_data(self, philo_id):
         philo_id = " ".join(i for i in philo_id.split() if i != 0)
         self.cursor.execute(f"SELECT * FROM {self.table}_docs WHERE philo_{self.object_level}_id=%s", (philo_id,))
@@ -295,10 +302,6 @@ class DBSearch:
     def get_word_from_id(self, word_id):
         self.cursor.execute(f"SELECT word FROM {self.table}_words WHERE word_id=%s", (word_id,))
         return self.cursor.fetchone()[0]
-
-    def get_all_metadata_values(self, field):
-        self.cursor.execute(f"SELECT DISTINCT {field} FROM {self.table}_docs")
-        return sorted([row[field] for row in self.cursor if row[field]])
 
     def get_topic_distribution_by_metadata(self, field, field_value):
         topic_distribution = []

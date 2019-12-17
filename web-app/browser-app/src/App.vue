@@ -17,7 +17,7 @@
                     <b-nav-item
                         v-for="field in metadataDistributions"
                         :key="field.field"
-                        :to="`/view/${field.field}`"
+                        :to="`/view/${field.field}?filter=${field.frequencyFilter}`"
                     >Topics in {{field.label}}s</b-nav-item>
                     <b-nav-item to="/time">Topics across Time</b-nav-item>
                 </b-navbar-nav>

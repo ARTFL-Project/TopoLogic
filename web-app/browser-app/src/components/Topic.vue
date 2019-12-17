@@ -6,19 +6,34 @@
             across corpus (overall frequency of {{ frequency }}%)
         </h5>
         <b-row>
-            <b-col cols="4">
+            <b-col cols="3">
                 <b-card no-body class="shadow-sm" header="Top 50 Tokens">
-                    <div class="p-4">
+                    <b-list-group flush>
+                        <b-list-group-item>
+                            <a
+                                :href="philoTimeSeriesQueryLink"
+                                target="_blank"
+                            >Retrieve all occurrences of top 10 tokens</a>
+                        </b-list-group-item>
+                        <b-list-group-item>
+                            <a
+                                :href="whooshSearchLink"
+                                target="_blank"
+                            >Rank documents by occurrence of top 10 tokens</a>
+                        </b-list-group-item>
+                    </b-list-group>
+                    <div class="pl-4 pt-4 pb-4">
                         <apexchart
                             type="bar"
                             height="1000px"
+                            width="100%"
                             :options="wordDistributionChartOptions"
                             :series="wordDistributionSeries"
                         />
                     </div>
                 </b-card>
             </b-col>
-            <b-col cols="8">
+            <b-col cols="9">
                 <b-row>
                     <b-col cols="12">
                         <b-card
@@ -26,7 +41,7 @@
                             class="shadow-sm"
                             header="Distribution of topic weight over time"
                         >
-                            <div class="p-2">
+                            <div class="pl-2 pr-2 pt-2">
                                 <apexchart
                                     width="100%"
                                     height="300px"
@@ -34,6 +49,12 @@
                                     :options="topicEvolutionChartOptions"
                                     :series="topicEvolutionSeries"
                                 ></apexchart>
+                            </div>
+                            <div class="pb-4 pl-4 pr-4">
+                                <a
+                                    :href="philoTimeSeriesBiBlioLink"
+                                    target="_blank"
+                                >See topic frequency over time in PhiloLogic</a>
                             </div>
                         </b-card>
                     </b-col>
@@ -76,7 +97,7 @@
                         <b-card
                             no-body
                             :header="
-                                `Top ${documents.length} documents for this topic (${year})`
+                                `Top ${documents.length} documents by weight for this topic (${year})`
                             "
                             class="mt-4 shadow-sm"
                         >
@@ -116,6 +137,7 @@ export default {
     data() {
         return {
             topicData: topicData,
+            wordDistributionLabels: [],
             documents: [],
             similarTopics: [],
             loading: false,
@@ -134,6 +156,11 @@ export default {
                 },
                 xaxis: {
                     categories: []
+                },
+                yaxis: {
+                    labels: {
+                        formatter: val => val.toFixed(0)
+                    }
                 },
                 grid: {
                     padding: {
@@ -231,6 +258,7 @@ export default {
             },
             wordDistributionSeries: [
                 {
+                    name: "Word weight within topic",
                     data: []
                 }
             ],
@@ -275,6 +303,29 @@ export default {
             similarEvolutionSeries: [{ name: 0, data: [] }]
         };
     },
+    computed: {
+        philoTimeSeriesBiBlioLink: function() {
+            return `${this.$globalConfig.philoLogicUrl}/query?report=time_series&topicmodel=${this.topic}&year_interval=${this.$globalConfig.timeSeriesConfig.interval}&start_date=${this.$globalConfig.timeSeriesConfig.startDate}&end_date=${this.$globalConfig.timeSeriesConfig.endDate}`;
+        },
+        philoTimeSeriesQueryLink: function() {
+            let queryString = topicData[parseInt(this.topic)].description
+                .split(", ")
+                .map(a => `${a}.?`)
+                .join(" OR ");
+            return `${this.$globalConfig.philoLogicUrl}/query?report=time_series&year_interval=${this.$globalConfig.timeSeriesConfig.interval}&start_date=${this.$globalConfig.timeSeriesConfig.startDate}&end_date=${this.$globalConfig.timeSeriesConfig.endDate}&q=${queryString}`;
+        },
+        whooshSearchLink: function() {
+            let queryString = [];
+            for (let wordIndex = 0; wordIndex < 10; wordIndex += 1) {
+                queryString.push(
+                    `${this.wordDistributionLabels[wordIndex]}^${this.wordDistributionSeries[0].data[wordIndex]}`
+                );
+            }
+            return `http://anomander.uchicago.edu/cgi-bin/mark/frc1787-99.whoosh.py?binding=OR&reslimit=100&showsnippets=YES&words=${queryString.join(
+                " "
+            )}`;
+        }
+    },
     mounted() {
         this.fetchData();
     },
@@ -289,14 +340,10 @@ export default {
                     `${this.$globalConfig.apiServer}/get_topic_data/${this.$globalConfig.databaseName}/${this.$route.params.topic}?interval=${this.$globalConfig.timeSeriesConfig.interval}`
                 )
                 .then(response => {
+                    this.topic = this.$route.params.topic;
                     this.documents = response.data.documents;
                     this.frequency = (response.data.frequency * 100).toFixed(4);
                     this.similarTopics = response.data.similar_topics;
-                    this.year = `${response.data.topic_evolution.labels[0]}-${
-                        response.data.topic_evolution.labels[
-                            response.data.topic_evolution.labels.length - 1
-                        ]
-                    }`;
                     this.buildWordDistribution(response.data.word_distribution);
                     let startIndex = response.data.topic_evolution.labels.indexOf(
                         this.$globalConfig.timeSeriesConfig.startDate
@@ -305,6 +352,9 @@ export default {
                         response.data.topic_evolution.labels.indexOf(
                             this.$globalConfig.timeSeriesConfig.endDate
                         ) + 1;
+                    this.year = `${
+                        response.data.topic_evolution.labels[startIndex]
+                    }-${response.data.topic_evolution.labels[endIndex - 1]}`;
                     this.buildTopicEvolution(
                         response.data.topic_evolution,
                         startIndex,
@@ -365,6 +415,7 @@ export default {
             this.wordDistributionSeries[0].data = this.formatWordDistribution(
                 wordDistribution.data
             );
+            this.wordDistributionLabels = wordDistribution.labels;
         },
         buildTopicEvolution(topicEvolution, startIndex, endIndex) {
             topicEvolution.data = topicEvolution.data.slice(

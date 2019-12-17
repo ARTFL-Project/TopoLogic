@@ -248,7 +248,8 @@ def get_all_field_values(table):
     if field == "word":
         field_values = db.get_vocabulary()
     else:
-        field_values = db.get_all_metadata_values(field)
+        frequency_filter = request.args["filter"]
+        field_values = db.get_all_metadata_values(field, frequency_filter=int(frequency_filter))
     return response({"field_values": field_values, "size": len(field_values)})
 
 
