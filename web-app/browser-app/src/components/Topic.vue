@@ -72,24 +72,26 @@
                                 :options="similarEvolutionOptions"
                             ></apexchart>
                             <div
-                                v-for="(topic,
+                                v-for="(localTopic,
                                 seriesIndex) in similarEvolutionSeries"
-                                :key="topic.name"
+                                :key="localTopic.name"
                                 class="topic pl-2 pr-2 pb-1"
                                 style="font-size: 80%"
-                                @click="goToTopic(topic.name)"
+                                @click="goToTopic(localTopic.name)"
                             >
-                                <span
-                                    :id="`topic-${topic.name}`"
-                                    class="topic-legend"
-                                    :style="
-                                        `background-color: ${similarEvolutionOptions.colors[seriesIndex]}`
-                                    "
-                                ></span>
-                                Topic {{ topic.name }}:
-                                {{
-                                topicData[parseInt(topic.name)].description
-                                }}
+                                <span v-if="localTopic.name != topic">
+                                    <span
+                                        :id="`topic-${localTopic.name}`"
+                                        class="topic-legend"
+                                        :style="
+                                            `background-color: ${similarEvolutionOptions.colors[seriesIndex]}`
+                                        "
+                                    ></span>
+                                    Topic {{ localTopic.name }}:
+                                    {{
+                                    topicData[parseInt(localTopic.name)].description
+                                    }}
+                                </span>
                             </div>
                         </b-card>
                     </b-col>
@@ -274,9 +276,6 @@ export default {
                         formatter: val => val.toFixed(3)
                     }
                 },
-                xaxis: {
-                    categories: []
-                },
                 colors: ["#33b2df", "#546E7A", "#d4526e", "#13d8aa", "#A5978B"],
                 stroke: {
                     curve: "smooth",
@@ -298,6 +297,10 @@ export default {
                     formatter: function(seriesName) {
                         return `Topic ${seriesName}`;
                     }
+                },
+                plotOptions: {},
+                fill: {
+                    opacity: 0.5
                 }
             },
             similarEvolutionSeries: [{ name: 0, data: [] }]
@@ -360,6 +363,28 @@ export default {
                         startIndex,
                         endIndex
                     );
+
+                    this.similarEvolutionSeries = response.data.similar_topics
+                        .slice(0, 5)
+                        .map(topic => ({
+                            data: topic.topic_evolution.data.slice(
+                                startIndex,
+                                endIndex
+                            ),
+                            name: topic.topic.toString(),
+                            type: "line"
+                        }));
+                    this.similarEvolutionSeries = [
+                        ...this.similarEvolutionSeries,
+                        {
+                            name: this.topic,
+                            data: response.data.topic_evolution.data.slice(
+                                startIndex,
+                                endIndex
+                            ),
+                            type: "area"
+                        }
+                    ];
                     this.similarEvolutionOptions = {
                         ...this.similarEvolutionOptions,
                         ...{
@@ -368,18 +393,53 @@ export default {
                                     startIndex,
                                     endIndex
                                 )
-                            }
+                            },
+                            fill: {
+                                opacity: [
+                                    ...response.data.similar_topics,
+                                    this.topic
+                                ]
+                                    .slice(startIndex, endIndex)
+                                    .map(topic => {
+                                        if (
+                                            topic.topic !=
+                                            this.$route.params.topic
+                                        ) {
+                                            return 1;
+                                        } else {
+                                            return 0.1;
+                                        }
+                                    })
+                            },
+                            colors: [
+                                "#2E93fA",
+                                "#66DA26",
+                                "#546E7A",
+                                "#E91E63",
+                                "#FF9800",
+                                "rgba(51, 178, 223, 0.09)"
+                            ]
                         }
                     };
-                    this.similarEvolutionSeries = response.data.similar_topics
-                        .slice(0, 5)
-                        .map(topic => ({
-                            data: topic.topic_evolution.data.slice(
-                                startIndex,
-                                endIndex
-                            ),
-                            name: topic.topic.toString()
-                        }));
+                    // this.similarEvolutionOptions = {
+                    //     ...this.similarEvolutionOptions,
+                    //     ...{
+                    //         fill: {
+                    //             opacity: this.similarEvolutionSeries.map(
+                    //                 topic => {
+                    //                     if (
+                    //                         topic.name !=
+                    //                         this.$route.params.topic
+                    //                     ) {
+                    //                         return 1;
+                    //                     } else {
+                    //                         return 0.1;
+                    //                     }
+                    //                 }
+                    //             )
+                    //         }
+                    //     }
+                    // };
                 });
         },
         sumArray: function(arr) {
