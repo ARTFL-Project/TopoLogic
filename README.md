@@ -1,4 +1,4 @@
-# Topic-Modeling-Browser
+# TopoLogic
 
 Yet Another Topic Modeling Browser...
 
