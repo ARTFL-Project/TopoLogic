@@ -70,7 +70,7 @@
                                         </b-list-group-item>
                                         <b-list-group-item>
                                             <a
-                                                :href="`${philoUrl}/query?report=concordance&philo_doc_id=${mainDoc.metadata.philo_doc_id}&q=${weightedWord[0]}`"
+                                                :href="`${philoUrl}/query?report=concordance&philo_doc_id=${mainDoc.metadata.philo_doc_id}&q=${weightedWord[0]}.?`"
                                                 target="_blank"
                                             >See all occurrences in document</a>
                                         </b-list-group-item>
