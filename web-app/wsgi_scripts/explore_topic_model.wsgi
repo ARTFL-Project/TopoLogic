@@ -13,7 +13,6 @@ from xml.sax.saxutils import unescape as unescape_xml
 
 from flask_cors import CORS
 import numpy as np
-import tom_lib.utils as utils
 from flask import Flask, jsonify, request, redirect
 from numpy import NaN, any, array
 from topic_modeling_browser.DB import DBSearch
@@ -108,7 +107,6 @@ def get_topic_data(table, topic_id):
     for document_id, weight in topic_data["docs"][:50]:
         metadata = db.get_metadata(document_id, config["metadata_fields"])
         documents.append({"doc_id": document_id, "metadata": metadata, "score": weight})
-    interval = int(request.args["interval"])
     current_topic_evolution = topic_data["topic_evolution"]
     current_topic_evolution_array = array([current_topic_evolution["data"]])
     similar_topics = []
@@ -266,7 +264,6 @@ def get_field_distribution(table, field):
 def get_time_distributions(table):
     config = read_config(table)
     db = DBSearch(DATABASE, table, config["object_level"])
-    interval = int(request.args["interval"])
-    distributions_over_time = db.get_topic_distributions_over_time(interval)
+    distributions_over_time = db.get_topic_distributions_over_time()
     return response({"distributions_over_time": distributions_over_time})
 

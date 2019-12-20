@@ -22,7 +22,10 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Define files to process")
     parser.add_argument("--config", help="Configuration file", default="", type=str)
     parser.add_argument(
-        "--data_output", help="path to local data to be saved during processing", default="/tmp", type=str
+        "--data_output",
+        help="path to local data to be saved during processing",
+        default="./temp_preprocessed_data",
+        type=str,
     )
     parser.add_argument(
         "--workers", help="How many threads or cores to use for preprocessing and modeling", type=int, default=4
@@ -47,8 +50,6 @@ def main(args):
         print("No configuration file provided, exiting...")
         exit()
     source_data, database_name, prep_config, vector_config, model_config = read_config(args.config)
-    if args.data_output == "/tmp":
-        args.data_output = os.path.join(args.data_output, database_name)
     if os.path.exists(args.data_output) is True:
         os.system(f"rm -rf {args.data_output}")
     source_data_path = os.path.join(source_data["philologic_database_path"], "data/words_and_philo_ids")

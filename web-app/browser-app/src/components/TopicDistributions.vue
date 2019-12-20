@@ -125,10 +125,17 @@ export default {
             if (this.routeName == "home") {
                 this.$router.push(`/topic/${topic.name}`);
             } else {
-                window.open(
-                    `${this.$globalConfig.philoLogicUrl}/query?report=bibliography&${this.$route.params.fieldName}="${this.$route.params.fieldValue}"&topicmodel=${topic.name}`,
-                    "_blank"
-                );
+                if (topic.name.length.toString() == 1) {
+                    window.open(
+                        `${this.$globalConfig.philoLogicUrl}/query?report=bibliography&${this.$route.params.fieldName}="${this.$route.params.fieldValue}"&alltopicmodels=0${topic.name}`,
+                        "_blank"
+                    );
+                } else {
+                    window.open(
+                        `${this.$globalConfig.philoLogicUrl}/query?report=bibliography&${this.$route.params.fieldName}="${this.$route.params.fieldValue}"&alltopicmodels=${topic.name}`,
+                        "_blank"
+                    );
+                }
             }
         }
     }

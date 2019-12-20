@@ -104,7 +104,7 @@ export default {
             this.fieldName = this.$route.params.fieldName;
             this.$http
                 .get(
-                    `${this.$globalConfig.apiServer}/get_time_distributions/${this.$globalConfig.databaseName}?interval=${this.$globalConfig.timeSeriesConfig.interval}`
+                    `${this.$globalConfig.apiServer}/get_time_distributions/${this.$globalConfig.databaseName}`
                 )
                 .then(response => {
                     this.topicsOverTime = response.data.distributions_over_time;

@@ -13,7 +13,7 @@
                             <a
                                 :href="philoTimeSeriesQueryLink"
                                 target="_blank"
-                            >Retrieve all occurrences of top 10 tokens</a>
+                            >Show frequency of top 10 tokens over time</a>
                         </b-list-group-item>
                         <b-list-group-item>
                             <a
@@ -308,6 +308,9 @@ export default {
     },
     computed: {
         philoTimeSeriesBiBlioLink: function() {
+            if (this.topic.length == 1) {
+                return `${this.$globalConfig.philoLogicUrl}/query?report=time_series&topicmodel=0${this.topic}&year_interval=${this.$globalConfig.timeSeriesConfig.interval}&start_date=${this.$globalConfig.timeSeriesConfig.startDate}&end_date=${this.$globalConfig.timeSeriesConfig.endDate}`;
+            }
             return `${this.$globalConfig.philoLogicUrl}/query?report=time_series&topicmodel=${this.topic}&year_interval=${this.$globalConfig.timeSeriesConfig.interval}&start_date=${this.$globalConfig.timeSeriesConfig.startDate}&end_date=${this.$globalConfig.timeSeriesConfig.endDate}`;
         },
         philoTimeSeriesQueryLink: function() {
@@ -340,7 +343,7 @@ export default {
         fetchData() {
             this.$http
                 .get(
-                    `${this.$globalConfig.apiServer}/get_topic_data/${this.$globalConfig.databaseName}/${this.$route.params.topic}?interval=${this.$globalConfig.timeSeriesConfig.interval}`
+                    `${this.$globalConfig.apiServer}/get_topic_data/${this.$globalConfig.databaseName}/${this.$route.params.topic}`
                 )
                 .then(response => {
                     this.topic = this.$route.params.topic;
@@ -364,18 +367,17 @@ export default {
                         endIndex
                     );
 
-                    this.similarEvolutionSeries = response.data.similar_topics
-                        .slice(0, 5)
-                        .map(topic => ({
-                            data: topic.topic_evolution.data.slice(
-                                startIndex,
-                                endIndex
-                            ),
-                            name: topic.topic.toString(),
-                            type: "line"
-                        }));
                     this.similarEvolutionSeries = [
-                        ...this.similarEvolutionSeries,
+                        ...response.data.similar_topics
+                            .slice(0, 5)
+                            .map(topic => ({
+                                data: topic.topic_evolution.data.slice(
+                                    startIndex,
+                                    endIndex
+                                ),
+                                name: topic.topic.toString(),
+                                type: "line"
+                            })),
                         {
                             name: this.topic,
                             data: response.data.topic_evolution.data.slice(
@@ -421,25 +423,6 @@ export default {
                             ]
                         }
                     };
-                    // this.similarEvolutionOptions = {
-                    //     ...this.similarEvolutionOptions,
-                    //     ...{
-                    //         fill: {
-                    //             opacity: this.similarEvolutionSeries.map(
-                    //                 topic => {
-                    //                     if (
-                    //                         topic.name !=
-                    //                         this.$route.params.topic
-                    //                     ) {
-                    //                         return 1;
-                    //                     } else {
-                    //                         return 0.1;
-                    //                     }
-                    //                 }
-                    //             )
-                    //         }
-                    //     }
-                    // };
                 });
         },
         sumArray: function(arr) {

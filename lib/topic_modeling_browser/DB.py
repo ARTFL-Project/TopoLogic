@@ -320,7 +320,7 @@ class DBSearch:
         ]
         return topic_distribution
 
-    def get_topic_distributions_over_time(self, interval):
+    def get_topic_distributions_over_time(self):
         distributions_over_time = []
         self.cursor.execute(f"SELECT topic_id, topic_evolution FROM {self.table}_topics ORDER BY topic_id asc")
         for row in self.cursor:

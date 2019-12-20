@@ -35,26 +35,48 @@
                 <b-card
                     no-body
                     style="height: 100%"
-                    :header="
-                        `Vector Representation (top ${words.length} tokens)`
-                    "
+                    header="Vector Representation (up to 50 tokens shown)"
                 >
                     <div
                         style="display: flex; height: 100%; justify-content: center; align-items: center;"
                         class="card-text"
                     >
                         <div>
-                            <router-link
-                                v-for="weightedWord in words"
-                                :key="weightedWord[2]"
-                                :to="`/word/${weightedWord[0]}`"
-                                :style="
-                                    `display:inline-block; padding: 5px; font-size: ${1 +
+                            <span v-for="weightedWord in words" :key="weightedWord[2]">
+                                <a
+                                    :id="`${weightedWord[2]}`"
+                                    :style="
+                                    `display:inline-block; padding: 5px; cursor: pointer; font-size: ${1 +
                                         weightedWord[1]}rem; color: ${
                                         weightedWord[3]
                                     }`
                                 "
-                            >{{ weightedWord[0] }}</router-link>
+                                >{{ weightedWord[0] }}</a>
+                                <b-popover
+                                    :target="`${weightedWord[2]}`"
+                                    triggers="click blur"
+                                    placement="top"
+                                >
+                                    <template v-slot:title>
+                                        <span
+                                            style="font-variant: small-caps;"
+                                        >{{ weightedWord[0] }}</span>
+                                    </template>
+                                    <b-list-group flush>
+                                        <b-list-group-item>
+                                            <router-link
+                                                :to="`/word/${weightedWord[0]}`"
+                                            >Explore usage in corpus</router-link>
+                                        </b-list-group-item>
+                                        <b-list-group-item>
+                                            <a
+                                                :href="`${philoUrl}/query?report=concordance&philo_doc_id=${mainDoc.metadata.philo_doc_id}&q=${weightedWord[0]}`"
+                                                target="_blank"
+                                            >See all occurrences in document</a>
+                                        </b-list-group-item>
+                                    </b-list-group>
+                                </b-popover>
+                            </span>
                         </div>
                     </div>
                 </b-card>
@@ -137,7 +159,8 @@ export default {
             ],
             vectorSimDocs: [],
             topicSimDocs: [],
-            topicDistribution: []
+            topicDistribution: [],
+            philoUrl: this.$globalConfig.philoLogicUrl
         };
     },
     mounted() {
@@ -207,4 +230,10 @@ export default {
 };
 </script>
 <style scoped>
+.popover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+/deep/ .popover-body {
+    padding: 0;
+}
 </style>
