@@ -191,17 +191,6 @@ def get_doc_data(table, philo_id):
         vector_similarity.append({"doc_id": doc_id, "metadata": doc_metadata, "score": score})
 
     metadata = {field: doc_data[field] for field in config["metadata_fields"]}
-    philo_db = True  # currently hardcoded to using only PhiloLogic for getting source texts
-    if philo_db is True:
-        with open(os.path.join(config["file_path"], metadata["filename"]), "rb") as text_file:
-            length = int(metadata["end_byte"]) - int(metadata["start_byte"])
-            text_file.seek(int(metadata["start_byte"]))
-            text = text_file.read(length).decode("utf8", "ignore")
-            text = clean_text(text)
-            if len(text) > 5000:
-                text = text[:5000] + " [...]"
-    else:
-        text = ""
 
     return response(
         {
@@ -209,7 +198,6 @@ def get_doc_data(table, philo_id):
             "metadata": metadata,
             "vector_sim_docs": vector_similarity[:100],
             "topic_sim_docs": topic_similarity[:100],
-            "text": text,
             "words": weighted_word_list,
         }
     )
