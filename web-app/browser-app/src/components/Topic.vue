@@ -14,11 +14,11 @@
                                 >Show frequency of top 10 tokens over time</a
                             >
                         </b-list-group-item>
-                        <b-list-group-item>
+                        <!-- <b-list-group-item>
                             <a :href="whooshSearchLink" target="_blank"
                                 >Rank documents by occurrence of top 10 tokens</a
                             >
-                        </b-list-group-item>
+                        </b-list-group-item> -->
                     </b-list-group>
                     <div class="pl-4 pt-4 pb-4">
                         <apexchart
@@ -293,18 +293,18 @@ export default {
                 .map(a => `${a}.?`)
                 .join(" OR ")
             return `${this.$globalConfig.philoLogicUrl}/query?report=time_series&year_interval=${this.$globalConfig.timeSeriesConfig.interval}&start_date=${this.$globalConfig.timeSeriesConfig.startDate}&end_date=${this.$globalConfig.timeSeriesConfig.endDate}&q=${queryString}`
-        },
-        whooshSearchLink: function() {
-            let queryString = []
-            for (let wordIndex = 0; wordIndex < 10; wordIndex += 1) {
-                queryString.push(
-                    `${this.wordDistributionLabels[wordIndex]}^${this.wordDistributionSeries[0].data[wordIndex]}`
-                )
-            }
-            return `http://anomander.uchicago.edu/cgi-bin/mark/frc1787-99.whoosh.py?binding=OR&reslimit=100&showsnippets=YES&words=${queryString.join(
-                " "
-            )}`
         }
+        // whooshSearchLink: function() {
+        //     let queryString = []
+        //     for (let wordIndex = 0; wordIndex < 10; wordIndex += 1) {
+        //         queryString.push(
+        //             `${this.wordDistributionLabels[wordIndex]}^${this.wordDistributionSeries[0].data[wordIndex]}`
+        //         )
+        //     }
+        //     return `http://anomander.uchicago.edu/cgi-bin/mark/frc1787-99.whoosh.py?binding=OR&reslimit=100&showsnippets=YES&words=${queryString.join(
+        //         " "
+        //     )}`
+        // }
     },
     mounted() {
         this.fetchData()
