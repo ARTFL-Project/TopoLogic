@@ -4,26 +4,15 @@
             <b-row class="p-2">
                 <b-col cols="4">
                     <div class="mb-2">
-                        <span
-                            class="btn btn-sm btn-outline-danger"
-                            style="cursor: pointer"
-                            @click="clearAllSeries()"
-                        >Clear all topics</span>
+                        <span class="btn btn-sm btn-outline-danger" style="cursor: pointer" @click="clearAllSeries()"
+                            >Clear all topics</span
+                        >
                     </div>
-                    <div
-                        v-for="topic in topicData"
-                        :key="topic.name"
-                        @click="selectTopic(topic.name)"
-                        class="topic"
-                    >
+                    <div v-for="topic in topicData" :key="topic.name" @click="selectTopic(topic.name)" class="topic">
                         <span
                             :id="`topic-${topic.name}`"
                             class="topic-legend"
-                            :style="
-                                `background-color: ${
-                                    options.colors[topic.name]
-                                }`
-                            "
+                            :style="`background-color: ${options.colors[topic.name]}`"
                         ></span>
                         Topic {{ topic.name }}: {{ topic.description }}
                     </div>
@@ -42,7 +31,7 @@
     </b-container>
 </template>
 <script>
-import topicData from "../../topic_words.json";
+import topicData from "../../topic_words.json"
 
 export default {
     name: "TimeVue",
@@ -90,10 +79,10 @@ export default {
                 }
             },
             series: [{ name: 0, data: [] }]
-        };
+        }
     },
     created() {
-        this.fetchData();
+        this.fetchData()
     },
     watch: {
         // call again the method if the route changes
@@ -101,39 +90,37 @@ export default {
     },
     methods: {
         fetchData() {
-            this.fieldName = this.$route.params.fieldName;
+            this.fieldName = this.$route.params.fieldName
             this.$http
-                .get(
-                    `${this.$globalConfig.apiServer}/get_time_distributions/${this.$globalConfig.databaseName}`
-                )
+                .get(`${this.$globalConfig.apiServer}/get_time_distributions/${this.$globalConfig.databaseName}`)
                 .then(response => {
-                    this.topicsOverTime = response.data.distributions_over_time;
+                    this.topicsOverTime = response.data.distributions_over_time
 
                     // Get start and end index of data to display
                     this.startIndex = this.topicsOverTime[0].topic_evolution.labels.indexOf(
                         this.$globalConfig.timeSeriesConfig.startDate
-                    );
-                    this.endIndex =
-                        this.topicsOverTime[0].topic_evolution.labels.indexOf(
+                    )
+                    this.endIndex = this.topicsOverTime[0].topic_evolution.labels.length - 1
+                    for (let index = 0; index < this.topicsOverTime[0].topic_evolution.labels.length; index += 1) {
+                        if (
+                            this.topicsOverTime[0].topic_evolution.labels[index] >
                             this.$globalConfig.timeSeriesConfig.endDate
-                        ) + 1;
-
-                    // Adjust weight of data so that the total weight of all weights equals to 100
-                    let topicWeightTotal = 0;
-                    for (let dist of this.topicsOverTime) {
-                        let topicTotal = dist.topic_evolution.data.reduce(
-                            (partialSum, b) => partialSum + b,
-                            0
-                        );
-                        topicWeightTotal += topicTotal;
+                        ) {
+                            this.endIndex = index
+                            break
+                        }
                     }
-                    let multiplier = 100 / topicWeightTotal;
+                    // Adjust weight of data so that the total weight of all weights equals to 100
+                    let topicWeightTotal = 0
                     for (let dist of this.topicsOverTime) {
-                        this.topicsOverTime[
-                            dist.topic
-                        ].topic_evolution.data = dist.topic_evolution.data.map(
+                        let topicTotal = dist.topic_evolution.data.reduce((partialSum, b) => partialSum + b, 0)
+                        topicWeightTotal += topicTotal
+                    }
+                    let multiplier = 100 / topicWeightTotal
+                    for (let dist of this.topicsOverTime) {
+                        this.topicsOverTime[dist.topic].topic_evolution.data = dist.topic_evolution.data.map(
                             weight => weight * multiplier
-                        );
+                        )
                     }
 
                     this.options = {
@@ -146,121 +133,107 @@ export default {
                                 )
                             }
                         }
-                    };
+                    }
                     this.series = this.topicsOverTime.map(topic => ({
-                        data: topic.topic_evolution.data.slice(
-                            this.startIndex,
-                            this.endIndex
-                        ),
+                        data: topic.topic_evolution.data.slice(this.startIndex, this.endIndex),
                         name: topic.topic
-                    }));
-                });
+                    }))
+                })
         },
         shuffleColors() {
-            let unshuffled = topicData.map(topic =>
-                this.randomizeColors(topicData.length, topic.name)
-            );
+            let unshuffled = topicData.map(topic => this.randomizeColors(topicData.length, topic.name))
             let shuffled = unshuffled
                 .map(a => ({ sort: Math.random(), value: a }))
                 .sort((a, b) => a.sort - b.sort)
-                .map(a => a.value);
-            return shuffled;
+                .map(a => a.value)
+            return shuffled
         },
         clearAllSeries() {
             this.series = this.series.map(series => ({
                 name: series.name,
                 data: this.options.xaxis.categories.map(() => 0.0)
-            }));
-            document
-                .querySelectorAll(".topic-legend")
-                .forEach(el => (el.style.backgroundColor = "#fff"));
-            document
-                .querySelectorAll(".topic")
-                .forEach(el => (el.style.color = "rgba(0, 0, 0, 0.35)"));
-            this.seriesActive = [];
+            }))
+            document.querySelectorAll(".topic-legend").forEach(el => (el.style.backgroundColor = "#fff"))
+            document.querySelectorAll(".topic").forEach(el => (el.style.color = "rgba(0, 0, 0, 0.35)"))
+            this.seriesActive = []
         },
         selectTopic(topic) {
             if (this.seriesActive.includes(topic)) {
                 for (let i = 0; i < this.series.length; i += 1) {
                     if (topic == this.series[i].name) {
-                        this.series[i].data = [];
+                        this.series[i].data = []
                     }
                 }
-                this.seriesActive.splice(this.seriesActive.indexOf(topic), 1);
-                this.series.splice(this.series.indexOf(topic), 1);
-                let el = document.getElementById(`topic-${topic}`);
-                el.style.backgroundColor = "#fff";
-                el.parentNode.style.color = "rgba(0, 0, 0, .35)";
+                this.seriesActive.splice(this.seriesActive.indexOf(topic), 1)
+                this.series.splice(this.series.indexOf(topic), 1)
+                let el = document.getElementById(`topic-${topic}`)
+                el.style.backgroundColor = "#fff"
+                el.parentNode.style.color = "rgba(0, 0, 0, .35)"
             } else {
-                let localSeries = JSON.parse(JSON.stringify(this.series));
+                let localSeries = JSON.parse(JSON.stringify(this.series))
                 localSeries[topic] = {
                     name: topic,
-                    data: this.topicsOverTime[topic].topic_evolution.data.slice(
-                        this.startIndex,
-                        this.endIndex
-                    )
-                };
-                this.series = localSeries;
-                this.seriesActive.push(topic);
-                this.highlightTopic(topic, topic, this.series.length);
-                let el = document.getElementById(`topic-${topic}`);
-                el.parentNode.style.color = "inherit";
+                    data: this.topicsOverTime[topic].topic_evolution.data.slice(this.startIndex, this.endIndex)
+                }
+                this.series = localSeries
+                this.seriesActive.push(topic)
+                this.highlightTopic(topic, topic, this.series.length)
+                let el = document.getElementById(`topic-${topic}`)
+                el.parentNode.style.color = "inherit"
             }
-            window.scrollTo({ top: 0, behavior: "smooth" });
+            window.scrollTo({ top: 0, behavior: "smooth" })
         },
         highlightTopic(topic, indexNum) {
-            document.getElementById(
-                `topic-${topic}`
-            ).style.backgroundColor = this.options.colors[indexNum];
+            document.getElementById(`topic-${topic}`).style.backgroundColor = this.options.colors[indexNum]
         },
         randomizeColors(colors, colorNum) {
-            colorNum += 1;
+            colorNum += 1
             var HSLToRGB = function(h, s, l) {
                 // Must be fractions of 1
-                s /= 100;
-                l /= 100;
+                s /= 100
+                l /= 100
 
                 let c = (1 - Math.abs(2 * l - 1)) * s,
                     x = c * (1 - Math.abs(((h / 60) % 2) - 1)),
                     m = l - c / 2,
                     r = 0,
                     g = 0,
-                    b = 0;
+                    b = 0
                 if (0 <= h && h < 60) {
-                    r = c;
-                    g = x;
-                    b = 0;
+                    r = c
+                    g = x
+                    b = 0
                 } else if (60 <= h && h < 120) {
-                    r = x;
-                    g = c;
-                    b = 0;
+                    r = x
+                    g = c
+                    b = 0
                 } else if (120 <= h && h < 180) {
-                    r = 0;
-                    g = c;
-                    b = x;
+                    r = 0
+                    g = c
+                    b = x
                 } else if (180 <= h && h < 240) {
-                    r = 0;
-                    g = x;
-                    b = c;
+                    r = 0
+                    g = x
+                    b = c
                 } else if (240 <= h && h < 300) {
-                    r = x;
-                    g = 0;
-                    b = c;
+                    r = x
+                    g = 0
+                    b = c
                 } else if (300 <= h && h < 360) {
-                    r = c;
-                    g = 0;
-                    b = x;
+                    r = c
+                    g = 0
+                    b = x
                 }
-                r = Math.round((r + m) * 255);
-                g = Math.round((g + m) * 255);
-                b = Math.round((b + m) * 255);
+                r = Math.round((r + m) * 255)
+                g = Math.round((g + m) * 255)
+                b = Math.round((b + m) * 255)
 
-                return "rgb(" + r + "," + g + "," + b + ")";
-            };
-            return HSLToRGB((colorNum * (360 / colors)) % 360, 100, 60);
+                return "rgb(" + r + "," + g + "," + b + ")"
+            }
+            return HSLToRGB((colorNum * (360 / colors)) % 360, 100, 60)
         }
     }
-};
+}
 </script>
 <style scoped>
 .topic {

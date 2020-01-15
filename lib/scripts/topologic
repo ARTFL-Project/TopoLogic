@@ -6,7 +6,7 @@ import json
 import os
 
 from text_preprocessing import PreProcessor
-from topologic import read_config, write_app_config
+from topologic import read_config, write_app_config, year_normalizer, max_year_normalizer
 from topologic.corpus import Corpus
 from topologic.DB import DBHandler
 from topologic.topic_model import LatentDirichletAllocation, NonNegativeMatrixFactorization
@@ -49,7 +49,7 @@ def main(args):
     if args.config == "":
         print("No configuration file provided, exiting...")
         exit()
-    source_data, database_name, prep_config, vector_config, model_config = read_config(args.config)
+    source_data, database_name, prep_config, vector_config, model_config, topics_over_time = read_config(args.config)
     if os.path.exists(args.data_output) is True:
         os.system(f"rm -rf {args.data_output}")
     source_data_path = os.path.join(source_data["philologic_database_path"], "data/words_and_philo_ids")
@@ -94,6 +94,7 @@ def main(args):
             source_file_path,
             source_data["philologic_database_url"],
             prep_config["text_object_level"],
+            topics_over_time,
             algorithm=model_config["algorithm"],
             number_of_topics=model_config["number_of_topics"],
             vectorization=vector_config["vectorization"],
@@ -102,7 +103,6 @@ def main(args):
             max_features=vector_config["max_features"] or None,
             ngram=vector_config["ngram"],
             min_tokens_per_doc=vector_config["min_tokens_per_doc"],
-            topics_over_time_interval=model_config["topics_over_time_interval"],
         )
     else:
         print("Estimating the number of topics...")
@@ -247,6 +247,7 @@ def build_web_app(
     source_file_path,
     source_database_link,
     object_level,
+    topics_over_time,
     algorithm="lda",
     number_of_topics=100,
     vectorization="tf",
@@ -255,7 +256,6 @@ def build_web_app(
     max_features=None,
     ngram=2,
     min_tokens_per_doc=0,
-    topics_over_time_interval=1,
 ):
     db_path = os.path.join(GLOBAL_CONFIG["WEB_APP"]["web_app_path"], database_name)
     if os.path.exists(db_path) is True:
@@ -272,6 +272,7 @@ def build_web_app(
         "max_freq": max_freq,
         "min_freq": min_freq,
         "ngram": ngram,
+        "topic_over_time_interval": topics_over_time["topics_over_time_interval"],
     }
 
     years = set()
@@ -283,6 +284,15 @@ def build_web_app(
             years.add(int(fields["year"]))
         except ValueError:
             pass
+    if topics_over_time["start_date"] is None:
+        min_year = min(years)
+        max_year = max(years)
+        if topics_over_time["topics_over_time_interval"] != 1:
+            min_year = year_normalizer(min_year, topics_over_time["topics_over_time_interval"])
+            max_year = max_year_normalizer(max_year, topics_over_time["topics_over_time_interval"])
+    else:
+        min_year = topics_over_time["start_date"]
+        max_year = topics_over_time["end_date"]
 
     config["DATA"] = {
         "num_docs": full_corpus.size,
@@ -295,7 +305,14 @@ def build_web_app(
         config.write(configfile)
 
     db = DBHandler.set_class_attributes(
-        GLOBAL_CONFIG["DATABASE"], database_name, topic_model, full_corpus, doc_metadata
+        GLOBAL_CONFIG["DATABASE"],
+        database_name,
+        topic_model,
+        full_corpus,
+        doc_metadata,
+        min_year,
+        max_year,
+        topics_over_time["topics_over_time_interval"],
     )
     print("Saving words...", flush=True)
     db.save_words()
@@ -304,12 +321,22 @@ def build_web_app(
     db.save_docs()
 
     print("Saving topics...", flush=True)
-    db.save_topics(f"{db_path}/topic_words.json", min(years), max(years), step=topics_over_time_interval)
+    db.save_topics(f"{db_path}/topic_words.json", min_year, max_year, topics_over_time["topics_over_time_interval"])
 
     write_app_config(
-        source_database_link, db_path, database_name, GLOBAL_CONFIG["WEB_APP"]["server_name"], min(years), max(years)
+        source_database_link,
+        db_path,
+        database_name,
+        GLOBAL_CONFIG["WEB_APP"]["server_name"],
+        min_year,
+        max_year,
+        topics_over_time["topics_over_time_interval"],
     )
     os.system(f"cd {db_path}; npm install; npm run build")
+
+    print(
+        f"TopoLogic web application is viewable at: {os.path.join(GLOBAL_CONFIG['WEB_APP']['server_name'], 'topologic', os.path.basename(db_path))}"
+    )
 
 
 if __name__ == "__main__":
