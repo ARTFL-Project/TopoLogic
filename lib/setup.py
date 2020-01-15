@@ -6,15 +6,15 @@ from sys import platform
 
 from setuptools import setup
 
-from topic_modeling_browser import __version__
+from topologic import __version__
 
 setup(
-    name="topic-modeling-browser",
+    name="topologic",
     version=__version__,
     author="The ARTFL Project",
     author_email="clovisgladstone@gmail.com",
-    packages=["topic_modeling_browser"],
-    scripts=["scripts/topic_modeling_browser"],
+    packages=["topologic"],
+    scripts=["scripts/topologic"],
     install_requires=[
         "scikit-learn",
         "networkx",
