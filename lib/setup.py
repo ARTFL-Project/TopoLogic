@@ -20,7 +20,7 @@ setup(
         "networkx",
         "pandas",
         "scipy",
-        "numpy",
+        "numpy==1.15.4",  ## pinned until https://github.com/numpy/numpy/issues/14012 is fixed
         "nltk",
         "flask",
         "flask_cors",

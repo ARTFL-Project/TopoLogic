@@ -87,6 +87,7 @@ def main(args):
 
     if args.evaluate is False:
         build_web_app(
+            args.config,
             database_name,
             metadata,
             topic_model,
@@ -240,6 +241,7 @@ def build_model(
 
 
 def build_web_app(
+    config_path,
     database_name,
     doc_metadata,
     topic_model,
@@ -264,16 +266,7 @@ def build_web_app(
     os.system(f"cp -R /var/lib/topologic/web-app/browser-app/* {db_path}/")
     os.system(f"cp /var/lib/topologic/web-app/apache_htaccess.conf {db_path}/.htaccess")
     config = configparser.ConfigParser()
-    config["PARAMETERS"] = {
-        "object_level": object_level,
-        "number_of_topics": number_of_topics,
-        "algorithm": algorithm,
-        "vectorization": vectorization,
-        "max_freq": max_freq,
-        "min_freq": min_freq,
-        "ngram": ngram,
-        "topic_over_time_interval": topics_over_time["topics_over_time_interval"],
-    }
+    config.read(config_path)
 
     years = set()
     metadata_field_names = set()
@@ -286,13 +279,15 @@ def build_web_app(
             pass
     if topics_over_time["start_date"] is None:
         min_year = min(years)
-        max_year = max(years)
-        if topics_over_time["topics_over_time_interval"] != 1:
-            min_year = year_normalizer(min_year, topics_over_time["topics_over_time_interval"])
-            max_year = max_year_normalizer(max_year, topics_over_time["topics_over_time_interval"])
     else:
         min_year = topics_over_time["start_date"]
+    if topics_over_time["end_date"] is None:
+        max_year = max(years)
+    else:
         max_year = topics_over_time["end_date"]
+    if topics_over_time["topics_over_time_interval"] != 1:
+        min_year = year_normalizer(min_year, topics_over_time["topics_over_time_interval"])
+        max_year = max_year_normalizer(max_year, topics_over_time["topics_over_time_interval"])
 
     config["DATA"] = {
         "num_docs": full_corpus.size,

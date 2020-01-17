@@ -18,7 +18,7 @@
                             <a :href="whooshSearchLink" target="_blank"
                                 >Rank documents by occurrence of top 10 tokens</a
                             >
-                        </b-list-group-item> -->
+                        </b-list-group-item>-->
                     </b-list-group>
                     <div class="pl-4 pt-4 pb-4">
                         <apexchart
@@ -95,9 +95,9 @@
                             <b-list-group flush>
                                 <b-list-group-item v-for="doc in documents" :key="doc.doc_id">
                                     <citations :doc="doc"></citations>
-                                    <b-badge variant="secondary" pill class="float-right">
-                                        {{ (doc.score * 100).toFixed(2) }}%
-                                    </b-badge>
+                                    <b-badge variant="secondary" pill class="float-right"
+                                        >{{ (doc.score * 100).toFixed(2) }}%</b-badge
+                                    >
                                 </b-list-group-item>
                             </b-list-group>
                         </b-card>
@@ -139,11 +139,6 @@ export default {
                 xaxis: {
                     categories: []
                 },
-                yaxis: {
-                    labels: {
-                        formatter: val => val.toFixed(0)
-                    }
-                },
                 grid: {
                     padding: {
                         left: 0,
@@ -159,7 +154,9 @@ export default {
                 tooltip: {
                     x: {
                         formatter: year => {
-                            return `${year}-${parseInt(year) + this.$globalConfig.timeSeriesConfig.interval - 1}`
+                            return `${year}-${parseInt(year) +
+                                parseInt(this.$modelConfig.TOPICS_OVER_TIME.topics_over_time_interval) -
+                                1}`
                         }
                     }
                 }
@@ -283,16 +280,16 @@ export default {
     computed: {
         philoTimeSeriesBiBlioLink: function() {
             if (this.topic.length == 1) {
-                return `${this.$globalConfig.philoLogicUrl}/query?report=time_series&topicmodel=0${this.topic}&year_interval=${this.$globalConfig.timeSeriesConfig.interval}&start_date=${this.$globalConfig.timeSeriesConfig.startDate}&end_date=${this.$globalConfig.timeSeriesConfig.endDate}`
+                return `${this.$globalConfig.philoLogicUrl}/query?report=time_series&topicmodel=0${this.topic}&year_interval=${this.$modelConfig.TOPICS_OVER_TIME.topics_over_time_interval}&start_date=${this.$globalConfig.timeSeriesConfig.startDate}&end_date=${this.$globalConfig.timeSeriesConfig.endDate}`
             }
-            return `${this.$globalConfig.philoLogicUrl}/query?report=time_series&topicmodel=${this.topic}&year_interval=${this.$globalConfig.timeSeriesConfig.interval}&start_date=${this.$globalConfig.timeSeriesConfig.startDate}&end_date=${this.$globalConfig.timeSeriesConfig.endDate}`
+            return `${this.$globalConfig.philoLogicUrl}/query?report=time_series&topicmodel=${this.topic}&year_interval=${this.$modelConfig.TOPICS_OVER_TIME.topics_over_time_interval}&start_date=${this.$globalConfig.timeSeriesConfig.startDate}&end_date=${this.$globalConfig.timeSeriesConfig.endDate}`
         },
         philoTimeSeriesQueryLink: function() {
             let queryString = topicData[parseInt(this.topic)].description
                 .split(", ")
                 .map(a => `${a}.?`)
                 .join(" OR ")
-            return `${this.$globalConfig.philoLogicUrl}/query?report=time_series&year_interval=${this.$globalConfig.timeSeriesConfig.interval}&start_date=${this.$globalConfig.timeSeriesConfig.startDate}&end_date=${this.$globalConfig.timeSeriesConfig.endDate}&q=${queryString}`
+            return `${this.$globalConfig.philoLogicUrl}/query?report=time_series&year_interval=${this.$modelConfig.TOPICS_OVER_TIME.topics_over_time_interval}&start_date=${this.$globalConfig.timeSeriesConfig.startDate}&end_date=${this.$globalConfig.timeSeriesConfig.endDate}&q=${queryString}`
         }
         // whooshSearchLink: function() {
         //     let queryString = []
@@ -328,10 +325,10 @@ export default {
                     let startIndex = response.data.topic_evolution.labels.indexOf(
                         this.$globalConfig.timeSeriesConfig.startDate
                     )
-                    let endIndex = response.data.topic_evolution.labels.length - 1
+                    let endIndex = response.data.topic_evolution.labels.length
                     for (let index = 0; index < response.data.topic_evolution.labels.length; index += 1) {
                         if (response.data.topic_evolution.labels[index] > this.$globalConfig.timeSeriesConfig.endDate) {
-                            endIndex = index
+                            endIndex = index + 1
                             break
                         }
                     }
@@ -435,7 +432,7 @@ export default {
             this.loading = true
             this.$http
                 .get(
-                    `${this.$globalConfig.apiServer}/get_docs_in_topic_by_year/${this.$globalConfig.databaseName}/${this.$route.params.topic}/${year}?interval=${this.$globalConfig.timeSeriesConfig.interval}`
+                    `${this.$globalConfig.apiServer}/get_docs_in_topic_by_year/${this.$globalConfig.databaseName}/${this.$route.params.topic}/${year}`
                 )
                 .then(response => {
                     this.documents = response.data
