@@ -308,7 +308,7 @@ export default {
     },
     watch: {
         // call again the method if the route changes
-        $route: "loadNewData"
+        $route: "fetchData"
     },
     methods: {
         fetchData() {
@@ -372,6 +372,12 @@ export default {
                             colors: ["#2E93fA", "#66DA26", "#546E7A", "#E91E63", "#FF9800", "rgba(51, 178, 223, 0.09)"]
                         }
                     }
+                    this.$nextTick(function() {
+                        let selectedYear = document.querySelector("path[selected='true']")
+                        if (selectedYear != null) {
+                            selectedYear.setAttribute("selected", "false")
+                        }
+                    })
                 })
         },
         sumArray: function(arr) {
@@ -418,9 +424,6 @@ export default {
                     }
                 }
             }
-        },
-        loadNewData() {
-            this.fetchData()
         },
         goToWord(event) {
             let seriesIndex = parseInt(event.target.getAttribute("j"))

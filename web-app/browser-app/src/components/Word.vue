@@ -5,8 +5,7 @@
             <b>{{ word }}</b> in the corpus
         </h5>
         <div v-if="notFound" class="p-4">
-            <b>{{ word }}</b> not in vocabulary used for modeling.
-            See
+            <b>{{ word }}</b> not in vocabulary used for modeling. See
             <router-link to="/view/word">here</router-link>&nbsp;for available tokens
         </div>
         <div class="row mt-4 p-2" v-if="!notFound">
@@ -17,15 +16,10 @@
                             <template v-slot:header>
                                 <span class="mb-0">
                                     5 most important topics for
-                                    <b>{{word}}</b>
+                                    <b>{{ word }}</b>
                                 </span>
                             </template>
-                            <b-table
-                                hover
-                                :items="topicDistribution"
-                                :fields="fields"
-                                @row-clicked="goToTopic"
-                            >
+                            <b-table hover :items="topicDistribution" :fields="fields" @row-clicked="goToTopic">
                                 <template slot="[name]" slot-scope="data">
                                     <span class="frequency-parent">Topic {{ data.value }}</span>
                                 </template>
@@ -53,11 +47,9 @@
                                     style="border-radius: 0px; border-width: 1px 0px; font-size: 90%"
                                 >
                                     <router-link :to="`/word/${word.word}`">{{ word.word }}</router-link>
-                                    <b-badge
-                                        variant="secondary"
-                                        pill
-                                        class="float-right"
-                                    >{{word.weight.toFixed(4)}}</b-badge>
+                                    <b-badge variant="secondary" pill class="float-right">{{
+                                        word.weight.toFixed(4)
+                                    }}</b-badge>
                                 </b-list-group-item>
                             </b-list-group>
                         </b-card>
@@ -75,11 +67,9 @@
                                     style="border-radius: 0px; border-width: 1px 0px; font-size: 90%"
                                 >
                                     <router-link :to="`/word/${word.word}`">{{ word.word }}</router-link>
-                                    <b-badge
-                                        variant="secondary"
-                                        pill
-                                        class="float-right"
-                                    >{{word.weight.toFixed(4)}}</b-badge>
+                                    <b-badge variant="secondary" pill class="float-right">{{
+                                        word.weight.toFixed(4)
+                                    }}</b-badge>
                                 </b-list-group-item>
                             </b-list-group>
                         </b-card>
@@ -87,11 +77,7 @@
                 </b-row>
             </div>
             <div class="col-5">
-                <b-card
-                    no-body
-                    class="shadow-sm"
-                    :header="`Top ${documents.length} documents by relevance`"
-                >
+                <b-card no-body class="shadow-sm" :header="`Top ${documents.length} documents by relevance`">
                     <b-list-group flush>
                         <b-list-group-item
                             v-for="doc in documents"
@@ -100,11 +86,7 @@
                             style="border-radius: 0px; border-width: 1px 0px; font-size: 90%"
                         >
                             <citations :doc="doc"></citations>
-                            <b-badge
-                                variant="secondary"
-                                pill
-                                class="float-right"
-                            >{{doc.score.toFixed(2)}}</b-badge>
+                            <b-badge variant="secondary" pill class="float-right">{{ doc.score.toFixed(2) }}</b-badge>
                         </b-list-group-item>
                     </b-list-group>
                 </b-card>
@@ -113,8 +95,8 @@
     </b-container>
 </template>
 <script>
-import topicData from "../../topic_words.json";
-import Citations from "./Citations";
+import topicData from "../../topic_words.json"
+import Citations from "./Citations"
 
 export default {
     name: "Word",
@@ -136,10 +118,10 @@ export default {
                     sortable: false
                 }
             ]
-        };
+        }
     },
     mounted() {
-        this.fetchData();
+        this.fetchData()
     },
     watch: {
         // call again the method if the route changes
@@ -152,41 +134,43 @@ export default {
                     `${this.$globalConfig.apiServer}/get_word_data/${this.$globalConfig.databaseName}/${this.$route.params.word}`
                 )
                 .then(response => {
-                    this.word = response.data.word;
-                    this.documents = response.data.documents;
-                    this.topicDistribution = this.build_topic_distribution(
-                        response.data.topic_distribution
-                    );
-                    this.simWordsByTopics =
-                        response.data.similar_words_by_topic;
-                    this.simWordsByCooc = response.data.similar_words_by_cooc;
+                    this.word = response.data.word
+                    if (response.data.documents.length > 0) {
+                        this.documents = response.data.documents
+                        this.topicDistribution = this.build_topic_distribution(response.data.topic_distribution)
+                        this.simWordsByTopics = response.data.similar_words_by_topic
+                        this.simWordsByCooc = response.data.similar_words_by_cooc
+                        this.notFound = false
+                    } else {
+                        this.notFound = true
+                    }
                 })
                 .catch(error => {
-                    console.log(error);
-                    this.word = this.$route.params.word;
-                    this.notFound = true;
-                });
+                    console.log(error)
+                    this.word = this.$route.params.word
+                    this.notFound = true
+                })
         },
         build_topic_distribution(topicDistribution) {
-            let joinedDistribution = [];
+            let joinedDistribution = []
             for (let i = 0; i < topicData.length; i += 1) {
                 joinedDistribution.push({
                     name: i,
                     frequency: topicDistribution.data[i].toFixed(3),
                     description: topicData[i].description
-                });
+                })
             }
             joinedDistribution.sort(function(a, b) {
-                return b.frequency - a.frequency;
-            });
-            return joinedDistribution.slice(0, 5);
+                return b.frequency - a.frequency
+            })
+            return joinedDistribution.slice(0, 5)
         },
         loadNewData() {
-            this.fetchData();
+            this.fetchData()
         },
         goToTopic(topic) {
-            this.$router.push(`/topic/${topic.name}`);
+            this.$router.push(`/topic/${topic.name}`)
         }
     }
-};
+}
 </script>

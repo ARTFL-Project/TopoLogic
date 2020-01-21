@@ -24,7 +24,7 @@
                     <b-nav-item to="/time">Topics across Time</b-nav-item>
                 </b-navbar-nav>
                 <b-navbar-nav class="ml-auto">
-                    <b-nav-form>
+                    <b-nav-form @submit.stop.prevent="searchVocab()">
                         <b-input-group size="sm">
                             <b-form-input placeholder="Search for tokens" v-model="wordSelected"></b-form-input>
                             <b-input-group-append>
