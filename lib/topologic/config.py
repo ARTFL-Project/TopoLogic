@@ -10,6 +10,9 @@ def read_config(config_path):
     """Read config file for building the topic model and associated app"""
     config = configparser.ConfigParser()
     config.read(config_path)
+    metadata_filters = {}
+    for key, value in config["METADATA_FILTERS"].items():
+        metadata_filters[key] = value
     preprocessing = {}
     for key, value in config["PREPROCESSING"].items():
         if key == "pos_to_keep" and value != "":
@@ -59,6 +62,7 @@ def read_config(config_path):
                 topics_over_time[key] = None
     return (
         config["SOURCE_DATA"],
+        metadata_filters,
         config["DATABASE"]["database_name"],
         preprocessing,
         vectorization,

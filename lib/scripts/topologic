@@ -10,6 +10,7 @@ from topologic import read_config, write_app_config, year_normalizer, max_year_n
 from topologic.corpus import Corpus
 from topologic.DB import DBHandler
 from topologic.topic_model import LatentDirichletAllocation, NonNegativeMatrixFactorization
+from philologic.runtime.DB import DB
 from topologic import topic_num_evaluator
 from joblib import dump
 
@@ -49,7 +50,9 @@ def main(args):
     if args.config == "":
         print("No configuration file provided, exiting...")
         exit()
-    source_data, database_name, prep_config, vector_config, model_config, topics_over_time = read_config(args.config)
+    source_data, metadata_filters, database_name, prep_config, vector_config, model_config, topics_over_time = read_config(
+        args.config
+    )
     if os.path.exists(args.data_output) is True:
         os.system(f"rm -rf {args.data_output}")
     source_data_path = os.path.join(source_data["philologic_database_path"], "data/words_and_philo_ids")
@@ -66,8 +69,14 @@ def main(args):
     os.system(f"mkdir -p {training_texts_path}")
 
     print("## PREPROCESSING ##", flush=True)
-    print(f"{sum(1 for _ in os.scandir(source_data_path))} texts to process...")
-    metadata = prepare_data(prep_config, source_data_path, training_texts_path, texts_path)
+    metadata = prepare_data(
+        prep_config,
+        source_data_path,
+        training_texts_path,
+        texts_path,
+        source_data["philologic_database_path"],
+        metadata_filters,
+    )
 
     source_file_path = os.path.join(source_data["philologic_database_path"], "data/TEXT")
     topic_model, full_corpus, training_corpus = build_model(
@@ -125,11 +134,30 @@ def main(args):
         os.system(f"rm -rf {args.data_output}")
 
 
-def prepare_data(prep_config, source_data_path, training_texts_path, texts_path):
+def get_file_list(data_path, metadata_filters):
+    philo_db = DB(data_path)
+    hits = philo_db.query(
+        qs="", method="", method_arg="", limit="", sort_order=["rowid"], raw_results=True, **metadata_filters
+    )
+    hits.finish()
+    philo_ids = {" ".join(str(i) for i in hit) for hit in hits}
+    file_list = {os.path.join(data_path, f"words_and_philo_ids/{hit.split()[0]}") for hit in philo_ids}
+    return file_list, philo_ids
+
+
+def prepare_data(prep_config, source_data_path, training_texts_path, texts_path, philo_db_path, metadata_filters):
     if prep_config["training_text_object_level"]:
         training_object_level = prep_config["training_text_object_level"]
     else:
         training_object_level = prep_config["text_object_level"]
+
+    if metadata_filters:
+        file_list, philo_ids = get_file_list(os.path.join(philo_db_path, "data"), metadata_filters)
+        print(f"{len(file_list)} texts to process...")
+    else:
+        print(f"{sum(1 for _ in os.scandir(source_data_path))} texts to process...")
+        file_list = (f.path for f in os.scandir(source_data_path))
+
     preproc = PreProcessor(
         text_object_type=training_object_level,
         language=prep_config["language"],
@@ -147,29 +175,30 @@ def prepare_data(prep_config, source_data_path, training_texts_path, texts_path)
         progress=False,
     )
     metadata = {}
-    for pos, text in enumerate(
-        preproc.process_texts(
-            (f.path for f in os.scandir(source_data_path)), progress_prefix="Processing training data..."
-        )
-    ):
+    pos = 0
+    for text in preproc.process_texts(file_list, progress_prefix="Processing training data..."):
+        if metadata_filters and text.metadata["philo_id"] not in philo_ids:
+            continue
         with open(
             os.path.join(training_texts_path, str(pos)), "w", 65536
         ) as output:  ## Set buffer to 64K to speed up writes and avoid build-up in RAM
             output.write(" ".join(text))
         if texts_path == training_texts_path:
             metadata[pos] = text.metadata
+        pos += 1
+
     if texts_path != training_texts_path:
         preproc.text_object_level = prep_config["text_object_level"]
-        for pos, text in enumerate(
-            preproc.process_texts(
-                (f.path for f in os.scandir(source_data_path)), progress_prefix="Processing data to be topic modeled..."
-            )
-        ):
+        for text in preproc.process_texts(file_list, progress_prefix="Processing data to be topic modeled..."):
+            if metadata_filters and text.metadata["philo_id"] not in philo_ids:
+                continue
             with open(
                 os.path.join(texts_path, str(pos)), "w", 65536
             ) as output:  ## Set buffer to 64K to speed up writes and avoid build-up in RAM
                 output.write(" ".join(text))
             metadata[pos] = text.metadata
+            pos += 1
+
     return metadata
 
 
