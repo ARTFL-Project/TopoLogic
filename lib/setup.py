@@ -27,6 +27,8 @@ setup(
         "tqdm",
         "joblib",
         "matplotlib",
-        "text_preprocessing @ git+https://github.com/ARTFL-Project/text-preprocessing@v0.8#egg=text_preprocessing",
+        "fastapi",
+        "gunicorn",
+        "text_preprocessing @ git+https://github.com/ARTFL-Project/text-preprocessing@v0.8.1#egg=text_preprocessing",
     ],
 )

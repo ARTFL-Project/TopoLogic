@@ -11,8 +11,11 @@ from collections import defaultdict
 from html import unescape as unescape_html
 from xml.sax.saxutils import unescape as unescape_xml
 
-from flask_cors import CORS
-from flask import Flask, jsonify, request, redirect
+from fastapi import FastAPI
+from starlette.middleware.cors import CORSMiddleware
+
+# from flask_cors import CORS
+# from flask import Flask, jsonify, request, redirect
 from topologic.DB import DBSearch
 from topologic import read_config
 
@@ -25,9 +28,11 @@ APP_PATH = global_config["WEB_APP"]["web_app_path"]
 TAGS = re.compile(r"<[^>]+>")
 START_TAG = re.compile(r"^[^<]*?>")
 
-# Flask Web server
-application = Flask(__name__)
-CORS(application)
+# FastAPI application server
+app = FastAPI()
+app.add_middleware(
+    CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"]
+)
 
 
 def read_model_config(table_name):
@@ -56,42 +61,41 @@ def group_distributions_over_time(distribution_over_time, label_map):
     return {"labels": labels, "data": data}
 
 
-def response(data):
-    response = jsonify(data)
-    response.headers.add("Access-Control-Allow-Origin", "*")
-    return response
+@app.get("/")
+def root():
+    return "HEllo"
 
 
-@application.route("/get_config/<table>")
+@app.get("/get_config/{table}")
 def get_config(table):
-    return response(read_model_config(table))
+    return read_model_config(table)
 
 
-@application.route("/get_topic_ids")
-def get_topic_ids():
-    config = read_model_config(request.args["table"])
-    return response(list(range(config["topics"])))
+@app.get("/get_topic_ids")
+def get_topic_ids(table: str):
+    config = read_model_config(table)
+    return list(range(config["topics"]))
 
 
-@application.route("/get_topic_data/<table>/<topic_id>")
+@app.get("/get_topic_data/{table}/{topic_id}")
 def get_topic_data(table, topic_id):
     config = read_model_config(table)
     db = DBSearch(DATABASE, table, config["object_level"])
     topic_data = db.get_topic_data(int(topic_id), config["metadata_fields"])
-    return response(topic_data)
+    return topic_data
 
 
-@application.route("/get_docs_in_topic_by_year/<table>/<topic_id>/<year>")
+@app.get("/get_docs_in_topic_by_year/{table}/{topic_id}/{year}")
 def get_docs_in_topic_by_year(table, topic_id, year):
     config = read_model_config(table)
     db = DBSearch(DATABASE, table, config["object_level"])
     documents = db.get_topic_data_by_year(
         int(topic_id), year, config["topic_over_time_interval"], config["metadata_fields"], 50
     )
-    return response(documents)
+    return documents
 
 
-@application.route("/get_doc_data/<table>/<philo_id>")
+@app.get("/get_doc_data/{table}/{philo_id}")
 def get_doc_data(table, philo_id):
     config = read_model_config(table)
     db = DBSearch(DATABASE, table, config["object_level"])
@@ -143,78 +147,69 @@ def get_doc_data(table, philo_id):
 
     metadata = {field: doc_data[field] for field in config["metadata_fields"]}
 
-    return response(
-        {
-            "topic_distribution": doc_data["topic_distribution"],
-            "metadata": metadata,
-            "vector_sim_docs": vector_similarity[:100],
-            "topic_sim_docs": topic_similarity[:100],
-            "words": weighted_word_list,
-        }
-    )
+    return {
+        "topic_distribution": doc_data["topic_distribution"],
+        "metadata": metadata,
+        "vector_sim_docs": vector_similarity[:100],
+        "topic_sim_docs": topic_similarity[:100],
+        "words": weighted_word_list,
+    }
 
 
-@application.route("/get_word_data/<table>/<word>")
+@app.get("/get_word_data/{table}/{word}")
 def get_word_data(table, word):
     config = read_model_config(table)
     db = DBSearch(DATABASE, table, config["object_level"])
     word_data = db.get_word_data(word)
     if word_data is None:
-        return response(
-            {
-                "word": word,
-                "word_id": None,
-                "topic_ids": [],
-                "topic_distribution": None,
-                "documents": [],
-                "similar_words_by_topic": None,
-                "similar_words_by_cooc": None,
-            }
-        )
+        return {
+            "word": word,
+            "word_id": None,
+            "topic_ids": [],
+            "topic_distribution": None,
+            "documents": [],
+            "similar_words_by_topic": None,
+            "similar_words_by_cooc": None,
+        }
     sorted_docs = word_data["docs"]
     documents = []
     for document_id, score in sorted_docs[:50]:
         metadata = db.get_metadata(document_id, config["metadata_fields"])
         documents.append({"metadata": metadata, "doc_id": document_id, "score": score})
-    return response(
-        {
-            "word": word,
-            "word_id": word_data["word_id"],
-            "topic_ids": list(range(config["topics"])),
-            "topic_distribution": word_data["distribution_across_topics"],
-            "documents": documents[:100],
-            "similar_words_by_topic": word_data["similar_words_by_topic"][1:21],
-            "similar_words_by_cooc": word_data["similar_words_by_cooc"][1:21],
-        }
-    )
+    return {
+        "word": word,
+        "word_id": word_data["word_id"],
+        "topic_ids": list(range(config["topics"])),
+        "topic_distribution": word_data["distribution_across_topics"],
+        "documents": documents[:100],
+        "similar_words_by_topic": word_data["similar_words_by_topic"][1:21],
+        "similar_words_by_cooc": word_data["similar_words_by_cooc"][1:21],
+    }
 
 
-@application.route("/get_all_field_values/<table>")
-def get_all_field_values(table):
+@app.get("/get_all_field_values/{table}")
+def get_all_field_values(table, field: str, filter: int):
     config = read_model_config(table)
     db = DBSearch(DATABASE, table, config["object_level"])
-    field = request.args["field"]
     if field == "word":
         field_values = db.get_vocabulary()
     else:
-        frequency_filter = request.args["filter"]
-        field_values = db.get_all_metadata_values(field, frequency_filter=int(frequency_filter))
-    return response({"field_values": field_values, "size": len(field_values)})
+        field_values = db.get_all_metadata_values(field, frequency_filter=filter)
+    return {"field_values": field_values, "size": len(field_values)}
 
 
-@application.route("/get_field_distribution/<table>/<field>")
-def get_field_distribution(table, field):
+@app.get("/get_field_distribution/{table}/{field}")
+def get_field_distribution(table, field, value: str):
     config = read_model_config(table)
     db = DBSearch(DATABASE, table, config["object_level"])
-    field_value = request.args["value"]
-    topic_distribution = db.get_topic_distribution_by_metadata(field, field_value)
-    return response({"topic_distribution": topic_distribution})
+    topic_distribution = db.get_topic_distribution_by_metadata(field, value)
+    return {"topic_distribution": topic_distribution}
 
 
-@application.route("/get_time_distributions/<table>/")
+@app.get("/get_time_distributions/{table}/")
 def get_time_distributions(table):
     config = read_model_config(table)
     db = DBSearch(DATABASE, table, config["object_level"])
     distributions_over_time = db.get_topic_distributions_over_time()
-    return response({"distributions_over_time": distributions_over_time})
+    return {"distributions_over_time": distributions_over_time}
 

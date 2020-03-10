@@ -58,8 +58,8 @@ class DBHandler:
         for doc in range(cls.model.corpus.size):
             try:
                 docs_per_year[label_map[int(cls.metadata[doc]["year"])]] += 1
-            except KeyError:
-                pass  # document has been excluded by start or end date
+            except (KeyError, ValueError):
+                pass  # document has been excluded by start or end date or has not date
         cls.docs_per_year = docs_per_year
         return cls()
 
