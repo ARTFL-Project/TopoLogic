@@ -6,10 +6,18 @@ import json
 import os
 
 from text_preprocessing import PreProcessor
-from topologic import read_config, write_app_config, year_normalizer, max_year_normalizer
+from topologic import (
+    read_config,
+    write_app_config,
+    year_normalizer,
+    max_year_normalizer,
+)
 from topologic.corpus import Corpus
 from topologic.DB import DBHandler
-from topologic.topic_model import LatentDirichletAllocation, NonNegativeMatrixFactorization
+from topologic.topic_model import (
+    LatentDirichletAllocation,
+    NonNegativeMatrixFactorization,
+)
 from philologic.runtime.DB import DB
 from topologic import topic_num_evaluator
 from joblib import dump
@@ -29,7 +37,10 @@ def parse_args():
         type=str,
     )
     parser.add_argument(
-        "--workers", help="How many threads or cores to use for preprocessing and modeling", type=int, default=4
+        "--workers",
+        help="How many threads or cores to use for preprocessing and modeling",
+        type=int,
+        default=4,
     )
     parser.add_argument(
         "--evaluate",
@@ -37,10 +48,23 @@ def parse_args():
         action="store_true",
         default=False,
     )
-    parser.add_argument("--min_num_topics", help="minimum number of topics for evaluation", type=int, default=10)
-    parser.add_argument("--max_num_topics", help="maximum number of topics for evaluation", type=int, default=20)
     parser.add_argument(
-        "--debug", help="debug mode: temp file in /tmp will not be deleted.", action="store_true", default=False
+        "--min_num_topics",
+        help="minimum number of topics for evaluation",
+        type=int,
+        default=10,
+    )
+    parser.add_argument(
+        "--max_num_topics",
+        help="maximum number of topics for evaluation",
+        type=int,
+        default=20,
+    )
+    parser.add_argument(
+        "--debug",
+        help="debug mode: temp file in /tmp will not be deleted.",
+        action="store_true",
+        default=False,
     )
     args = parser.parse_args()
     return args
@@ -50,15 +74,24 @@ def main(args):
     if args.config == "":
         print("No configuration file provided, exiting...")
         exit()
-    source_data, metadata_filters, database_name, prep_config, vector_config, model_config, topics_over_time = read_config(
-        args.config
-    )
+    (
+        source_data,
+        metadata_filters,
+        database_name,
+        prep_config,
+        vector_config,
+        model_config,
+        topics_over_time,
+    ) = read_config(args.config)
     if os.path.exists(args.data_output) is True:
         os.system(f"rm -rf {args.data_output}")
-    source_data_path = os.path.join(source_data["philologic_database_path"], "data/words_and_philo_ids")
+    source_data_path = os.path.join(
+        source_data["philologic_database_path"], "data/words_and_philo_ids"
+    )
     if (
         prep_config["training_text_object_level"]
-        and prep_config["training_text_object_level"] != prep_config["text_object_level"]
+        and prep_config["training_text_object_level"]
+        != prep_config["text_object_level"]
     ):
         training_texts_path = os.path.join(args.data_output, "training/texts")
         texts_path = os.path.join(args.data_output, "texts")
@@ -78,7 +111,9 @@ def main(args):
         metadata_filters,
     )
 
-    source_file_path = os.path.join(source_data["philologic_database_path"], "data/TEXT")
+    source_file_path = os.path.join(
+        source_data["philologic_database_path"], "data/TEXT"
+    )
     topic_model, full_corpus, training_corpus = build_model(
         training_texts_path,
         texts_path,
@@ -137,26 +172,44 @@ def main(args):
 def get_file_list(data_path, metadata_filters):
     philo_db = DB(data_path)
     hits = philo_db.query(
-        qs="", method="", method_arg="", limit="", sort_order=["rowid"], raw_results=True, **metadata_filters
+        qs="",
+        method="",
+        method_arg="",
+        limit="",
+        sort_order=["rowid"],
+        raw_results=True,
+        **metadata_filters,
     )
     hits.finish()
     philo_ids = {" ".join(str(i) for i in hit) for hit in hits}
-    file_list = {os.path.join(data_path, f"words_and_philo_ids/{hit.split()[0]}") for hit in philo_ids}
+    file_list = {
+        os.path.join(data_path, f"words_and_philo_ids/{hit.split()[0]}")
+        for hit in philo_ids
+    }
     return file_list, philo_ids
 
 
-def prepare_data(prep_config, source_data_path, training_texts_path, texts_path, philo_db_path, metadata_filters):
+def prepare_data(
+    prep_config,
+    source_data_path,
+    training_texts_path,
+    texts_path,
+    philo_db_path,
+    metadata_filters,
+):
     if prep_config["training_text_object_level"]:
         training_object_level = prep_config["training_text_object_level"]
     else:
         training_object_level = prep_config["text_object_level"]
 
     if metadata_filters:
-        file_list, philo_ids = get_file_list(os.path.join(philo_db_path, "data"), metadata_filters)
+        file_list, philo_ids = get_file_list(
+            os.path.join(philo_db_path, "data"), metadata_filters
+        )
         print(f"{len(file_list)} texts to process...")
     else:
         print(f"{sum(1 for _ in os.scandir(source_data_path))} texts to process...")
-        file_list = (f.path for f in os.scandir(source_data_path))
+        file_list = [f.path for f in os.scandir(source_data_path)]
 
     preproc = PreProcessor(
         text_object_type=training_object_level,
@@ -176,7 +229,9 @@ def prepare_data(prep_config, source_data_path, training_texts_path, texts_path,
     )
     metadata = {}
     pos = 0
-    for text in preproc.process_texts(file_list, progress_prefix="Processing training data..."):
+    for text in preproc.process_texts(
+        file_list, progress_prefix="Processing training data..."
+    ):
         if metadata_filters and text.metadata["philo_id"] not in philo_ids:
             continue
         with open(
@@ -188,8 +243,11 @@ def prepare_data(prep_config, source_data_path, training_texts_path, texts_path,
         pos += 1
 
     if texts_path != training_texts_path:
+        pos = 0
         preproc.text_object_level = prep_config["text_object_level"]
-        for text in preproc.process_texts(file_list, progress_prefix="Processing data to be topic modeled..."):
+        for text in preproc.process_texts(
+            file_list, progress_prefix="Processing data to be topic modeled..."
+        ):
             if metadata_filters and text.metadata["philo_id"] not in philo_ids:
                 continue
             with open(
@@ -315,8 +373,12 @@ def build_web_app(
     else:
         max_year = topics_over_time["end_date"]
     if topics_over_time["topics_over_time_interval"] != 1:
-        min_year = year_normalizer(min_year, topics_over_time["topics_over_time_interval"])
-        max_year = max_year_normalizer(max_year, topics_over_time["topics_over_time_interval"])
+        min_year = year_normalizer(
+            min_year, topics_over_time["topics_over_time_interval"]
+        )
+        max_year = max_year_normalizer(
+            max_year, topics_over_time["topics_over_time_interval"]
+        )
 
     config["DATA"] = {
         "num_docs": full_corpus.size,
@@ -345,7 +407,12 @@ def build_web_app(
     db.save_docs()
 
     print("Saving topics...", flush=True)
-    db.save_topics(f"{db_path}/topic_words.json", min_year, max_year, topics_over_time["topics_over_time_interval"])
+    db.save_topics(
+        f"{db_path}/topic_words.json",
+        min_year,
+        max_year,
+        topics_over_time["topics_over_time_interval"],
+    )
 
     write_app_config(
         source_database_link,
