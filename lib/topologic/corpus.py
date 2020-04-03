@@ -5,7 +5,6 @@ import os
 import random
 from math import floor
 
-import networkx as nx
 import numpy as np
 from dill import dump, load
 from networkx.readwrite import json_graph
