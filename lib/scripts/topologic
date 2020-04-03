@@ -244,7 +244,25 @@ def prepare_data(
 
     if texts_path != training_texts_path:
         pos = 0
-        preproc.text_object_level = prep_config["text_object_level"]
+        # print(preproc.text_object_type)
+        preproc = PreProcessor(
+            text_object_type=prep_config["text_object_level"],
+            language=prep_config["language"],
+            stemmer=prep_config["stemmer"],
+            lemmatizer=prep_config["lemmatizer"],
+            modernize=prep_config["modernize"],
+            lowercase=prep_config["lowercase"],
+            strip_numbers=prep_config["numbers"],
+            stopwords=prep_config["stopwords"],
+            pos_to_keep=prep_config["pos_to_keep"],
+            ascii=prep_config["ascii"],
+            min_word_length=prep_config["minimum_word_length"],
+            is_philo_db=True,
+            workers=args.workers,
+            progress=False,
+        )
+        # preproc.text_object_type = prep_config["text_object_level"]
+        # print(preproc.text_object_type)
         for text in preproc.process_texts(
             file_list, progress_prefix="Processing data to be topic modeled..."
         ):

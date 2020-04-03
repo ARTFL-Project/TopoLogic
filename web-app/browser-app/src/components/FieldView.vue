@@ -71,19 +71,21 @@ export default {
             this.fieldValues = [];
             this.totalFields = 0;
             this.loading = true;
-            this.$http
-                .get(
-                    `${this.$globalConfig.apiServer}/get_all_field_values/${this.$globalConfig.databaseName}?field=${this.$route.params.fieldName}&filter=${this.$route.query.filter}`
-                )
-                .then(response => {
-                    this.totalFields = response.data.field_values.length;
-                    this.fieldValues = this.splitResults(
-                        response.data.field_values
-                    );
-                    this.$nextTick(() => {
-                        this.loading = false;
-                    });
+            let UrlString;
+            if (typeof this.$route.query.filter == "undefined") {
+                UrlString = `${this.$globalConfig.apiServer}/get_all_field_values/${this.$globalConfig.databaseName}?field=${this.$route.params.fieldName}`;
+            } else {
+                UrlString = `${this.$globalConfig.apiServer}/get_all_field_values/${this.$globalConfig.databaseName}?field=${this.$route.params.fieldName}&filter=${this.$route.query.filter}`;
+            }
+            this.$http.get(UrlString).then(response => {
+                this.totalFields = response.data.field_values.length;
+                this.fieldValues = this.splitResults(
+                    response.data.field_values
+                );
+                this.$nextTick(() => {
+                    this.loading = false;
                 });
+            });
         },
         splitResults(fieldValues) {
             let firstLetter = fieldValues[0][0].toUpperCase();

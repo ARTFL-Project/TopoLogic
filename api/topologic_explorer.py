@@ -31,7 +31,11 @@ START_TAG = re.compile(r"^[^<]*?>")
 # FastAPI application server
 app = FastAPI()
 app.add_middleware(
-    CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"]
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -45,7 +49,9 @@ def read_model_config(table_name):
         "vectorization": local_config["VECTORIZATION"]["vectorization"].upper(),
         "topics": int(local_config["TOPIC_MODELING"]["number_of_topics"]),
         "method": local_config["TOPIC_MODELING"]["algorithm"],
-        "topic_over_time_interval": int(local_config["TOPICS_OVER_TIME"]["topics_over_time_interval"]),
+        "topic_over_time_interval": int(
+            local_config["TOPICS_OVER_TIME"]["topics_over_time_interval"]
+        ),
         "metadata_fields": local_config["DATA"]["metadata"].split(","),
         "file_path": local_config["DATA"]["file_path"],
         "corpus_size": int(local_config["DATA"]["num_docs"]),
@@ -55,7 +61,9 @@ def read_model_config(table_name):
 
 def group_distributions_over_time(distribution_over_time, label_map):
     grouped_evolution = defaultdict(float)
-    for year, weight in zip(distribution_over_time["labels"], distribution_over_time["data"]):
+    for year, weight in zip(
+        distribution_over_time["labels"], distribution_over_time["data"]
+    ):
         grouped_evolution[label_map[year]] += weight
     labels, data = zip(*grouped_evolution.items())
     return {"labels": labels, "data": data}
@@ -90,7 +98,11 @@ def get_docs_in_topic_by_year(table, topic_id, year):
     config = read_model_config(table)
     db = DBSearch(DATABASE, table, config["object_level"])
     documents = db.get_topic_data_by_year(
-        int(topic_id), year, config["topic_over_time_interval"], config["metadata_fields"], 50
+        int(topic_id),
+        year,
+        config["topic_over_time_interval"],
+        config["metadata_fields"],
+        50,
     )
     return documents
 
@@ -100,7 +112,9 @@ def get_doc_data(table, philo_id):
     config = read_model_config(table)
     db = DBSearch(DATABASE, table, config["object_level"])
     doc_data = db.get_doc_data(philo_id)
-    word_list = [(w[0], w[1] * 10, w[2]) for w in doc_data["word_list"][:50] if w[1] > 0]
+    word_list = [
+        (w[0], w[1] * 10, w[2]) for w in doc_data["word_list"][:50] if w[1] > 0
+    ]
     highest_value = word_list[0][1]
     if len(word_list) > 1:
         lowest_value = word_list[-1][1]
@@ -133,17 +147,23 @@ def get_doc_data(table, philo_id):
         0: "rgba(26,114,159, .5)",
     }
 
-    weighted_word_list = [(w[0], w[1] / 10, w[2], color_codes[w[1]]) for w in adjusted_word_list]
+    weighted_word_list = [
+        (w[0], w[1] / 10, w[2], color_codes[w[1]]) for w in adjusted_word_list
+    ]
     weighted_word_list.sort(key=lambda x: x[0])
 
     topic_similarity = []
     for doc_id, score in doc_data["topic_similarity"]:
         doc_metadata = db.get_metadata(doc_id, config["metadata_fields"])
-        topic_similarity.append({"doc_id": doc_id, "metadata": doc_metadata, "score": score})
+        topic_similarity.append(
+            {"doc_id": doc_id, "metadata": doc_metadata, "score": score}
+        )
     vector_similarity = []
     for doc_id, score in doc_data["vector_similarity"]:
         doc_metadata = db.get_metadata(doc_id, config["metadata_fields"])
-        vector_similarity.append({"doc_id": doc_id, "metadata": doc_metadata, "score": score})
+        vector_similarity.append(
+            {"doc_id": doc_id, "metadata": doc_metadata, "score": score}
+        )
 
     metadata = {field: doc_data[field] for field in config["metadata_fields"]}
 
@@ -188,7 +208,7 @@ def get_word_data(table, word):
 
 
 @app.get("/get_all_field_values/{table}")
-def get_all_field_values(table, field: str, filter: int):
+def get_all_field_values(table, field: str, filter: int = None):
     config = read_model_config(table)
     db = DBSearch(DATABASE, table, config["object_level"])
     if field == "word":
@@ -212,4 +232,3 @@ def get_time_distributions(table):
     db = DBSearch(DATABASE, table, config["object_level"])
     distributions_over_time = db.get_topic_distributions_over_time()
     return {"distributions_over_time": distributions_over_time}
-
