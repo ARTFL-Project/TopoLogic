@@ -6,24 +6,20 @@ from sys import platform
 
 from setuptools import setup
 
-from topologic import __version__
 
 setup(
     name="topologic",
-    version=__version__,
+    version="0.3",
     author="The ARTFL Project",
     author_email="clovisgladstone@gmail.com",
     packages=["topologic"],
     scripts=["scripts/topologic"],
     install_requires=[
         "scikit-learn",
-        "networkx",
         "pandas",
         "scipy",
         "numpy==1.15.4",  ## pinned until https://github.com/numpy/numpy/issues/14012 is fixed
         "nltk",
-        "flask",
-        "flask_cors",
         "tqdm",
         "joblib",
         "matplotlib",
