@@ -14,6 +14,7 @@ fi
 
 if [ ! -f /etc/topologic/global_settings.ini ]
     then
+        sudo mkdir -p /etc/topologic/
         sudo touch /etc/topologic/global_settings.ini
         echo "## WEB APPLICATION SETTINGS ##" | sudo tee -a /etc/topologic/global_settings.ini > /dev/null
         echo "[WEB_APP]" | sudo tee -a /etc/topologic/global_settings.ini > /dev/null
