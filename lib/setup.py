@@ -26,6 +26,6 @@ setup(
         "fastapi",
         "gunicorn",
         "uvicorn",
-        "text_preprocessing @ git+https://github.com/ARTFL-Project/text-preprocessing@v0.8.1#egg=text_preprocessing",
+        "text_preprocessing @ git+https://github.com/ARTFL-Project/text-preprocessing@v0.8.1.1#egg=text_preprocessing",
     ],
 )
