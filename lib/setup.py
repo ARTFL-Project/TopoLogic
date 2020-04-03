@@ -25,6 +25,7 @@ setup(
         "matplotlib",
         "fastapi",
         "gunicorn",
-        "text_preprocessing@git+https://github.com/ARTFL-Project/text-preprocessing@v0.8.1#egg=text_preprocessing",
+        "uvicorn",
+        "text_preprocessing @ git+https://github.com/ARTFL-Project/text-preprocessing@v0.8.1#egg=text_preprocessing",
     ],
 )
