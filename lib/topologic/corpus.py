@@ -7,7 +7,6 @@ from math import floor
 
 import numpy as np
 from dill import dump, load
-from networkx.readwrite import json_graph
 from scipy import spatial
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.metrics import pairwise_distances
