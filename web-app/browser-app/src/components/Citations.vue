@@ -36,11 +36,14 @@ export default {
     },
     methods: {
         goToPhilo() {
-            let trimmedId = this.doc.philo_id.split(" ").filter(id => {
-                return parseInt(id) > 0;
-            });
+            // let trimmedId = this.doc.philo_id.split(" ").filter(id => {
+            //     return parseInt(id) > 0;
+            // });
+            let trimmedId = this.doc.metadata[`philo_${this.doc.philo_type}_id`]
+                .split(" ")
+                .join("/");
             if (this.doc.philo_type == "doc") {
-                return `${this.$globalConfig.philoLogicUrl}/navigate/${trimmedId}/table-of-contents`;
+                return `${this.$globalConfig.philoLogicUrl}/navigate/${this.trimmedId}/table-of-contents`;
             }
             return `${this.$globalConfig.philoLogicUrl}/navigate/${trimmedId}`;
         }
