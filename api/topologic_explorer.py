@@ -100,9 +100,6 @@ def get_doc_data(table, philo_id):
     config = read_model_config(table)
     db = DBSearch(DATABASE, table, config["object_level"])
     doc_data = db.get_doc_data(philo_id)
-    import sys
-
-    print(philo_id, file=sys.stderr)
     word_list = [(w[0], w[1] * 10, w[2]) for w in doc_data["word_list"][:50] if w[1] > 0]
     highest_value = word_list[0][1]
     if len(word_list) > 1:

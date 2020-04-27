@@ -2,20 +2,21 @@ module.exports = {
     devServer: {
         compress: true,
         disableHostCheck: true,
-        host: '0.0.0.0',
+        host: "anomander.uchicago.edu",
+        https: true,
         headers: {
-            'Access-Control-Allow-Origin': '*'
-        }
+            "Access-Control-Allow-Origin": "*",
+        },
     },
     configureWebpack: {
         output: {
-            globalObject: 'this'
-        }
+            globalObject: "this",
+        },
     },
-    publicPath: process.env.NODE_ENV === 'production' ? getAppPath() : '/'
-}
+    publicPath: process.env.NODE_ENV === "production" ? getAppPath() : "/",
+};
 
 function getAppPath() {
-    const globalConfig = require('./appConfig.json')
-    return "/" + globalConfig.appPath
+    const globalConfig = require("./appConfig.json");
+    return "/" + globalConfig.appPath;
 }

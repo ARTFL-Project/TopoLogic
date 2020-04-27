@@ -52,30 +52,11 @@
                                     }`
                                 "
                                 >{{ weightedWord[0] }}</a>
-                                <b-popover
-                                    :target="`${weightedWord[2]}`"
-                                    triggers="click blur"
-                                    placement="top"
-                                >
-                                    <template v-slot:title>
-                                        <span
-                                            style="font-variant: small-caps;"
-                                        >{{ weightedWord[0] }}</span>
-                                    </template>
-                                    <b-list-group flush>
-                                        <b-list-group-item>
-                                            <router-link
-                                                :to="`/word/${weightedWord[0]}`"
-                                            >Explore usage in corpus</router-link>
-                                        </b-list-group-item>
-                                        <b-list-group-item>
-                                            <a
-                                                :href="`${philoUrl}/query?report=concordance&philo_doc_id=${mainDoc.metadata.philo_doc_id}&q=${weightedWord[0]}.?`"
-                                                target="_blank"
-                                            >See all occurrences in document</a>
-                                        </b-list-group-item>
-                                    </b-list-group>
-                                </b-popover>
+                                <word-link
+                                    :target="weightedWord[2]"
+                                    :object-id="mainDoc.metadata.philo_doc_id"
+                                    :word="weightedWord[0]"
+                                ></word-link>
                             </span>
                         </div>
                     </div>
@@ -137,11 +118,13 @@
 <script>
 import topicData from "../../topic_words.json";
 import Citations from "./Citations";
+import WordLink from "./WordLink";
 
 export default {
     name: "Document",
     components: {
-        Citations
+        Citations,
+        WordLink
     },
     data() {
         return {
