@@ -54,7 +54,7 @@
                                 >{{ weightedWord[0] }}</a>
                                 <word-link
                                     :target="weightedWord[2]"
-                                    :object-id="mainDoc.metadata.philo_doc_id"
+                                    :metadata="mainDoc.metadata"
                                     :word="weightedWord[0]"
                                 ></word-link>
                             </span>

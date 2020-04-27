@@ -8,11 +8,7 @@
                 <router-link :to="`/word/${word}`">Explore usage in corpus</router-link>
             </b-list-group-item>
             <b-list-group-item>
-                <a
-                    :href="`${philoUrl}/query?report=concordance&philo_doc_id=${objectId}&q=${word}.?`"
-                    target="_blank"
-                    v-if="objectId"
-                >See all occurrences in document</a>
+                <a :href="link" target="_blank" v-if="metadata">See all occurrences in document</a>
                 <a
                     :href="`${philoUrl}/query?report=concordance&q=${word}.?`"
                     target="_blank"
@@ -25,11 +21,18 @@
 <script>
 export default {
     name: "WordLink",
-    props: ["target", "objectId", "word"],
+    props: ["target", "metadata", "word"],
     data() {
         return {
             philoUrl: this.$globalConfig.philoLogicUrl
         };
+    },
+    computed: {
+        link: function() {
+            let philoType = `philo_${this.metadata.philo_type}_id`;
+            let objectId = this.metadata[philoType];
+            return `${this.philoUrl}/query?report=concordance&${philoType}=${objectId}&q=${this.word}.?`;
+        }
     },
     created() {
         console.log(this.target);
