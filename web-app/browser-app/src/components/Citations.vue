@@ -5,11 +5,11 @@
             :key="citation.field"
             :style="citation.style"
         >
-            <router-link :to="`/document/${philoId}`" v-if="citation.link && doc.doc_id != ''">
+            <a :id="`${target}`" v-if="citation.link && doc.doc_id != ''">
                 {{
                 doc.metadata[citation.field] || "Unnamed section"
                 }}
-            </router-link>
+            </a>
             <span v-else>{{ doc.metadata[citation.field] }}</span>
             <span class="separator" v-if="citeIndex != citations.length - 1">&#9679;</span>
         </span>
@@ -20,7 +20,7 @@
 <script>
 export default {
     name: "Citations",
-    props: ["doc"],
+    props: ["doc", "target"],
     data() {
         return {
             citations: this.$globalConfig.metadataFields
@@ -55,5 +55,13 @@ export default {
     display: inline-block;
     margin: 0 0.25rem;
     font-style: italic;
+}
+a:not([href]) {
+    color: #55acee;
+    cursor: pointer;
+}
+a:not([href]):hover {
+    color: #55acee;
+    text-decoration: underline;
 }
 </style>

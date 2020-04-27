@@ -33,9 +33,6 @@ export default {
             let objectId = this.metadata[philoType];
             return `${this.philoUrl}/query?report=concordance&${philoType}=${objectId}&q=${this.word}.?`;
         }
-    },
-    created() {
-        console.log(this.target);
     }
 };
 </script>

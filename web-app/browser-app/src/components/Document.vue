@@ -78,7 +78,8 @@
                             class="list-group-item"
                             style="border-radius: 0px; border-width: 1px 0px"
                         >
-                            <citations :doc="doc"></citations>
+                            <citations :doc="doc" :id="`${doc.doc_id}`"></citations>
+                            <doc-link :target="`${doc.doc_id}`" :metadata="doc.metadata"></doc-link>
                             <b-badge
                                 variant="secondary"
                                 pill
@@ -102,7 +103,8 @@
                             class="list-group-item"
                             style="border-radius: 0px; border-width: 1px 0px"
                         >
-                            <citations :doc="doc"></citations>
+                            <citations :doc="doc" :id="`${doc.doc_id}`"></citations>
+                            <doc-link :target="`${doc.doc_id}`" :metadata="doc.metadata"></doc-link>
                             <b-badge
                                 variant="secondary"
                                 pill
@@ -119,12 +121,14 @@
 import topicData from "../../topic_words.json";
 import Citations from "./Citations";
 import WordLink from "./WordLink";
+import DocLink from "./DocLink";
 
 export default {
     name: "Document",
     components: {
         Citations,
-        WordLink
+        WordLink,
+        DocLink
     },
     data() {
         return {
