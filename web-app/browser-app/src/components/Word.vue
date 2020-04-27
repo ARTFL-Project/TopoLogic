@@ -106,7 +106,12 @@
                             class="list-group-item"
                             style="border-radius: 0px; border-width: 1px 0px; font-size: 90%"
                         >
-                            <citations :doc="doc"></citations>
+                            <citations :doc="doc" :id="`${doc.doc_id}`"></citations>
+                            <doc-link
+                                :target="`${doc.doc_id}`"
+                                :metadata="doc.metadata"
+                                :word="word"
+                            ></doc-link>
                             <b-badge
                                 variant="secondary"
                                 pill
@@ -123,10 +128,11 @@
 import topicData from "../../topic_words.json";
 import Citations from "./Citations";
 import WordLink from "./WordLink";
+import DocLink from "./DocLink";
 
 export default {
     name: "Word",
-    components: { Citations, WordLink },
+    components: { Citations, WordLink, DocLink },
     data() {
         return {
             word: "",

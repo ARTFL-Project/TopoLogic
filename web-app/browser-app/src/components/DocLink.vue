@@ -8,7 +8,12 @@
                 <router-link :to="`${topoLink}`">Explore distribution in corpus</router-link>
             </b-list-group-item>
             <b-list-group-item>
-                <a :href="philoLink" target="_blank">Read document in PhiloLogic</a>
+                <a
+                    :href="philoLink"
+                    target="_blank"
+                    v-if="word"
+                >Explore word usage in document in PhiloLogic</a>
+                <a :href="philoLink" target="_blank" v-else>Read document in PhiloLogic</a>
             </b-list-group-item>
         </b-list-group>
     </b-popover>
@@ -16,7 +21,7 @@
 <script>
 export default {
     name: "DocLink",
-    props: ["target", "metadata", "doc"],
+    props: ["target", "metadata", "doc", "word"],
     data() {
         return {
             philoUrl: this.$globalConfig.philoLogicUrl
@@ -25,11 +30,14 @@ export default {
     computed: {
         philoLink: function() {
             let philoType = `philo_${this.metadata.philo_type}_id`;
-            if (this.metadata.philo_type == "doc") {
+            if (typeof word == "undefined") {
+                return `${this.philoUrl}/query?report=concordance&q=${this.word}&${philoType}=${this.metadata[philoType]}`;
+            } else if (this.metadata.philo_type == "doc") {
                 return `${this.philoUrl}/navigate/${this.metadata[philoType]}/table-of-contents/`;
+            } else {
+                let objectId = this.metadata[philoType].split(" ").join("/");
+                return `${this.philoUrl}/navigate/${objectId}/`;
             }
-            let objectId = this.metadata[philoType].split(" ").join("/");
-            return `${this.philoUrl}/navigate/${objectId}/`;
         },
         topoLink: function() {
             let philoType = `philo_${this.metadata.philo_type}_id`;
