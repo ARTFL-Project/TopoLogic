@@ -105,7 +105,6 @@
                             <b-list-group flush>
                                 <b-list-group-item v-for="doc in documents" :key="doc.doc_id">
                                     <citations :doc="doc" :id="`${doc.doc_id}`"></citations>
-                                    <doc-link :target="`${doc.doc_id}`" :metadata="doc.metadata"></doc-link>
                                     <b-badge
                                         variant="secondary"
                                         pill
@@ -123,13 +122,11 @@
 <script>
 import topicData from "../../topic_words.json";
 import Citations from "./Citations";
-import DocLink from "./DocLink";
 
 export default {
     name: "Topic",
     components: {
-        Citations,
-        DocLink
+        Citations
     },
     data() {
         return {
