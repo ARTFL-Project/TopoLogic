@@ -37,10 +37,7 @@ def parse_args():
         type=str,
     )
     parser.add_argument(
-        "--workers",
-        help="How many threads or cores to use for preprocessing and modeling",
-        type=int,
-        default=4,
+        "--workers", help="How many threads or cores to use for preprocessing and modeling", type=int, default=4,
     )
     parser.add_argument(
         "--evaluate",
@@ -49,22 +46,13 @@ def parse_args():
         default=False,
     )
     parser.add_argument(
-        "--min_num_topics",
-        help="minimum number of topics for evaluation",
-        type=int,
-        default=10,
+        "--min_num_topics", help="minimum number of topics for evaluation", type=int, default=10,
     )
     parser.add_argument(
-        "--max_num_topics",
-        help="maximum number of topics for evaluation",
-        type=int,
-        default=20,
+        "--max_num_topics", help="maximum number of topics for evaluation", type=int, default=20,
     )
     parser.add_argument(
-        "--debug",
-        help="debug mode: temp file in /tmp will not be deleted.",
-        action="store_true",
-        default=False,
+        "--debug", help="debug mode: temp file in /tmp will not be deleted.", action="store_true", default=False,
     )
     args = parser.parse_args()
     return args
@@ -75,7 +63,8 @@ def main(args):
         print("No configuration file provided, exiting...")
         exit()
     (
-        source_data,
+        training_data,
+        inference_data,
         metadata_filters,
         database_name,
         prep_config,
@@ -85,39 +74,21 @@ def main(args):
     ) = read_config(args.config)
     if os.path.exists(args.data_output) is True:
         os.system(f"rm -rf {args.data_output}")
-    source_data_path = os.path.join(
-        source_data["philologic_database_path"], "data/words_and_philo_ids"
-    )
-    if (
-        prep_config["training_text_object_level"]
-        and prep_config["training_text_object_level"]
-        != prep_config["text_object_level"]
-    ):
-        training_texts_path = os.path.join(args.data_output, "training/texts")
-        texts_path = os.path.join(args.data_output, "texts")
-    else:
-        training_texts_path = os.path.join(args.data_output, "texts")
-        texts_path = training_texts_path
-    os.system(f"mkdir -p {texts_path}")
+    training_texts_path = os.path.join(args.data_output, "training/")
+    inference_texts_path = os.path.join(args.data_output, "inference/")
+    os.system(f"mkdir -p {inference_texts_path}")
     os.system(f"mkdir -p {training_texts_path}")
 
     print("## PREPROCESSING ##", flush=True)
-    metadata = prepare_data(
-        prep_config,
-        source_data_path,
-        training_texts_path,
-        texts_path,
-        source_data["philologic_database_path"],
-        metadata_filters,
+    prepare_data(
+        prep_config, training_data, training_texts_path, inference_data, inference_texts_path, metadata_filters,
     )
 
-    source_file_path = os.path.join(
-        source_data["philologic_database_path"], "data/TEXT"
-    )
     topic_model, full_corpus, training_corpus = build_model(
         training_texts_path,
-        texts_path,
-        metadata,
+        inference_texts_path,
+        training_data,
+        inference_data,
         algorithm=model_config["algorithm"],
         number_of_topics=model_config["number_of_topics"],
         vectorization=vector_config["vectorization"],
@@ -130,6 +101,7 @@ def main(args):
     )
 
     if args.evaluate is False:
+        source_file_path = os.path.join(source_data["philologic_database_path"], "data/TEXT")
         build_web_app(
             args.config,
             database_name,
@@ -172,81 +144,24 @@ def main(args):
 def get_file_list(data_path, metadata_filters):
     philo_db = DB(data_path)
     hits = philo_db.query(
-        qs="",
-        method="",
-        method_arg="",
-        limit="",
-        sort_order=["rowid"],
-        raw_results=True,
-        **metadata_filters,
+        qs="", method="", method_arg="", limit="", sort_order=["rowid"], raw_results=True, **metadata_filters,
     )
     hits.finish()
     philo_ids = {" ".join(str(i) for i in hit) for hit in hits}
-    file_list = {
-        os.path.join(data_path, f"words_and_philo_ids/{hit.split()[0]}")
-        for hit in philo_ids
-    }
+    file_list = {os.path.join(data_path, f"words_and_philo_ids/{hit.split()[0]}") for hit in philo_ids}
     return file_list, philo_ids
 
 
 def prepare_data(
-    prep_config,
-    source_data_path,
-    training_texts_path,
-    texts_path,
-    philo_db_path,
-    metadata_filters,
+    prep_config, training_data, training_texts_path, inference_data, inference_texts_path, metadata_filters,
 ):
-    if prep_config["training_text_object_level"]:
-        training_object_level = prep_config["training_text_object_level"]
-    else:
-        training_object_level = prep_config["text_object_level"]
-
-    if metadata_filters:
-        file_list, philo_ids = get_file_list(
-            os.path.join(philo_db_path, "data"), metadata_filters
-        )
-        print(f"{len(file_list)} texts to process...")
-    else:
-        print(f"{sum(1 for _ in os.scandir(source_data_path))} texts to process...")
-        file_list = [f.path for f in os.scandir(source_data_path)]
-
-    preproc = PreProcessor(
-        text_object_type=training_object_level,
-        language=prep_config["language"],
-        stemmer=prep_config["stemmer"],
-        lemmatizer=prep_config["lemmatizer"],
-        modernize=prep_config["modernize"],
-        lowercase=prep_config["lowercase"],
-        strip_numbers=prep_config["numbers"],
-        stopwords=prep_config["stopwords"],
-        pos_to_keep=prep_config["pos_to_keep"],
-        ascii=prep_config["ascii"],
-        min_word_length=prep_config["minimum_word_length"],
-        is_philo_db=True,
-        workers=args.workers,
-        progress=False,
-    )
-    metadata = {}
+    print("Processing training data...", flush=True)
+    count = 0
     pos = 0
-    for text in preproc.process_texts(
-        file_list, progress_prefix="Processing training data..."
-    ):
-        if metadata_filters and text.metadata["philo_id"] not in philo_ids:
-            continue
-        with open(
-            os.path.join(training_texts_path, str(pos)), "w", 65536
-        ) as output:  ## Set buffer to 64K to speed up writes and avoid build-up in RAM
-            output.write(" ".join(text))
-        if texts_path == training_texts_path:
-            metadata[pos] = text.metadata
-        pos += 1
-
-    if texts_path != training_texts_path:
-        pos = 0
-        # print(preproc.text_object_type)
+    for db_name, db_data in training_data.items():
+        count += 1
         preproc = PreProcessor(
-            text_object_type=prep_config["text_object_level"],
+            text_object_type=db_data["text_object_level"],
             language=prep_config["language"],
             stemmer=prep_config["stemmer"],
             lemmatizer=prep_config["lemmatizer"],
@@ -261,27 +176,88 @@ def prepare_data(
             workers=args.workers,
             progress=False,
         )
-        # preproc.text_object_type = prep_config["text_object_level"]
-        # print(preproc.text_object_type)
+        if metadata_filters:
+            file_list, philo_ids = get_file_list(os.path.join(db_data["db_path"], "data"), metadata_filters)
+            file_count = len(philo_ids)
+        else:
+            file_list = [f.path for f in os.scandir(os.path.join(db_data["db_path"], "data/words_and_philo_ids"))]
+            file_count = len(file_list)
+        metadata = {}
+
+        os.system(f"mkdir -p {os.path.join(training_texts_path, db_name, 'texts')}")
         for text in preproc.process_texts(
-            file_list, progress_prefix="Processing data to be topic modeled..."
+            file_list,
+            progress_prefix=f"Processing {file_count} files from collection {count} of {len(training_data)}...",
         ):
             if metadata_filters and text.metadata["philo_id"] not in philo_ids:
                 continue
             with open(
-                os.path.join(texts_path, str(pos)), "w", 65536
+                os.path.join(training_texts_path, db_name, "texts", str(pos)), "w", 65536
             ) as output:  ## Set buffer to 64K to speed up writes and avoid build-up in RAM
                 output.write(" ".join(text))
+            if (
+                db_name in inference_data
+                and db_data["text_object_level"] == inference_data[db_name]["text_object_level"]
+            ):  # if training collection and inference collection are the same, we won't process it again
+                text.metadata["db_name"] = db_name
+                metadata[pos] = text.metadata
+            pos += 1
+        with open(os.path.join(training_texts_path, db_name, "metadata.json"), "w") as output_metadata:
+            json.dump(metadata, output_metadata)
+
+    pos = 0
+    for db_name, db_data in inference_data.items():
+        count += 1
+        if db_name in inference_data:
+            if db_data["text_object_level"] == inference_data[db_name]["text_object_level"]:
+                os.system(f"ln -s {os.path.abspath(training_texts_path)}/{db_name} {inference_texts_path}/{db_name}")
+                continue
+        preproc = PreProcessor(
+            text_object_type=db_data["text_object_level"],
+            language=prep_config["language"],
+            stemmer=prep_config["stemmer"],
+            lemmatizer=prep_config["lemmatizer"],
+            modernize=prep_config["modernize"],
+            lowercase=prep_config["lowercase"],
+            strip_numbers=prep_config["numbers"],
+            stopwords=prep_config["stopwords"],
+            pos_to_keep=prep_config["pos_to_keep"],
+            ascii=prep_config["ascii"],
+            min_word_length=prep_config["minimum_word_length"],
+            is_philo_db=True,
+            workers=args.workers,
+            progress=False,
+        )
+        if metadata_filters:
+            file_list, philo_ids = get_file_list(os.path.join(db_data["db_path"], "data"), metadata_filters)
+            file_count = len(philo_ids)
+        else:
+            file_list = [f.path for f in os.scandir(os.path.join(db_data["db_path"], "data/words_and_philo_ids"))]
+            file_count = len(file_list)
+        metadata = {}
+        os.system(f"mkdir -p {os.path.join(inference_texts_path, db_name, 'texts')}")
+        for text in preproc.process_texts(
+            file_list,
+            progress_prefix=f"Processing {file_count} files from collection {count} of {len(inference_data)}...",
+        ):
+            if metadata_filters and text.metadata["philo_id"] not in philo_ids:
+                continue
+            with open(
+                os.path.join(inference_texts_path, db_name, "texts", str(pos)), "w", 65536
+            ) as output:  ## Set buffer to 64K to speed up writes and avoid build-up in RAM
+                output.write(" ".join(text))
+            text.metadata["db_name"] = db_name
             metadata[pos] = text.metadata
             pos += 1
-
-    return metadata
+        with open(os.path.join(inference_texts_path, db_name, "metadata.json"), "w") as output_metadata:
+            json.dump(metadata, output_metadata)
 
 
 def build_model(
     training_texts_path,
-    texts_path,
-    doc_metadata,
+    inference_texts_path,
+    training_data,
+    inference_data,
     algorithm="lda",
     number_of_topics=100,
     vectorization="tf",
@@ -297,7 +273,6 @@ def build_model(
     print("Vectorize documents...", flush=True)
     training_corpus = Corpus(
         training_texts_path,
-        doc_metadata,
         vectorization=vectorization,
         max_relative_frequency=max_freq,
         min_absolute_frequency=min_freq,
@@ -308,13 +283,24 @@ def build_model(
     print("training corpus size:", training_corpus.size)
     print("vocabulary size:", len(training_corpus.vectorizer.vocabulary_))
 
-    if training_texts_path == texts_path:
+    identical_corpus = True
+    if len(training_data) != len(inference_data):
+        identical_corpus = False
+    if identical_corpus is True:
+        for db, db_data in training_data.items():
+            if db not in inference_data:
+                identical_corpus = False
+                break
+            if db_data["text_object_level"] != inference_data[db]["text_object_level"]:
+                identical_corpus = False
+                break
+
+    if identical_corpus is True:
         if min_tokens_per_doc == 0 or evaluate is True:
             full_corpus = training_corpus
         else:
             full_corpus = Corpus(
                 training_texts_path,
-                doc_metadata,
                 vectorizer=training_corpus.vectorizer,
                 max_relative_frequency=training_corpus._max_relative_frequency,
                 min_absolute_frequency=training_corpus._min_absolute_frequency,
@@ -322,8 +308,7 @@ def build_model(
             )
     else:
         full_corpus = Corpus(
-            texts_path,
-            doc_metadata,
+            inference_texts_path,
             vectorizer=training_corpus.vectorizer,
             max_relative_frequency=training_corpus._max_relative_frequency,
             min_absolute_frequency=training_corpus._min_absolute_frequency,
@@ -391,12 +376,8 @@ def build_web_app(
     else:
         max_year = topics_over_time["end_date"]
     if topics_over_time["topics_over_time_interval"] != 1:
-        min_year = year_normalizer(
-            min_year, topics_over_time["topics_over_time_interval"]
-        )
-        max_year = max_year_normalizer(
-            max_year, topics_over_time["topics_over_time_interval"]
-        )
+        min_year = year_normalizer(min_year, topics_over_time["topics_over_time_interval"])
+        max_year = max_year_normalizer(max_year, topics_over_time["topics_over_time_interval"])
 
     config["DATA"] = {
         "num_docs": full_corpus.size,
@@ -426,10 +407,7 @@ def build_web_app(
 
     print("Saving topics...", flush=True)
     db.save_topics(
-        f"{db_path}/topic_words.json",
-        min_year,
-        max_year,
-        topics_over_time["topics_over_time_interval"],
+        f"{db_path}/topic_words.json", min_year, max_year, topics_over_time["topics_over_time_interval"],
     )
 
     write_app_config(

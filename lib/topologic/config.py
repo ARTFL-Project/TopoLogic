@@ -10,6 +10,30 @@ def read_config(config_path):
     """Read config file for building the topic model and associated app"""
     config = configparser.ConfigParser()
     config.read(config_path)
+
+    training_dbs = [i.strip() for i in config["TRAINING_DATA"]["philologic_database_paths"].split(",")]
+    training_db_urls = [i.strip() for i in config["TRAINING_DATA"]["philologic_database_urls"].split(",")]
+    training_text_object_levels = [i.strip() for i in config["TRAINING_DATA"]["text_object_level"].split(",")]
+    training_data = {
+        os.path.basename(os.path.normpath(db_path)): {
+            "db_path": db_path,
+            "db_url": db_url,
+            "text_object_level": text_object_level,
+        }
+        for db_path, db_url, text_object_level in zip(training_dbs, training_db_urls, training_text_object_levels)
+    }
+    inference_dbs = [i.strip() for i in config["INFERENCE_DATA"]["philologic_database_paths"].split(",")]
+    inference_db_urls = [i.strip() for i in config["INFERENCE_DATA"]["philologic_database_urls"].split(",")]
+    inference_text_object_levels = [i.strip() for i in config["INFERENCE_DATA"]["text_object_level"].split(",")]
+    inference_data = {
+        os.path.basename(os.path.normpath(db_path)): {
+            "db_path": db_path,
+            "db_url": db_url,
+            "text_object_level": text_object_level,
+        }
+        for db_path, db_url, text_object_level in zip(inference_dbs, inference_db_urls, inference_text_object_levels)
+    }
+
     metadata_filters = {}
     for key, value in config["METADATA_FILTERS"].items():
         metadata_filters[key] = value
@@ -61,7 +85,8 @@ def read_config(config_path):
             except ValueError:
                 topics_over_time[key] = None
     return (
-        config["SOURCE_DATA"],
+        training_data,
+        inference_data,
         metadata_filters,
         config["DATABASE"]["database_name"],
         preprocessing,

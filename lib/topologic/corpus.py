@@ -3,6 +3,7 @@
 import itertools
 import os
 import random
+import json
 from math import floor
 
 import numpy as np
@@ -17,32 +18,34 @@ from scipy.spatial.distance import cdist
 class savedTexts:
     def __init__(self, text_path, min_tokens_per_doc=0):
         self.text_path = text_path
-        self.number_of_texts = len(os.listdir(text_path))
+        self.number_of_texts = 0
+        for text_collection in os.scandir(text_path):
+            self.number_of_texts += len(os.listdir(text_collection.path + "/texts"))
         self.min_tokens = min_tokens_per_doc
 
     def __iter__(self):
-        for file in range(self.number_of_texts):
-            with open(os.path.join(self.text_path, str(file))) as input_file:
-                text = input_file.read()
-                if len(text.split()) >= self.min_tokens:
-                    yield text
+        # for file in range(self.number_of_texts):
+        for text_collection in os.scandir(self.text_path):
+            for input_file in os.scandir(os.path.join(text_collection.path, "texts")):
+                with open(input_file.path) as input_file:
+                    text = input_file.read()
+                    if len(text.split()) >= self.min_tokens:
+                        yield text
 
     def random_sample(self, proportion=0.8):
-        file_num = floor(self.number_of_texts * proportion)
-        for file in random.sample(
-            [f.path for f in os.scandir(self.text_path)], file_num
-        ):
-            with open(file) as input_file:
-                text = input_file.read()
-                if len(text.split()) >= self.min_tokens:
-                    yield text
+        for text_collection in os.scandir(self.text_path):
+            sample_size = floor(len(os.listdir(text_collection.path + "/texts")) * proportion)
+            for file in random.sample([f.path for f in os.scandir(self.text_path)], sample_size):
+                with open(file) as input_file:
+                    text = input_file.read()
+                    if len(text.split()) >= self.min_tokens:
+                        yield text
 
 
 class Corpus:
     def __init__(
         self,
         source_files_path,
-        metadata,
         language=None,
         ngram=(1, 1),
         vectorization="tfidf",
@@ -54,7 +57,7 @@ class Corpus:
     ):
 
         self._source_files = source_files_path
-        self.metadata = metadata
+        self.metadata = self.__get_metadata(source_files_path)
         self.ngram = ngram
         self._language = language
         self._vectorization = vectorization
@@ -84,21 +87,22 @@ class Corpus:
                 )
             else:
                 raise ValueError("Unknown vectorization type: %s" % vectorization)
-            self.sklearn_vector_space = self.vectorizer.fit_transform(
-                t for t in self.texts_to_vectorize
-            )
+            self.sklearn_vector_space = self.vectorizer.fit_transform(t for t in self.texts_to_vectorize)
         else:
             self.vectorizer = vectorizer
-            self.sklearn_vector_space = self.vectorizer.transform(
-                t for t in self.texts_to_vectorize
-            )
+            self.sklearn_vector_space = self.vectorizer.transform(t for t in self.texts_to_vectorize)
         self.size = self.sklearn_vector_space.shape[0]
         self.feature_names = self.vectorizer.get_feature_names()
 
+    def __get_metadata(self, data_path):
+        metadata = {}
+        for text_collection in os.scandir(data_path):
+            with open(os.path.join(text_collection.path, "metadata.json")) as metadata_file:
+                metadata.update(json.load(metadata_file))
+        return metadata
+
     def sample_corpus(self):
-        self.sklearn_vector_space = self.vectorizer.transform(
-            t for t in self.texts_to_vectorize.random_sample()
-        )
+        self.sklearn_vector_space = self.vectorizer.transform(t for t in self.texts_to_vectorize.random_sample())
 
     def docs_for_word(self, word_id):
         ids = []
@@ -124,21 +128,15 @@ class Corpus:
 
     def similar_docs_by_vector(self, doc_id, num_docs, topic_model_doc_matrix):
         if self._vectorization == "tfidf":
-            vectors = linear_kernel(
-                topic_model_doc_matrix[doc_id], topic_model_doc_matrix
-            )
+            vectors = linear_kernel(topic_model_doc_matrix[doc_id], topic_model_doc_matrix)
         else:
-            vectors = cosine_similarity(
-                topic_model_doc_matrix[doc_id], topic_model_doc_matrix
-            )
+            vectors = cosine_similarity(topic_model_doc_matrix[doc_id], topic_model_doc_matrix)
         for d in np.argsort(vectors)[0][::-1][: num_docs + 1]:
             if d != doc_id:
                 yield (d, vectors[0, d])
 
     def similar_docs_by_topic_distribution(self, doc_id, num_docs):
-        vectors = cosine_similarity(
-            self.sklearn_vector_space[doc_id], self.sklearn_vector_space
-        )
+        vectors = cosine_similarity(self.sklearn_vector_space[doc_id], self.sklearn_vector_space)
         for d in np.argsort(vectors)[0][::-1][: num_docs + 1]:
             if d != doc_id:
                 yield (d, vectors[0, d])

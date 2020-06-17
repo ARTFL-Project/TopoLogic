@@ -43,16 +43,6 @@ export default {
                     .join("/");
                 return `${this.philoUrl}/navigate/${objectId}/`;
             }
-            // let trimmedId = this.doc.metadata[
-            //     `philo_${this.doc.metadata.philo_type}_id`
-            // ]
-            //     .split(" ")
-            //     .join("/");
-
-            // if (this.doc.philo_type == "doc") {
-            //     return `${this.$globalConfig.philoLogicUrl}/navigate/${this.trimmedId}/table-of-contents`;
-            // }
-            // return `${this.$globalConfig.philoLogicUrl}/navigate/${trimmedId}`;
         }
     }
 };
