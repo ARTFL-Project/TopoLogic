@@ -106,7 +106,11 @@
                             class="list-group-item"
                             style="border-radius: 0px; border-width: 1px 0px; font-size: 90%"
                         >
-                            <citations :doc="doc" :id="`${doc.doc_id}`"></citations>
+                            <citations
+                                :doc="doc"
+                                :id="`${doc.doc_id}`"
+                                :philo-db="`${doc.metadata.philo_db}`"
+                            ></citations>
                             <b-badge
                                 variant="secondary"
                                 pill

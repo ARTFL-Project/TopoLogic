@@ -39,7 +39,15 @@ def read_model_config(table_name):
     local_config = configparser.ConfigParser()
     local_config.read(os.path.join(APP_PATH, table_name, "model_config.ini"))
     return {
-        "object_level": local_config["PREPROCESSING"]["text_object_level"],
+        "object_level": dict(
+            zip(
+                [
+                    os.path.basename(os.path.normpath(db_path))
+                    for db_path in local_config["INFERENCE_DATA"]["philologic_database_paths"].split(",")
+                ],
+                [i.strip() for i in local_config["INFERENCE_DATA"]["text_object_level"].split(",")],
+            )
+        ),
         "maxTf": float(local_config["VECTORIZATION"]["max_freq"]),
         "minTf": float(local_config["VECTORIZATION"]["min_freq"]),
         "vectorization": local_config["VECTORIZATION"]["vectorization"].upper(),
@@ -47,7 +55,6 @@ def read_model_config(table_name):
         "method": local_config["TOPIC_MODELING"]["algorithm"],
         "topic_over_time_interval": int(local_config["TOPICS_OVER_TIME"]["topics_over_time_interval"]),
         "metadata_fields": local_config["DATA"]["metadata"].split(","),
-        "file_path": local_config["DATA"]["file_path"],
         "corpus_size": int(local_config["DATA"]["num_docs"]),
         "vocabularySize": local_config["DATA"]["num_tokens"],
     }
@@ -59,11 +66,6 @@ def group_distributions_over_time(distribution_over_time, label_map):
         grouped_evolution[label_map[year]] += weight
     labels, data = zip(*grouped_evolution.items())
     return {"labels": labels, "data": data}
-
-
-@app.get("/")
-def root():
-    return "HEllo"
 
 
 @app.get("/get_config/{table}")
@@ -95,11 +97,11 @@ def get_docs_in_topic_by_year(table, topic_id, year):
     return documents
 
 
-@app.get("/get_doc_data/{table}/{philo_id}")
-def get_doc_data(table, philo_id):
+@app.get("/get_doc_data/{table}/{philo_db}")
+def get_doc_data(table, philo_db, philo_id):
     config = read_model_config(table)
-    db = DBSearch(DATABASE, table, config["object_level"])
-    doc_data = db.get_doc_data(philo_id)
+    db = DBSearch(DATABASE, table, config["object_level"][philo_db])
+    doc_data = db.get_doc_data(philo_id, philo_db)
     word_list = [(w[0], w[1] * 10, w[2]) for w in doc_data["word_list"][:50] if w[1] > 0]
     highest_value = word_list[0][1]
     if len(word_list) > 1:

@@ -11,16 +11,14 @@
                             :key="topic.name"
                             :to="`/topic/${topic.name}`"
                             class="pt-1 pb-1"
-                            >Topic {{ topic.name }}: {{ topic.description }}</b-dropdown-item
-                        >
+                        >Topic {{ topic.name }}: {{ topic.description }}</b-dropdown-item>
                     </b-nav-item-dropdown>
                     <b-nav-item to="/view/word">Vocabulary</b-nav-item>
                     <b-nav-item
                         v-for="field in metadataDistributions"
                         :key="field.field"
                         :to="`/view/${field.field}?filter=${field.filterFrequency}`"
-                        >Topics in {{ field.label }}s</b-nav-item
-                    >
+                    >Topics in {{ field.label }}s</b-nav-item>
                     <b-nav-item to="/time">Topics across Time</b-nav-item>
                 </b-navbar-nav>
                 <b-navbar-nav class="ml-auto">
@@ -42,9 +40,9 @@
 </template>
 
 <script>
-import topics from "../topic_words.json"
-import ModelStatistics from "./components/ModelStatistics"
-import TopicDistributions from "./components/TopicDistributions"
+import topics from "../topic_words.json";
+import ModelStatistics from "./components/ModelStatistics";
+import TopicDistributions from "./components/TopicDistributions";
 
 export default {
     name: "app",
@@ -55,15 +53,18 @@ export default {
             topicIds: [],
             metadataDistributions: this.$globalConfig.metadataDistributions,
             wordSelected: ""
-        }
+        };
+    },
+    created() {
+        console.log(this.$route);
     },
     methods: {
         searchVocab() {
-            this.$router.push(`/word/${this.wordSelected}`)
-            this.wordSelected = ""
+            this.$router.push(`/word/${this.wordSelected}`);
+            this.wordSelected = "";
         }
     }
-}
+};
 </script>
 
 <style>

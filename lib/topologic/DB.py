@@ -32,30 +32,25 @@ class DBHandler:
     metadata = None
     table = None
     docs_per_year = None
+    field_names = None
 
     def __init__(self):
         pass
 
     @classmethod
     def set_class_attributes(
-        cls,
-        config,
-        table,
-        model,
-        corpus,
-        metadata,
-        min_year,
-        max_year,
-        topics_over_time_interval,
+        cls, config, table, model, corpus, min_year, max_year, topics_over_time_interval,
     ):
         cls.db = psycopg2.connect(
-            user=config["database_user"],
-            password=config["database_password"],
-            database=config["database_name"],
+            user=config["database_user"], password=config["database_password"], database=config["database_name"],
         )
         cls.cursor = cls.db.cursor()
         cls.model = model
-        cls.metadata = metadata
+        cls.metadata = corpus.metadata
+        field_names = set()
+        for doc_metadata in cls.metadata.values():
+            field_names.update(doc_metadata.keys())
+        cls.field_names = list(field_names)
         cls.table = table
         label_map = {}
         if topics_over_time_interval != 1:
@@ -89,9 +84,7 @@ class DBHandler:
         # Compute word similarity based on document co-occurrence
         print("Compute word similarity by document co-occurrence...", flush=True)
         word_similarities_by_cooc = pairwise_distances(
-            cls.model.corpus.sklearn_vector_space.transpose(),
-            metric="cosine",
-            n_jobs=-1,
+            cls.model.corpus.sklearn_vector_space.transpose(), metric="cosine", n_jobs=-1,
         )
         # Get word weights across docs
         word_weights = {}
@@ -110,17 +103,11 @@ class DBHandler:
                     word_weights[word_id] = []
                 word_weights[word_id].append((doc_id, weight))
 
-        for word_id, docs in tqdm(
-            word_weights.items(),
-            leave=False,
-            desc="Generating TF-IDF scores for all tokens",
-        ):
+        for word_id, docs in tqdm(word_weights.items(), leave=False, desc="Generating TF-IDF scores for all tokens",):
             word = cls.model.corpus.feature_names[word_id]
             idf = log(cls.model.corpus.size / len(docs))
             sorted_docs = sorted(
-                [(doc_id, float(weight * idf)) for doc_id, weight in docs],
-                key=lambda x: x[1],
-                reverse=True,
+                [(doc_id, float(weight * idf)) for doc_id, weight in docs], key=lambda x: x[1], reverse=True,
             )
             word_distribution = cls.model.topic_distribution_for_word(word_id)
             topics = []
@@ -129,9 +116,7 @@ class DBHandler:
                 topics.append(i)
                 weights.append(word_distribution[i])
 
-            similar_words_topic_array = (
-                1.0 - word_similarities_by_topic[word_id]
-            )  # convert distance to similarity
+            similar_words_topic_array = 1.0 - word_similarities_by_topic[word_id]  # convert distance to similarity
             similar_words_by_topic = []
             for other_word in np.argsort(similar_words_topic_array)[::-1]:
                 similar_words_by_topic.append(
@@ -141,9 +126,7 @@ class DBHandler:
                     }
                 )
 
-            similar_words_cooc_array = (
-                1.0 - word_similarities_by_cooc[word_id]
-            )  # convert distance to similarity
+            similar_words_cooc_array = 1.0 - word_similarities_by_cooc[word_id]  # convert distance to similarity
             similar_words_by_cooc = []
             for other_word in np.argsort(similar_words_cooc_array)[::-1]:
                 similar_words_by_cooc.append(
@@ -164,19 +147,14 @@ class DBHandler:
                     json.dumps(similar_words_by_cooc),
                 ),
             )
-        cls.cursor.execute(
-            f"CREATE INDEX {cls.table}_word_id_index ON {cls.table}_words USING HASH(word_id)"
-        )
-        cls.cursor.execute(
-            f"CREATE INDEX {cls.table}_word_index ON {cls.table}_words USING HASH(word)"
-        )
+        cls.cursor.execute(f"CREATE INDEX {cls.table}_word_id_index ON {cls.table}_words USING HASH(word_id)")
+        cls.cursor.execute(f"CREATE INDEX {cls.table}_word_index ON {cls.table}_words USING HASH(word)")
         cls.db.commit()
 
     @classmethod
     def save_docs(cls):
-        field_names = list(cls.metadata[0].keys())
         metadata_fields = []
-        for field in field_names:
+        for field in cls.field_names:
             if field == "year":
                 metadata_fields.append(f"{field} INTEGER")
             else:
@@ -185,28 +163,18 @@ class DBHandler:
         cls.cursor.execute(
             f"CREATE TABLE {cls.table}_docs(doc_id INTEGER, topic_distribution JSONB, topic_similarity JSONB, vector_similarity JSONB, word_list JSONB, {', '.join(metadata_fields)})"
         )
-        with tqdm(
-            total=cls.model.corpus.size, leave=False, desc="Generating doc stats"
-        ) as pbar:
+        with tqdm(total=cls.model.corpus.size, leave=False, desc="Generating doc stats") as pbar:
             with Pool(cpu_count() - 1) as pool:
-                for values in pool.imap_unordered(
-                    cls.compute_doc, range(cls.model.corpus.size)
-                ):
-                    try:
-                        cls.cursor.execute(
-                            f"INSERT INTO {cls.table}_docs (doc_id, topic_distribution, topic_similarity, vector_similarity, word_list, {', '.join(field_names)}) VALUES (%s, %s, %s, %s, %s, {', '.join(['%s' for _ in range(len(field_names))])})",
-                            values,
-                        )
-                    except:
-                        print(dict(zip(field_names, values)))
+                for values in pool.imap_unordered(cls.compute_doc, range(cls.model.corpus.size)):
+                    cls.cursor.execute(
+                        f"INSERT INTO {cls.table}_docs (doc_id, topic_distribution, topic_similarity, vector_similarity, word_list, {', '.join(cls.field_names)}) VALUES (%s, %s, %s, %s, %s, {', '.join(['%s' for _ in range(len(cls.field_names))])})",
+                        values,
+                    )
+
                     pbar.update()
-        cls.cursor.execute(
-            f"CREATE INDEX {cls.table}_doc_id_index ON {cls.table}_docs USING HASH(doc_id)"
-        )
-        for field in field_names:
-            cls.cursor.execute(
-                f"CREATE INDEX {cls.table}_{field}_index ON {cls.table}_docs USING HASH({field})"
-            )
+        cls.cursor.execute(f"CREATE INDEX {cls.table}_doc_id_index ON {cls.table}_docs USING HASH(doc_id)")
+        for field in cls.field_names:
+            cls.cursor.execute(f"CREATE INDEX {cls.table}_{field}_index ON {cls.table}_docs USING HASH({field})")
         cls.db.commit()
 
     @classmethod
@@ -232,9 +200,7 @@ class DBHandler:
         vector_similarity = json.dumps(
             [
                 (int(another_doc), round(float(score), 3))
-                for another_doc, score in cls.model.corpus.similar_docs_by_topic_distribution(
-                    doc_id, 20
-                )
+                for another_doc, score in cls.model.corpus.similar_docs_by_topic_distribution(doc_id, 20)
             ]
         )
 
@@ -243,18 +209,14 @@ class DBHandler:
         non_zero = vector != 0
         word_list = json.dumps(
             [
-                (
-                    cls.model.corpus.feature_names[word_id],
-                    float(vector[word_id]),
-                    int(word_id),
-                )
-                for word_id in np.where(non_zero, vector, np.nan).argsort()[
-                    : non_zero.sum()
-                ][::-1]
+                (cls.model.corpus.feature_names[word_id], float(vector[word_id]), int(word_id),)
+                for word_id in np.where(non_zero, vector, np.nan).argsort()[: non_zero.sum()][::-1]
             ]
         )
+
+        # Get metadata values
         field_values = []
-        for field in cls.metadata[0].keys():
+        for field in cls.field_names:
             try:
                 field_values.append(cls.metadata[doc_id][field])
             except KeyError:
@@ -262,10 +224,7 @@ class DBHandler:
             if field == "year" and not field_values[-1]:  # in case the doc has no year
                 field_values.pop()
                 field_values.append(0)
-        values = tuple(
-            [doc_id, topic_distribution, topic_similarity, vector_similarity, word_list]
-            + field_values
-        )
+        values = tuple([doc_id, topic_distribution, topic_similarity, vector_similarity, word_list] + field_values)
         return values
 
     @classmethod
@@ -275,9 +234,7 @@ class DBHandler:
         cls.cursor.execute(
             f"CREATE TABLE {cls.table}_topics(topic_id INTEGER, word_distribution JSONB, topic_evolution JSONB, frequency FLOAT, docs JSONB)"
         )
-        with tqdm(
-            total=cls.model.nb_topics, leave=False, desc="Generating topic stats"
-        ) as pbar:
+        with tqdm(total=cls.model.nb_topics, leave=False, desc="Generating topic stats") as pbar:
             with Pool(cpu_count() - 1) as pool:
                 for (
                     topic_id,
@@ -288,23 +245,14 @@ class DBHandler:
                     description,
                 ) in pool.imap_unordered(
                     cls.compute_topic,
-                    zip(
-                        range(cls.model.nb_topics),
-                        repeat(start_date),
-                        repeat(end_date),
-                        repeat(year_interval),
-                    ),
+                    zip(range(cls.model.nb_topics), repeat(start_date), repeat(end_date), repeat(year_interval),),
                 ):
                     cls.cursor.execute(
                         f"INSERT INTO {cls.table}_topics (topic_id, word_distribution, topic_evolution, frequency, docs) VALUES (%s, %s, %s, %s, %s)",
                         (topic_id, word_distribution, topic_evolution, frequency, docs),
                     )
                     topic_words.append(
-                        {
-                            "name": topic_id,
-                            "frequency": frequency,
-                            "description": ", ".join(description),
-                        }
+                        {"name": topic_id, "frequency": frequency, "description": ", ".join(description),}
                     )
                     pbar.update()
 
@@ -312,9 +260,7 @@ class DBHandler:
         with open(topic_words_path, "w") as out_file:
             json.dump(topic_words, out_file)
 
-        cls.cursor.execute(
-            f"CREATE INDEX {cls.table}_topic_id_index on {cls.table}_topics USING HASH(topic_id)"
-        )
+        cls.cursor.execute(f"CREATE INDEX {cls.table}_topic_id_index on {cls.table}_topics USING HASH(topic_id)")
         cls.db.commit()
 
     @classmethod
@@ -330,8 +276,7 @@ class DBHandler:
             try:
                 year = cls.year_label_map[int(cls.metadata[doc_id]["year"])]
                 years[year] += (
-                    float(cls.model.topic_distribution_for_document(doc_id)[topic_id])
-                    / cls.docs_per_year[year]
+                    float(cls.model.topic_distribution_for_document(doc_id)[topic_id]) / cls.docs_per_year[year]
                 )
             except (KeyError, ValueError):  # account for various issues with year field
                 pass
@@ -364,9 +309,7 @@ class DBHandler:
 class DBSearch:
     def __init__(self, config, table, object_level):
         self.db = psycopg2.connect(
-            user=config["database_user"],
-            password=config["database_password"],
-            database=config["database_name"],
+            user=config["database_user"], password=config["database_password"], database=config["database_name"],
         )
         self.cursor = self.db.cursor(cursor_factory=RealDictCursor)
         self.table = table
@@ -380,37 +323,27 @@ class DBSearch:
         if frequency_filter == 1:
             self.cursor.execute(f"SELECT DISTINCT {field} FROM {self.table}_docs")
             return sorted([row[field] for row in self.cursor if row[field]])
-        self.cursor.execute(
-            f"SELECT {field}, COUNT(*) AS field_count FROM {self.table}_docs GROUP BY {field}"
-        )
-        return sorted(
-            [
-                row[field]
-                for row in self.cursor
-                if row[field] and row["field_count"] >= frequency_filter
-            ]
-        )
+        self.cursor.execute(f"SELECT {field}, COUNT(*) AS field_count FROM {self.table}_docs GROUP BY {field}")
+        return sorted([row[field] for row in self.cursor if row[field] and row["field_count"] >= frequency_filter])
 
-    def get_doc_data(self, philo_id):
+    def get_doc_data(self, philo_id, philo_db):
         philo_id = " ".join(i for i in philo_id.split() if i != 0)
         self.cursor.execute(
-            f"SELECT * FROM {self.table}_docs WHERE philo_{self.object_level}_id=%s",
-            (philo_id,),
+            f"SELECT * FROM {self.table}_docs WHERE philo_{self.object_level}_id=%s AND philo_db=%s",
+            (philo_id, philo_db),
         )
         return self.cursor.fetchone()
 
     def get_metadata(self, doc_id, metadata_fields):
         self.cursor.execute(
-            f"SELECT {', '.join(metadata_fields)} FROM {self.table}_docs WHERE doc_id=%s",
-            (doc_id,),
+            f"SELECT {', '.join(metadata_fields)} FROM {self.table}_docs WHERE doc_id=%s", (doc_id,),
         )
         return self.cursor.fetchone()
 
     def get_doc_ids_by_metadata(self, field, value, end_value=None):
         if end_value is None:
             self.cursor.execute(
-                f"SELECT distinct doc_id FROM {self.table}_docs WHERE {field}=%s",
-                (value,),
+                f"SELECT distinct doc_id FROM {self.table}_docs WHERE {field}=%s", (value,),
             )
         else:
             self.cursor.execute(
@@ -420,31 +353,21 @@ class DBSearch:
         return set(row["doc_id"] for row in self.cursor)
 
     def get_topic_data(self, topic_id, metadata_fields):
-        self.cursor.execute(
-            f"SELECT * FROM {self.table}_topics WHERE topic_id=%s", (topic_id,)
-        )
+        self.cursor.execute(f"SELECT * FROM {self.table}_topics WHERE topic_id=%s", (topic_id,))
         topic_data = self.cursor.fetchone()
         documents = []
         for document_id, weight in topic_data["docs"][:50]:
             metadata = self.get_metadata(document_id, metadata_fields)
-            documents.append(
-                {"doc_id": document_id, "metadata": metadata, "score": weight}
-            )
+            documents.append({"doc_id": document_id, "metadata": metadata, "score": weight})
         current_topic_evolution = topic_data["topic_evolution"]
         current_topic_evolution_array = np.array([current_topic_evolution["data"]])
         similar_topics = []
         for topic, topic_evolution in self.get_topic_evolutions(int(topic_id)):
             similarity = float(
-                cosine_similarity(
-                    current_topic_evolution_array, np.array([topic_evolution["data"]])
-                )[0, 0]
+                cosine_similarity(current_topic_evolution_array, np.array([topic_evolution["data"]]))[0, 0]
             )
             similar_topics.append(
-                {
-                    "topic": topic,
-                    "topic_evolution": topic_evolution,
-                    "score": similarity,
-                }
+                {"topic": topic, "topic_evolution": topic_evolution, "score": similarity,}
             )
         similar_topics.sort(key=lambda x: x["score"], reverse=True)
         return {
@@ -456,24 +379,18 @@ class DBSearch:
         }
 
     def get_topic_data_by_year(self, topic_id, year, interval, metadata_fields, limit):
-        self.cursor.execute(
-            f"SELECT * FROM {self.table}_topics WHERE topic_id=%s", (topic_id,)
-        )
+        self.cursor.execute(f"SELECT * FROM {self.table}_topics WHERE topic_id=%s", (topic_id,))
         topic_data = self.cursor.fetchone()
         if interval == 1:
             doc_ids = self.get_doc_ids_by_metadata("year", year)
         else:
-            doc_ids = self.get_doc_ids_by_metadata(
-                "year", year, end_value=int(year) + interval
-            )
+            doc_ids = self.get_doc_ids_by_metadata("year", year, end_value=int(year) + interval)
         documents = []
         doc_counts = 0
         for doc_id, weight in topic_data["docs"]:
             if doc_id in doc_ids:
                 metadata = self.get_metadata(doc_id, metadata_fields)
-                documents.append(
-                    {"doc_id": doc_id, "metadata": metadata, "score": weight}
-                )
+                documents.append({"doc_id": doc_id, "metadata": metadata, "score": weight})
                 doc_counts += 1
             if doc_counts == 50:
                 break
@@ -481,8 +398,7 @@ class DBSearch:
 
     def get_topic_evolutions(self, topic_id):
         self.cursor.execute(
-            f"SELECT topic_id, topic_evolution FROM {self.table}_topics WHERE topic_id!=%s",
-            (topic_id,),
+            f"SELECT topic_id, topic_evolution FROM {self.table}_topics WHERE topic_id!=%s", (topic_id,),
         )
         return [(row["topic_id"], row["topic_evolution"]) for row in self.cursor]
 
@@ -491,39 +407,29 @@ class DBSearch:
         return self.cursor.fetchone()
 
     def get_word_from_id(self, word_id):
-        self.cursor.execute(
-            f"SELECT word FROM {self.table}_words WHERE word_id=%s", (word_id,)
-        )
+        self.cursor.execute(f"SELECT word FROM {self.table}_words WHERE word_id=%s", (word_id,))
         return self.cursor.fetchone()[0]
 
     def get_topic_distribution_by_metadata(self, field, field_value):
         topic_distribution = []
-        self.cursor.execute(
-            f"SELECT * FROM {self.table}_docs WHERE {field}=%s", (field_value,)
-        )
+        self.cursor.execute(f"SELECT * FROM {self.table}_docs WHERE {field}=%s", (field_value,))
         for row in self.cursor:
             if not topic_distribution:
                 topic_distribution = [
-                    {"name": pos, "frequency": weight}
-                    for pos, weight in enumerate(row["topic_distribution"]["data"])
+                    {"name": pos, "frequency": weight} for pos, weight in enumerate(row["topic_distribution"]["data"])
                 ]
             else:
                 for pos, weight in enumerate(row["topic_distribution"]["data"]):
                     topic_distribution[pos]["frequency"] += weight
         coeff = 1.0 / sum([topic["frequency"] for topic in topic_distribution])
         topic_distribution = [
-            {"name": pos, "frequency": topic["frequency"] * coeff}
-            for pos, topic in enumerate(topic_distribution)
+            {"name": pos, "frequency": topic["frequency"] * coeff} for pos, topic in enumerate(topic_distribution)
         ]
         return topic_distribution
 
     def get_topic_distributions_over_time(self):
         distributions_over_time = []
-        self.cursor.execute(
-            f"SELECT topic_id, topic_evolution FROM {self.table}_topics ORDER BY topic_id asc"
-        )
+        self.cursor.execute(f"SELECT topic_id, topic_evolution FROM {self.table}_topics ORDER BY topic_id asc")
         for row in self.cursor:
-            distributions_over_time.append(
-                {"topic": row["topic_id"], "topic_evolution": row["topic_evolution"]}
-            )
+            distributions_over_time.append({"topic": row["topic_id"], "topic_evolution": row["topic_evolution"]})
         return distributions_over_time

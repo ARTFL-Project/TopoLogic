@@ -26,7 +26,7 @@ export default new Router({
             component: Topic
         },
         {
-            path: '/document/:doc',
+            path: '/document/:philoDb/:doc([\\d/]+)',
             name: 'document',
             component: Document
         },

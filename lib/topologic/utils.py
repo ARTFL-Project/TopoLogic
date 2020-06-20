@@ -6,7 +6,10 @@ def max_year_normalizer(max_year, interval):
     if interval == 1:
         return max_year
     if interval == 10:
-        max_year = int(f"{str(max_year)[:-2]}{int(str(max_year)[-2])+1}0")
+        if int(str(max_year)[-2:]) < 90:
+            max_year = int(f"{str(max_year)[:-2]}{int(str(max_year)[-2])+1}0")
+        else:
+            max_year = int(f"{int(str(max_year)[:-2])+1}00")
     elif interval == 25:
         max_year_in_century = int(str(max_year)[-2:])
         if max_year_in_century <= 25:

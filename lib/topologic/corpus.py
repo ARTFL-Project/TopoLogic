@@ -5,6 +5,7 @@ import os
 import random
 import json
 from math import floor
+import pickle
 
 import numpy as np
 from dill import dump, load
@@ -97,8 +98,8 @@ class Corpus:
     def __get_metadata(self, data_path):
         metadata = {}
         for text_collection in os.scandir(data_path):
-            with open(os.path.join(text_collection.path, "metadata.json")) as metadata_file:
-                metadata.update(json.load(metadata_file))
+            with open(os.path.join(text_collection.path, "metadata.pickle"), "rb") as metadata_file:
+                metadata.update(pickle.load(metadata_file))
         return metadata
 
     def sample_corpus(self):

@@ -5,34 +5,41 @@
             :key="citation.field"
             :style="citation.style"
         >
-            <a :id="`${target}`" v-if="citation.link && doc.doc_id != ''">
+            <router-link v-if="citation.link && doc.doc_id != ''" :to="docLink()">
                 {{
                 doc.metadata[citation.field] || "Unnamed section"
                 }}
-            </a>
+            </router-link>
             <span v-else>{{ doc.metadata[citation.field] }}</span>
             <span class="separator" v-if="citeIndex != citations.length - 1">&#9679;</span>
         </span>
-        <doc-link :target="`${target}`" :metadata="doc.metadata"></doc-link>
+        <!-- <doc-link :target="`${target}`" :metadata="doc.metadata"></doc-link> -->
 
         <br />
         <a :href="goToPhilo()" target="_blank" v-if="doc.philo_type">Navigate to full text</a>
     </div>
 </template>
 <script>
-import DocLink from "./DocLink";
+// import DocLink from "./DocLink";
 
 export default {
     name: "Citations",
-    components: { DocLink },
-    props: ["doc", "target"],
+    // components: { DocLink },
+    props: ["doc", "philoDb"],
     data() {
         return {
-            citations: this.$globalConfig.metadataFields,
-            philoUrl: this.$globalConfig.philoLogicUrl
+            citations: this.$globalConfig.citations[this.philoDb],
+            philoUrl: this.$globalConfig.philoLogicUrls[this.philoDb]
         };
     },
     methods: {
+        docLink() {
+            let philoType = `philo_${this.doc.metadata.philo_type}_id`;
+            let url = `/document/${this.philoDb}/${this.doc.metadata[philoType]
+                .split(" ")
+                .join("/")}`;
+            return url;
+        },
         goToPhilo() {
             let philoType = `philo_${this.doc.metadata.philo_type}_id`;
             if (this.doc.metadata.philo_type == "doc") {

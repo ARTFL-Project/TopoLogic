@@ -104,7 +104,11 @@
                             </div>
                             <b-list-group flush>
                                 <b-list-group-item v-for="doc in documents" :key="doc.doc_id">
-                                    <citations :doc="doc" :id="`${doc.doc_id}`"></citations>
+                                    <citations
+                                        :doc="doc"
+                                        :id="`${doc.doc_id}`"
+                                        :philo-db="`${doc.metadata.philo_db}`"
+                                    ></citations>
                                     <b-badge
                                         variant="secondary"
                                         pill

@@ -1,7 +1,7 @@
 <template>
     <b-container fluid class="mt-4">
         <h5 class="pl-4 pr-4" style="text-align: center">
-            <citations :doc="mainDoc" v-if="mainDoc"></citations>
+            <citations :doc="mainDoc" :philo-db="`${mainDoc.metadata.philo_db}`" v-if="mainDoc"></citations>
         </h5>
 
         <b-row class="mb-4 mt-4">
@@ -78,7 +78,11 @@
                             class="list-group-item"
                             style="border-radius: 0px; border-width: 1px 0px"
                         >
-                            <citations :doc="doc" :id="`${doc.doc_id}`"></citations>
+                            <citations
+                                :doc="doc"
+                                :id="`${doc.doc_id}`"
+                                :philo-db="`${doc.metadata.philo_db}`"
+                            ></citations>
                             <b-badge
                                 variant="secondary"
                                 pill
@@ -102,7 +106,11 @@
                             class="list-group-item"
                             style="border-radius: 0px; border-width: 1px 0px"
                         >
-                            <citations :doc="doc" :id="`${doc.doc_id}`"></citations>
+                            <citations
+                                :doc="doc"
+                                :id="`${doc.doc_id}`"
+                                :philo-db="`${doc.metadata.philo_db}`"
+                            ></citations>
                             <b-badge
                                 variant="secondary"
                                 pill
@@ -155,10 +163,11 @@ export default {
     },
     methods: {
         fetchData() {
+            let philo_id = this.$route.params.doc.split("/").join(" ");
             this.text = "";
             this.$http
                 .get(
-                    `${this.$globalConfig.apiServer}/get_doc_data/${this.$globalConfig.databaseName}/${this.$route.params.doc}`
+                    `${this.$globalConfig.apiServer}/get_doc_data/${this.$globalConfig.databaseName}/${this.$route.params.philoDb}?philo_id=${philo_id}`
                 )
                 .then(response => {
                     this.words = response.data.words;
