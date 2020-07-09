@@ -34,7 +34,7 @@
             </b-collapse>
         </b-navbar>
         <model-statistics v-if="$route.name == 'home'"></model-statistics>
-        <topic-distributions v-if="$route.name == 'home'" :topics="topicData"></topic-distributions>
+        <topic-distributions v-if="$route.name == 'home'"></topic-distributions>
         <router-view></router-view>
     </div>
 </template>

@@ -13,12 +13,8 @@ from xml.sax.saxutils import unescape as unescape_xml
 
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
-
-# from flask_cors import CORS
-# from flask import Flask, jsonify, request, redirect
-from topologic.DB import DBSearch
 from topologic import read_config
-
+from topologic.DB import DBSearch
 
 global_config = configparser.ConfigParser()
 global_config.read("/etc/topologic/global_settings.ini")
@@ -68,9 +64,28 @@ def group_distributions_over_time(distribution_over_time, label_map):
     return {"labels": labels, "data": data}
 
 
+def read_json_config(path):
+    with open(path) as input_file:
+        config = json.load(input_file)
+    return config
+
+
 @app.get("/get_config/{table}")
-def get_config(table):
+def get_config(table, full_config: bool = False):
+    if full_config is True:
+        config = read_model_config(table)
+        config["topics_words"] = read_json_config(os.path.join(APP_PATH, table, "topic_words.json"))
+        config["appConfig"] = read_json_config(os.path.join(APP_PATH, table, "appConfig.json"))
+        return config
     return read_model_config(table)
+
+
+@app.get("/get_topic_words/{table_name}")
+def get_topic_words(table_name: str):
+    path = os.path.join(APP_PATH, table_name, "topic_words.json")
+    with open(path) as input_file:
+        topic_words = json.load(input_file)
+    return topic_words
 
 
 @app.get("/get_topic_ids")

@@ -41,7 +41,8 @@ export default {
     props: ["topics"],
     data() {
         return {
-            routeName: this.$route.name
+            routeName: this.$route.name,
+            localTopics: this.topics || topicData
         };
     },
     mounted() {
@@ -94,7 +95,7 @@ export default {
         },
         frequencyMultiplier() {
             let maxFrequency = 0.0;
-            for (let topic of this.topics) {
+            for (let topic of this.localTopics) {
                 if (topic.frequency > maxFrequency) {
                     maxFrequency = topic.frequency;
                 }
@@ -110,11 +111,11 @@ export default {
         },
         sortedTopicDistribution() {
             let topicsWithDescription = [];
-            for (let topicName in this.topics) {
+            for (let topicName in this.localTopics) {
                 topicsWithDescription.push({
                     name: `${topicName}`,
                     description: topicData[topicName].description,
-                    frequency: this.topics[topicName].frequency
+                    frequency: this.localTopics[topicName].frequency
                 });
             }
             return topicsWithDescription;

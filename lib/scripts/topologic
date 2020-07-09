@@ -206,8 +206,8 @@ def prepare_data(
     pos = 0
     for db_name, db_config in inference_config.items():
         count += 1
-        if db_name in inference_config:
-            if db_config["text_object_level"] == inference_config[db_name]["text_object_level"]:
+        if db_name in training_config:
+            if db_config["text_object_level"] == training_config[db_name]["text_object_level"]:
                 os.system(f"ln -s {os.path.abspath(training_texts_path)}/{db_name} {inference_texts_path}/{db_name}")
                 continue
         preproc = PreProcessor(
