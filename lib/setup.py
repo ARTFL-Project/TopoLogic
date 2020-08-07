@@ -18,7 +18,7 @@ setup(
         "scikit-learn",
         "pandas",
         "scipy",
-        "numpy==1.15.4",  ## pinned until https://github.com/numpy/numpy/issues/14012 is fixed
+        "numpy",
         "nltk",
         "tqdm",
         "joblib",

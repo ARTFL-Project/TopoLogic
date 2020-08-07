@@ -4,17 +4,17 @@ import configparser
 import json
 import os
 import sys
+from typing import Dict, Union
 
 
 def read_config(config_path):
     """Read config file for building the topic model and associated app"""
     config = configparser.ConfigParser()
     config.read(config_path)
-
     training_dbs = [i.strip() for i in config["TRAINING_DATA"]["philologic_database_paths"].split(",")]
     training_db_urls = [i.strip() for i in config["TRAINING_DATA"]["philologic_database_urls"].split(",")]
     training_text_object_levels = [i.strip() for i in config["TRAINING_DATA"]["text_object_level"].split(",")]
-    training_data = {
+    training_data: Dict[str, Union[int, Dict[str, str]]] = {
         os.path.basename(os.path.normpath(db_path)): {
             "db_path": db_path,
             "db_url": db_url,
@@ -22,10 +22,12 @@ def read_config(config_path):
         }
         for db_path, db_url, text_object_level in zip(training_dbs, training_db_urls, training_text_object_levels)
     }
+    training_data["min_tokens_per_doc"] = int(config["TRAINING_DATA"]["min_tokens_per_doc"])
+
     inference_dbs = [i.strip() for i in config["INFERENCE_DATA"]["philologic_database_paths"].split(",")]
     inference_db_urls = [i.strip() for i in config["INFERENCE_DATA"]["philologic_database_urls"].split(",")]
     inference_text_object_levels = [i.strip() for i in config["INFERENCE_DATA"]["text_object_level"].split(",")]
-    inference_data = {
+    inference_data: Dict[str, Union[int, Dict[str, str]]] = {
         os.path.basename(os.path.normpath(db_path)): {
             "db_path": db_path,
             "db_url": db_url,
@@ -33,6 +35,7 @@ def read_config(config_path):
         }
         for db_path, db_url, text_object_level in zip(inference_dbs, inference_db_urls, inference_text_object_levels)
     }
+    inference_data["min_tokens_per_doc"] = int(config["INFERENCE_DATA"]["min_tokens_per_doc"])
 
     metadata_filters = {}
     for key, value in config["METADATA_FILTERS"].items():
@@ -55,8 +58,6 @@ def read_config(config_path):
     for key, value in config["VECTORIZATION"].items():
         if key in ("min_freq", "max_freq"):
             vectorization[key] = float(value.strip())
-        elif key == "min_tokens_per_doc":
-            vectorization[key] = int(value.strip())
         elif key == "ngram":
             vectorization[key] = tuple([int(v.strip()) for v in value.split(",")])
         elif key == "max_features":
@@ -111,6 +112,14 @@ def write_app_config(db_path, database_name, server_name, philologic_links, star
                     {"field": "title", "style": {"font-style": "italic"}, "link": True},
                     {"field": "year", "style": {}, "link": False},
                 ],
+                "citations": {
+                    db_name: [
+                        {"field": "author", "style": {"font-variant": "small-caps"}, "link": False},
+                        {"field": "title", "style": {"font-style": "italic"}, "link": True},
+                        {"field": "year", "style": {}, "link": False},
+                    ]
+                    for db_name in philologic_links.keys()
+                },
                 "timeSeriesConfig": {"interval": interval, "startDate": start_date, "endDate": end_date},
                 "metadataDistributions": [{"label": "author", "field": "author", "filterFrequency": 1}],
             },

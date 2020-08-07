@@ -25,13 +25,16 @@ class savedTexts:
         self.min_tokens = min_tokens_per_doc
 
     def __iter__(self):
-        # for file in range(self.number_of_texts):
+        files = []
         for text_collection in os.scandir(self.text_path):
             for input_file in os.scandir(os.path.join(text_collection.path, "texts")):
-                with open(input_file.path) as input_file:
-                    text = input_file.read()
-                    if len(text.split()) >= self.min_tokens:
-                        yield text
+                files.append((input_file.path, int(input_file.name)))
+        files.sort(key=lambda x: x[1])
+        for file, _ in files:
+            with open(file) as input_file:
+                text = input_file.read()
+                if len(text.split()) >= self.min_tokens:
+                    yield text
 
     def random_sample(self, proportion=0.8):
         for text_collection in os.scandir(self.text_path):
@@ -117,7 +120,7 @@ class Corpus:
         vector = self.sklearn_vector_space[doc_id]
         cx = vector.tocoo()
         weights = [0.0] * len(self.vectorizer.vocabulary_)
-        for row, word_id, weight in itertools.zip_longest(cx.row, cx.col, cx.data):
+        for _, word_id, weight in itertools.zip_longest(cx.row, cx.col, cx.data):
             weights[word_id] = weight
         return weights
 
