@@ -14,7 +14,8 @@ def read_config(config_path):
     training_dbs = [i.strip() for i in config["TRAINING_DATA"]["philologic_database_paths"].split(",")]
     training_db_urls = [i.strip() for i in config["TRAINING_DATA"]["philologic_database_urls"].split(",")]
     training_text_object_levels = [i.strip() for i in config["TRAINING_DATA"]["text_object_level"].split(",")]
-    training_data: Dict[str, Union[int, Dict[str, str]]] = {
+    training_data: Dict[str, Union[int, Dict[str, Dict[str, str]]]] = {}
+    training_data["databases"] = {
         os.path.basename(os.path.normpath(db_path)): {
             "db_path": db_path,
             "db_url": db_url,
@@ -27,7 +28,8 @@ def read_config(config_path):
     inference_dbs = [i.strip() for i in config["INFERENCE_DATA"]["philologic_database_paths"].split(",")]
     inference_db_urls = [i.strip() for i in config["INFERENCE_DATA"]["philologic_database_urls"].split(",")]
     inference_text_object_levels = [i.strip() for i in config["INFERENCE_DATA"]["text_object_level"].split(",")]
-    inference_data: Dict[str, Union[int, Dict[str, str]]] = {
+    inference_data: Dict[str, Union[int, Dict[str, Dict[str, str]]]] = {}
+    inference_data["databases"] = {
         os.path.basename(os.path.normpath(db_path)): {
             "db_path": db_path,
             "db_url": db_url,

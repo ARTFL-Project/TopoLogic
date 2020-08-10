@@ -141,7 +141,7 @@ def prepare_data(
     print("Processing training data...", flush=True)
     count = 0
     pos = 0
-    for db_name, db_config in training_config.items():
+    for db_name, db_config in training_config["databases"].items():
         count += 1
         preproc = PreProcessor(
             text_object_type=db_config["text_object_level"],
@@ -170,7 +170,7 @@ def prepare_data(
         os.system(f"mkdir -p {os.path.join(training_texts_path, db_name, 'texts')}")
         for text in preproc.process_texts(
             file_list,
-            progress_prefix=f"Processing {file_count} files from collection {count} of {len(training_config)}...",
+            progress_prefix=f"Processing {file_count} files from collection {count} of {len(training_config['databases'])}...",
         ):
             if metadata_filters and text.metadata["philo_id"] not in philo_ids:
                 continue
@@ -190,7 +190,7 @@ def prepare_data(
 
     pos = 0
     print("Processing inference data...", flush=True)
-    for db_name, db_config in inference_config.items():
+    for db_name, db_config in inference_config["databases"].items():
         count += 1
         if db_name in training_config:
             if db_config["text_object_level"] == training_config[db_name]["text_object_level"]:
@@ -222,7 +222,7 @@ def prepare_data(
         os.system(f"mkdir -p {os.path.join(inference_texts_path, db_name, 'texts')}")
         for text in preproc.process_texts(
             file_list,
-            progress_prefix=f"Processing {file_count} files from collection {count} of {len(inference_config)}...",
+            progress_prefix=f"Processing {file_count} files from collection {count} of {len(inference_config['databases'])}...",
         ):
             if metadata_filters and text.metadata["philo_id"] not in philo_ids:
                 continue
@@ -267,14 +267,14 @@ def build_model(
     print("vocabulary size:", len(training_corpus.vectorizer.vocabulary_))
 
     identical_corpus = True
-    if len(training_config) != len(inference_config):
+    if len(training_config["databases"]) != len(inference_config["databases"]):
         identical_corpus = False
     if identical_corpus is True:
-        for db, db_config in training_config.items():
-            if db not in inference_config:
+        for db, db_config in training_config["databases"].items():
+            if db not in inference_config["databases"]:
                 identical_corpus = False
                 break
-            if db_config["text_object_level"] != inference_config[db]["text_object_level"]:
+            if db_config["text_object_level"] != inference_config["databases"][db]["text_object_level"]:
                 identical_corpus = False
                 break
 
@@ -383,7 +383,7 @@ def build_web_app(
         db_path,
         database_name,
         GLOBAL_CONFIG["WEB_APP"]["server_name"],
-        {db_name: db_config["db_url"] for db_name, db_config in inference_config.items()},
+        {db_name: db_config["db_url"] for db_name, db_config in inference_config["databases"].items()},
         min_year,
         max_year,
         topics_over_time["topics_over_time_interval"],
