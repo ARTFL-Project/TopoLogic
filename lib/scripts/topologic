@@ -92,6 +92,7 @@ def main(args):
         inference_config,
         algorithm=model_config["algorithm"],
         number_of_topics=model_config["number_of_topics"],
+        max_iter=model_config["max_iter"],
         vectorization=vector_config["vectorization"],
         max_freq=vector_config["max_freq"],
         min_freq=vector_config["min_freq"],
@@ -179,8 +180,8 @@ def prepare_data(
             ) as output:  ## Set buffer to 64K to speed up writes and avoid build-up in RAM
                 output.write(" ".join(text))
             if (
-                db_name in inference_config
-                and db_config["text_object_level"] == inference_config[db_name]["text_object_level"]
+                db_name in inference_config["databases"]
+                and db_config["text_object_level"] == inference_config["databases"][db_name]["text_object_level"]
             ):  # if training collection and inference collection are the same, we won't process it again
                 text.metadata["philo_db"] = db_name
                 metadata[pos] = text.metadata
@@ -189,6 +190,7 @@ def prepare_data(
             pickle.dump(metadata, output_metadata)
 
     pos = 0
+    count = 0
     print("Processing inference data...", flush=True)
     for db_name, db_config in inference_config["databases"].items():
         count += 1
@@ -244,6 +246,7 @@ def build_model(
     inference_config,
     algorithm="lda",
     number_of_topics=100,
+    max_iter=None,
     vectorization="tf",
     max_freq=0.9,
     min_freq=0.1,

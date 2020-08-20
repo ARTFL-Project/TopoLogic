@@ -19,12 +19,13 @@ from .corpus import Corpus
 class TopicModel(object):
     __metaclass__ = ABCMeta
 
-    def __init__(self, corpus):
+    def __init__(self, corpus, max_iter=None):
         self.corpus = corpus  # a Corpus object
         self.document_topic_matrix = None  # document x topic matrix
         self.topic_word_matrix = None  # topic x word matrix
         self.nb_topics = None  # a scalar value > 1
         self.model = None
+        self.max_iter = max_iter
 
     @abstractmethod
     def infer_topics(self, num_topics=10, **kwargs):
@@ -111,7 +112,7 @@ class TopicModel(object):
 
 
 class LatentDirichletAllocation(TopicModel):
-    def infer_topics(self, num_topics=10, algorithm="variational", **kwargs):
+    def infer_topics(self, num_topics=10, algorithm="variational", max_iter=None, **kwargs):
         self.nb_topics = num_topics
         lda_model = None
         topic_document = None
@@ -120,7 +121,7 @@ class LatentDirichletAllocation(TopicModel):
             learning_method="batch",
             n_jobs=-1,
             random_state=0,
-            max_iter=20,
+            max_iter=max_iter or 20,
             doc_topic_prior=1.0 / num_topics,
             topic_word_prior=0.01 / num_topics,
         )
@@ -155,9 +156,9 @@ class LatentDirichletAllocation(TopicModel):
 
 
 class NonNegativeMatrixFactorization(TopicModel):
-    def infer_topics(self, num_topics=10, **kwargs):
+    def infer_topics(self, num_topics=10, max_iter=None, **kwargs):
         self.nb_topics = num_topics
-        self.model = NMF(n_components=num_topics, init="nndsvd", solver="cd", random_state=0)
+        self.model = NMF(n_components=num_topics, init="nndsvd", solver="cd", max_iter=max_iter or 200, random_state=0)
         topic_document = self.model.fit_transform(self.corpus.sklearn_vector_space)
         self.topic_word_matrix = []
         self.document_topic_matrix = []
