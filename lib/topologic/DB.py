@@ -164,8 +164,7 @@ class DBHandler:
             f"CREATE TABLE {cls.table}_docs(doc_id INTEGER, topic_distribution JSONB, topic_similarity JSONB, vector_similarity JSONB, word_list JSONB, {', '.join(metadata_fields)})"
         )
         with tqdm(total=cls.model.corpus.size, leave=False, desc="Generating doc stats") as pbar:
-            # with Pool(cpu_count() - 1) as pool:
-            with Pool(1) as pool:
+            with Pool(cpu_count() - 1) as pool:
                 for values in pool.imap_unordered(cls.compute_doc, range(cls.model.corpus.size)):
                     cls.cursor.execute(
                         f"INSERT INTO {cls.table}_docs (doc_id, topic_distribution, topic_similarity, vector_similarity, word_list, {', '.join(cls.field_names)}) VALUES (%s, %s, %s, %s, %s, {', '.join(['%s' for _ in range(len(cls.field_names))])})",
