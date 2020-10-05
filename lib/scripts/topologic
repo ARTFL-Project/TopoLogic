@@ -160,6 +160,7 @@ def prepare_data(
             workers=args.workers,
             progress=False,
         )
+        philo_ids = set()
         if metadata_filters:
             file_list, philo_ids = get_file_list(os.path.join(db_config["db_path"], "data"), metadata_filters)
             file_count = len(philo_ids)
@@ -173,7 +174,11 @@ def prepare_data(
             file_list,
             progress_prefix=f"Processing {file_count} files from collection {count} of {len(training_config['databases'])}...",
         ):
-            if metadata_filters and text.metadata["philo_id"] not in philo_ids:
+            if (
+                training_config["min_tokens_per_doc"] > len(text)
+                or metadata_filters
+                and text.metadata["philo_id"] not in philo_ids
+            ):
                 continue
             with open(
                 os.path.join(training_texts_path, db_name, "texts", str(pos)), "w", 65536
@@ -185,7 +190,7 @@ def prepare_data(
             ):  # if training collection and inference collection are the same, we won't process it again
                 text.metadata["philo_db"] = db_name
                 metadata[pos] = text.metadata
-            pos += 1
+                pos += 1
         with open(os.path.join(training_texts_path, db_name, "metadata.pickle"), "wb") as output_metadata:
             pickle.dump(metadata, output_metadata)
 
@@ -194,8 +199,8 @@ def prepare_data(
     print("Processing inference data...", flush=True)
     for db_name, db_config in inference_config["databases"].items():
         count += 1
-        if db_name in training_config:
-            if db_config["text_object_level"] == training_config[db_name]["text_object_level"]:
+        if db_name in training_config["databases"]:
+            if db_config["text_object_level"] == training_config["databases"][db_name]["text_object_level"]:
                 os.system(f"ln -s {os.path.abspath(training_texts_path)}/{db_name} {inference_texts_path}/{db_name}")
                 continue
         preproc = PreProcessor(
@@ -214,6 +219,7 @@ def prepare_data(
             workers=args.workers,
             progress=False,
         )
+        philo_ids = set()
         if metadata_filters:
             file_list, philo_ids = get_file_list(os.path.join(db_config["db_path"], "data"), metadata_filters)
             file_count = len(philo_ids)
@@ -226,7 +232,11 @@ def prepare_data(
             file_list,
             progress_prefix=f"Processing {file_count} files from collection {count} of {len(inference_config['databases'])}...",
         ):
-            if metadata_filters and text.metadata["philo_id"] not in philo_ids:
+            if (
+                inference_config["min_tokens_per_doc"] > len(text)
+                or metadata_filters
+                and text.metadata["philo_id"] not in philo_ids
+            ):
                 continue
             with open(
                 os.path.join(inference_texts_path, db_name, "texts", str(pos)), "w", 65536
@@ -263,7 +273,6 @@ def build_model(
         max_relative_frequency=max_freq,
         min_absolute_frequency=min_freq,
         ngram=ngram,
-        min_tokens_per_doc=training_config["min_tokens_per_doc"],
         max_features=max_features,
     )
     print("training corpus size:", training_corpus.size)
@@ -291,7 +300,6 @@ def build_model(
                 max_relative_frequency=training_corpus._max_relative_frequency,
                 min_absolute_frequency=training_corpus._min_absolute_frequency,
                 ngram=training_corpus.ngram,
-                min_tokens_per_doc=inference_config["min_tokens_per_doc"],
             )
     else:
         full_corpus = Corpus(
@@ -300,19 +308,19 @@ def build_model(
             max_relative_frequency=training_corpus._max_relative_frequency,
             min_absolute_frequency=training_corpus._min_absolute_frequency,
             ngram=training_corpus.ngram,
-            min_tokens_per_doc=inference_config["min_tokens_per_doc"],
         )
 
     print("inference corpus size:", training_corpus.size)
 
     # Instantiate a topic model
     if algorithm == "nmf":
-        topic_model = NonNegativeMatrixFactorization(training_corpus)
+        topic_model = NonNegativeMatrixFactorization(training_corpus, max_iter=max_iter)
     else:
-        topic_model = LatentDirichletAllocation(training_corpus)
+        topic_model = LatentDirichletAllocation(training_corpus, max_iter=max_iter)
 
     if evaluate is False:
         # Infer topics
+        full_corpus.build_annoy_index()
         print("Inferring topics...", flush=True)
         topic_model.infer_topics(num_topics=number_of_topics)
         topic_model.infer_and_replace(full_corpus)

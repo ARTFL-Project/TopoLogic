@@ -5,15 +5,13 @@ import os
 from abc import ABCMeta, abstractmethod
 
 import numpy as np
-from scipy import cluster, spatial
 from scipy.sparse import coo_matrix
 from sklearn.decomposition import NMF
 from sklearn.decomposition import LatentDirichletAllocation as LDA
 from sklearn.metrics import pairwise_distances
-from multiprocess import Pool
+from annoy import AnnoyIndex
 from tqdm import tqdm
-
-from .corpus import Corpus
+from multiprocess import cpu_count
 
 
 class TopicModel(object):
@@ -112,7 +110,7 @@ class TopicModel(object):
 
 
 class LatentDirichletAllocation(TopicModel):
-    def infer_topics(self, num_topics=10, algorithm="variational", max_iter=None, **kwargs):
+    def infer_topics(self, num_topics=10, algorithm="variational", **kwargs):
         self.nb_topics = num_topics
         lda_model = None
         topic_document = None
@@ -121,7 +119,7 @@ class LatentDirichletAllocation(TopicModel):
             learning_method="batch",
             n_jobs=-1,
             random_state=0,
-            max_iter=max_iter or 20,
+            max_iter=self.max_iter,
             doc_topic_prior=1.0 / num_topics,
             topic_word_prior=0.01 / num_topics,
         )
@@ -156,9 +154,11 @@ class LatentDirichletAllocation(TopicModel):
 
 
 class NonNegativeMatrixFactorization(TopicModel):
-    def infer_topics(self, num_topics=10, max_iter=None, **kwargs):
+    def infer_topics(self, num_topics=10, **kwargs):
         self.nb_topics = num_topics
-        self.model = NMF(n_components=num_topics, init="nndsvd", solver="cd", max_iter=max_iter or 200, random_state=0)
+        self.model = NMF(
+            n_components=num_topics, init="nndsvda", solver="cd", max_iter=self.max_iter, random_state=0, verbose=True
+        )
         topic_document = self.model.fit_transform(self.corpus.sklearn_vector_space)
         self.topic_word_matrix = []
         self.document_topic_matrix = []
@@ -186,4 +186,14 @@ class NonNegativeMatrixFactorization(TopicModel):
                 data.append(topic_weight)
                 topic_count += 1
             doc_count += 1
-        self.document_topic_matrix = coo_matrix((data, (row, col)), shape=(self.corpus.size, self.nb_topics)).tocsr()
+        document_topic_matrix = coo_matrix((data, (row, col)), shape=(self.corpus.size, self.nb_topics)).tocsr()
+        self.annoy_index = AnnoyIndex(document_topic_matrix.shape[1], "angular")
+        for i, doc_vector in tqdm(
+            enumerate(document_topic_matrix),
+            total=document_topic_matrix.shape[0],
+            desc="Building Annoy index of document-topic vectors",
+            leave=False,
+        ):
+            self.annoy_index.add_item(i, doc_vector[0].toarray()[0])
+        self.annoy_index.build(1000, n_jobs=cpu_count() - 1)
+

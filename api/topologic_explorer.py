@@ -112,6 +112,14 @@ def get_doc_data(table, philo_db, philo_id):
     config = read_model_config(table)
     db = DBSearch(DATABASE, table, config["object_level"][philo_db])
     doc_data = db.get_doc_data(philo_id, philo_db)
+    if doc_data is None:
+        return {
+            "topic_distribution": None,
+            "metadata": None,
+            "vector_sim_docs": None,
+            "topic_sim_docs": None,
+            "words": None,
+        }
     word_list = [(w[0], w[1] * 10, w[2]) for w in doc_data["word_list"][:50] if w[1] > 0]
     highest_value = word_list[0][1]
     if len(word_list) > 1:

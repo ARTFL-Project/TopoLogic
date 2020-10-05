@@ -14,15 +14,17 @@ from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.metrics import pairwise_distances
 from sklearn.metrics.pairwise import linear_kernel, cosine_similarity
 from scipy.spatial.distance import cdist
+from annoy import AnnoyIndex
+from tqdm import tqdm
+from multiprocess import cpu_count
 
 
 class savedTexts:
-    def __init__(self, text_path, min_tokens_per_doc=0):
+    def __init__(self, text_path):
         self.text_path = text_path
         self.number_of_texts = 0
         for text_collection in os.scandir(text_path):
             self.number_of_texts += len(os.listdir(text_collection.path + "/texts"))
-        self.min_tokens = min_tokens_per_doc
 
     def __iter__(self):
         files = []
@@ -33,8 +35,7 @@ class savedTexts:
         for file, _ in files:
             with open(file) as input_file:
                 text = input_file.read()
-                if len(text.split()) >= self.min_tokens:
-                    yield text
+                yield text
 
     def random_sample(self, proportion=0.8):
         for text_collection in os.scandir(self.text_path):
@@ -42,8 +43,7 @@ class savedTexts:
             for file in random.sample([f.path for f in os.scandir(self.text_path)], sample_size):
                 with open(file) as input_file:
                     text = input_file.read()
-                    if len(text.split()) >= self.min_tokens:
-                        yield text
+                    yield text
 
 
 class Corpus:
@@ -57,7 +57,6 @@ class Corpus:
         min_absolute_frequency=0,
         max_features=None,
         vectorizer=None,
-        min_tokens_per_doc=0,
     ):
 
         self._source_files = source_files_path
@@ -68,7 +67,7 @@ class Corpus:
         self._max_relative_frequency = max_relative_frequency
         self._min_absolute_frequency = min_absolute_frequency
         self.max_features = max_features
-        self.texts_to_vectorize = savedTexts(source_files_path, min_tokens_per_doc)
+        self.texts_to_vectorize = savedTexts(source_files_path)
         self._vectorization = vectorization
         if len(ngram) == 1:
             ngram = (ngram[0], ngram[0])
@@ -97,6 +96,7 @@ class Corpus:
             self.sklearn_vector_space = self.vectorizer.transform(t for t in self.texts_to_vectorize)
         self.size = self.sklearn_vector_space.shape[0]
         self.feature_names = self.vectorizer.get_feature_names()
+        self.annoy_index = None
 
     def __get_metadata(self, data_path):
         metadata = {}
@@ -107,6 +107,17 @@ class Corpus:
 
     def sample_corpus(self):
         self.sklearn_vector_space = self.vectorizer.transform(t for t in self.texts_to_vectorize.random_sample())
+
+    def build_annoy_index(self):
+        self.annoy_index = AnnoyIndex(self.sklearn_vector_space.shape[1], "angular")
+        for i, doc_vector in tqdm(
+            enumerate(self.sklearn_vector_space),
+            total=self.sklearn_vector_space.shape[0],
+            desc="Building Annoy index of document vectors",
+            leave=False,
+        ):
+            self.annoy_index.add_item(i, doc_vector[0].toarray()[0])
+        self.annoy_index.build(1000, n_jobs=cpu_count() - 1)
 
     def docs_for_word(self, word_id):
         ids = []
@@ -130,17 +141,11 @@ class Corpus:
         except KeyError:
             return -1
 
-    def similar_docs_by_vector(self, doc_id, num_docs, topic_model_doc_matrix):
-        if self._vectorization == "tfidf":
-            vectors = linear_kernel(topic_model_doc_matrix[doc_id], topic_model_doc_matrix)
-        else:
-            vectors = cosine_similarity(topic_model_doc_matrix[doc_id], topic_model_doc_matrix)
-        for d in np.argsort(vectors)[0][::-1][: num_docs + 1]:
-            if d != doc_id:
-                yield (d, vectors[0, d])
+    def similar_docs_by_vector(self, doc_id, num_docs):
+        docs, scores = self.annoy_index.get_nns_by_item(doc_id, num_docs + 1, include_distances=True)
+        return [(doc, score) for doc, score in zip(docs, scores) if doc != doc_id]
 
-    def similar_docs_by_topic_distribution(self, doc_id, num_docs):
-        vectors = cosine_similarity(self.sklearn_vector_space[doc_id], self.sklearn_vector_space)
-        for d in np.argsort(vectors)[0][::-1][: num_docs + 1]:
-            if d != doc_id:
-                yield (d, vectors[0, d])
+    def similar_docs_by_topic_distribution(self, doc_id, num_docs, topic_model):
+        docs, scores = topic_model.annoy_index.get_nns_by_item(doc_id, num_docs + 1, include_distances=True)
+        return [(doc, score) for doc, score in zip(docs, scores) if doc != doc_id]
+

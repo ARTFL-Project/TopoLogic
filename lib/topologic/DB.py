@@ -164,7 +164,8 @@ class DBHandler:
             f"CREATE TABLE {cls.table}_docs(doc_id INTEGER, topic_distribution JSONB, topic_similarity JSONB, vector_similarity JSONB, word_list JSONB, {', '.join(metadata_fields)})"
         )
         with tqdm(total=cls.model.corpus.size, leave=False, desc="Generating doc stats") as pbar:
-            with Pool(cpu_count() - 1) as pool:
+            # with Pool(cpu_count() - 1) as pool:
+            with Pool(1) as pool:
                 for values in pool.imap_unordered(cls.compute_doc, range(cls.model.corpus.size)):
                     cls.cursor.execute(
                         f"INSERT INTO {cls.table}_docs (doc_id, topic_distribution, topic_similarity, vector_similarity, word_list, {', '.join(cls.field_names)}) VALUES (%s, %s, %s, %s, %s, {', '.join(['%s' for _ in range(len(cls.field_names))])})",
@@ -188,19 +189,16 @@ class DBHandler:
         topic_distribution = json.dumps({"labels": topics, "data": weights})
 
         # Get similar docs
-        # TODO: remove cls.model.document_topic_matrix from method call since it's already in the class
         topic_similarity = json.dumps(
             [
                 (int(another_doc), round(float(score), 3))
-                for another_doc, score in cls.model.corpus.similar_docs_by_vector(
-                    doc_id, 20, cls.model.document_topic_matrix
-                )
+                for another_doc, score in cls.model.corpus.similar_docs_by_topic_distribution(doc_id, 20, cls.model)
             ]
         )
         vector_similarity = json.dumps(
             [
                 (int(another_doc), round(float(score), 3))
-                for another_doc, score in cls.model.corpus.similar_docs_by_topic_distribution(doc_id, 20)
+                for another_doc, score in cls.model.corpus.similar_docs_by_vector(doc_id, 20)
             ]
         )
 
@@ -370,8 +368,13 @@ class DBSearch:
                 {"topic": topic, "topic_evolution": topic_evolution, "score": similarity,}
             )
         similar_topics.sort(key=lambda x: x["score"], reverse=True)
+        word_distribution = {"data": [], "labels": []}
+        for weight, word in zip(topic_data["word_distribution"]["data"], topic_data["word_distribution"]["labels"]):
+            if weight >= 0.01:
+                word_distribution["data"].append(weight)
+                word_distribution["labels"].append(word)
         return {
-            "word_distribution": topic_data["word_distribution"],
+            "word_distribution": word_distribution,
             "topic_evolution": current_topic_evolution,
             "documents": documents,
             "frequency": topic_data["frequency"],

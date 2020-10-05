@@ -130,7 +130,7 @@ import Citations from "./Citations";
 export default {
     name: "Topic",
     components: {
-        Citations
+        Citations,
     },
     data() {
         return {
@@ -146,57 +146,59 @@ export default {
                 chart: {
                     id: "topic-evolution",
                     toolbar: {
-                        show: false
+                        show: false,
                     },
                     events: {
-                        click: this.goToYear
-                    }
+                        click: this.goToYear,
+                    },
                 },
                 xaxis: {
-                    categories: []
+                    categories: [],
                 },
                 grid: {
                     padding: {
                         left: 0,
                         right: 0,
                         top: 0,
-                        bottom: 0
-                    }
+                        bottom: 0,
+                    },
                 },
                 fill: {
-                    opacity: 0.9
+                    opacity: 0.9,
                 },
                 theme: { palette: "palette3" },
                 tooltip: {
                     x: {
-                        formatter: year => {
-                            return `${year}-${parseInt(year) +
+                        formatter: (year) => {
+                            return `${year}-${
+                                parseInt(year) +
                                 parseInt(
                                     this.$modelConfig.TOPICS_OVER_TIME
                                         .topics_over_time_interval
                                 ) -
-                                1}`;
-                        }
-                    }
-                }
+                                1
+                            }`;
+                        },
+                    },
+                },
             },
             topicEvolutionSeries: [
                 {
                     name: "Topic Evolution",
-                    data: []
-                }
+                    data: [],
+                },
             ],
             wordDistributionChartOptions: {
                 chart: {
                     sparkline: {
-                        enabled: true
+                        enabled: true,
                     },
                     toolbar: {
-                        show: false
+                        show: false,
                     },
                     events: {
-                        click: this.goToWord
-                    }
+                        click: this.goToWord,
+                    },
                 },
                 plotOptions: {
                     bar: {
@@ -204,9 +206,9 @@ export default {
                         distributed: true,
                         horizontal: true,
                         dataLabels: {
-                            position: "bottom"
-                        }
-                    }
+                            position: "bottom",
+                        },
+                    },
                 },
                 colors: [
                     "#33b2df",
@@ -218,16 +220,16 @@ export default {
                     "#f9a3a4",
                     "#90ee7e",
                     "#f48024",
-                    "#69d2e7"
+                    "#69d2e7",
                 ],
                 dataLabels: {
                     enabled: true,
                     textAnchor: "start",
                     style: {
                         colors: ["#000"],
-                        fontSize: "14px"
+                        fontSize: "14px",
                     },
-                    formatter: function(val, opt) {
+                    formatter: function (val, opt) {
                         return (
                             opt.w.globals.labels[opt.dataPointIndex] +
                             ":  " +
@@ -238,82 +240,82 @@ export default {
                     dropShadow: {
                         enabled: true,
                         color: "#fff",
-                        blur: 0.85
-                    }
+                        blur: 0.85,
+                    },
                 },
                 stroke: {
                     width: 0.5,
-                    colors: ["#fff"]
+                    colors: ["#fff"],
                 },
                 xaxis: {
-                    categories: []
+                    categories: [],
                 },
                 grid: {
-                    show: false
-                }
+                    show: false,
+                },
             },
             wordDistributionSeries: [
                 {
                     name: "Word weight within topic",
-                    data: []
-                }
+                    data: [],
+                },
             ],
             similarEvolutionOptions: {
                 chart: {
                     id: "similar-evolution",
                     toolbar: {
-                        show: false
-                    }
+                        show: false,
+                    },
                 },
                 yaxis: {
                     labels: {
-                        formatter: val => val.toFixed(3)
-                    }
+                        formatter: (val) => val.toFixed(3),
+                    },
                 },
                 colors: ["#33b2df", "#546E7A", "#d4526e", "#13d8aa", "#A5978B"],
                 stroke: {
                     curve: "smooth",
-                    width: 1.5
+                    width: 1.5,
                 },
                 grid: {
                     padding: {
                         left: 0,
                         // right: 0,
                         top: 0,
-                        bottom: 0
-                    }
+                        bottom: 0,
+                    },
                 },
                 tooltip: {
-                    enabled: false
+                    enabled: false,
                 },
                 legend: {
                     show: false,
-                    formatter: function(seriesName) {
+                    formatter: function (seriesName) {
                         return `Topic ${seriesName}`;
-                    }
+                    },
                 },
                 plotOptions: {},
                 fill: {
-                    opacity: 0.5
-                }
+                    opacity: 0.5,
+                },
             },
-            similarEvolutionSeries: [{ name: 0, data: [] }]
+            similarEvolutionSeries: [{ name: 0, data: [] }],
         };
     },
     computed: {
-        philoTimeSeriesBiBlioLink: function() {
+        philoTimeSeriesBiBlioLink: function () {
             if (this.topic.length == 1) {
                 return `${this.$globalConfig.philoLogicUrl}/query?report=time_series&topicmodel=0${this.topic}&year_interval=${this.$modelConfig.TOPICS_OVER_TIME.topics_over_time_interval}&start_date=${this.$globalConfig.timeSeriesConfig.startDate}&end_date=${this.$globalConfig.timeSeriesConfig.endDate}`;
             }
             return `${this.$globalConfig.philoLogicUrl}/query?report=time_series&topicmodel=${this.topic}&year_interval=${this.$modelConfig.TOPICS_OVER_TIME.topics_over_time_interval}&start_date=${this.$globalConfig.timeSeriesConfig.startDate}&end_date=${this.$globalConfig.timeSeriesConfig.endDate}`;
         },
-        philoTimeSeriesQueryLink: function() {
+        philoTimeSeriesQueryLink: function () {
             let queryString = topicData[parseInt(this.topic)].description
                 .split(", ")
-                .map(a => `${a}.?`)
+                .map((a) => `${a}.?`)
                 .join(" OR ");
             return `${this.$globalConfig.philoLogicUrl}/query?report=time_series&year_interval=${this.$modelConfig.TOPICS_OVER_TIME.topics_over_time_interval}&start_date=${this.$globalConfig.timeSeriesConfig.startDate}&end_date=${this.$globalConfig.timeSeriesConfig.endDate}&q=${queryString}`;
-        }
+        },
         // whooshSearchLink: function() {
         //     let queryString = []
         //     for (let wordIndex = 0; wordIndex < 10; wordIndex += 1) {
@@ -331,7 +333,7 @@ export default {
     },
     watch: {
         // call again the method if the route changes
-        $route: "fetchData"
+        $route: "fetchData",
     },
     methods: {
         fetchData() {
@@ -339,7 +341,7 @@ export default {
                 .get(
                     `${this.$globalConfig.apiServer}/get_topic_data/${this.$globalConfig.databaseName}/${this.$route.params.topic}`
                 )
-                .then(response => {
+                .then((response) => {
                     this.topic = this.$route.params.topic;
                     this.documents = response.data.documents;
                     this.frequency = (response.data.frequency * 100).toFixed(4);
@@ -374,13 +376,13 @@ export default {
                     this.similarEvolutionSeries = [
                         ...response.data.similar_topics
                             .slice(0, 5)
-                            .map(topic => ({
+                            .map((topic) => ({
                                 data: topic.topic_evolution.data.slice(
                                     startIndex,
                                     endIndex
                                 ),
                                 name: topic.topic.toString(),
-                                type: "line"
+                                type: "line",
                             })),
                         {
                             name: this.topic,
@@ -388,8 +390,8 @@ export default {
                                 startIndex,
                                 endIndex
                             ),
-                            type: "area"
-                        }
+                            type: "area",
+                        },
                     ];
                     this.similarEvolutionOptions = {
                         ...this.similarEvolutionOptions,
@@ -398,15 +400,15 @@ export default {
                                 categories: response.data.similar_topics[0].topic_evolution.labels.slice(
                                     startIndex,
                                     endIndex
-                                )
+                                ),
                             },
                             fill: {
                                 opacity: [
                                     ...response.data.similar_topics,
-                                    this.topic
+                                    this.topic,
                                 ]
                                     .slice(startIndex, endIndex)
-                                    .map(topic => {
+                                    .map((topic) => {
                                         if (
                                             topic.topic !=
                                             this.$route.params.topic
@@ -415,7 +417,7 @@ export default {
                                         } else {
                                             return 0.1;
                                         }
-                                    })
+                                    }),
                             },
                             colors: [
                                 "#2E93fA",
@@ -423,11 +425,11 @@ export default {
                                 "#546E7A",
                                 "#E91E63",
                                 "#FF9800",
-                                "rgba(51, 178, 223, 0.09)"
-                            ]
-                        }
+                                "rgba(51, 178, 223, 0.09)",
+                            ],
+                        },
                     };
-                    this.$nextTick(function() {
+                    this.$nextTick(function () {
                         let selectedYear = document.querySelector(
                             "path[selected='true']"
                         );
@@ -437,8 +439,8 @@ export default {
                     });
                 });
         },
-        sumArray: function(arr) {
-            return arr.reduce(function(a, b) {
+        sumArray: function (arr) {
+            return arr.reduce(function (a, b) {
                 return a + b;
             }, 0);
         },
@@ -463,9 +465,9 @@ export default {
                 ...this.wordDistributionChartOptions,
                 ...{
                     xaxis: {
-                        categories: wordDistribution.labels
-                    }
-                }
+                        categories: wordDistribution.labels,
+                    },
+                },
             };
             this.wordDistributionSeries[0].data = this.formatWordDistribution(
                 wordDistribution.data
@@ -489,9 +491,9 @@ export default {
                 ...this.topicEvolutionChartOptions,
                 ...{
                     xaxis: {
-                        categories: topicEvolution.labels
-                    }
-                }
+                        categories: topicEvolution.labels,
+                    },
+                },
             };
         },
         goToWord(event) {
@@ -510,7 +512,7 @@ export default {
                 .get(
                     `${this.$globalConfig.apiServer}/get_docs_in_topic_by_year/${this.$globalConfig.databaseName}/${this.$route.params.topic}/${year}`
                 )
-                .then(response => {
+                .then((response) => {
                     this.documents = response.data;
                     this.year = year;
                     this.loading = false;
@@ -518,8 +520,8 @@ export default {
         },
         goToTopic(topic) {
             this.$router.push(`/topic/${topic}`);
-        }
-    }
+        },
+    },
 };
 </script>
 <style scoped>
