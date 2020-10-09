@@ -6,6 +6,7 @@ import os
 from collections import Counter
 from itertools import repeat
 from math import log
+from pickle import OBJ
 
 import numpy as np
 import psycopg2
@@ -17,11 +18,7 @@ from tqdm import tqdm, trange
 from topologic import year_normalizer
 
 
-def build_label_map(min_year, max_year, interval):
-    label_map = {}
-    for year in range(min_year, max_year, interval):
-        label_map[year] = year_normalizer(year, interval)
-    return label_map
+OBJECT_LEVELS = {"doc": 1, "div1": 2, "div2": 3, "para": 4, "sent": 5}
 
 
 class DBHandler:
@@ -324,8 +321,12 @@ class DBSearch:
         return sorted([row[field] for row in self.cursor if row[field] and row["field_count"] >= frequency_filter])
 
     def get_doc_data(self, philo_id, philo_db):
-        philo_id = " ".join(i for i in philo_id.split() if i != 0)
+        philo_id = " ".join(philo_id.split()[: OBJECT_LEVELS[self.object_level]])
         self.cursor.execute(
+            f"SELECT * FROM {self.table}_docs WHERE philo_{self.object_level}_id=%s AND philo_db=%s",
+            (philo_id, philo_db),
+        )
+        print(
             f"SELECT * FROM {self.table}_docs WHERE philo_{self.object_level}_id=%s AND philo_db=%s",
             (philo_id, philo_db),
         )

@@ -6,7 +6,7 @@ import json
 import os
 import pickle
 
-from text_preprocessing import PreProcessor
+from text_preprocessing import PreProcessor, Token
 from topologic import (
     read_config,
     write_app_config,
@@ -136,6 +136,15 @@ def get_file_list(data_path, metadata_filters):
     return file_list, philo_ids
 
 
+def dictionary_filter(dictionary_file: str, preprocessor: PreProcessor):
+    dictionary = set()
+    if dictionary_file:
+        with open(dictionary_file) as dico:
+            for word in dico:
+                dictionary.add(preprocessor.normalize((Token(word.strip()))))
+    return dictionary
+
+
 def prepare_data(
     prep_config, training_config, training_texts_path, inference_config, inference_texts_path, metadata_filters,
 ):
@@ -160,6 +169,7 @@ def prepare_data(
             workers=args.workers,
             progress=False,
         )
+        dictionary = dictionary_filter((prep_config["dictionary"]), preproc)
         philo_ids = set()
         if metadata_filters:
             file_list, philo_ids = get_file_list(os.path.join(db_config["db_path"], "data"), metadata_filters)
@@ -183,7 +193,10 @@ def prepare_data(
             with open(
                 os.path.join(training_texts_path, db_name, "texts", str(pos)), "w", 65536
             ) as output:  ## Set buffer to 64K to speed up writes and avoid build-up in RAM
-                output.write(" ".join(text))
+                if dictionary:
+                    output.write(" ".join([t for t in text if t.text in dictionary]))
+                else:
+                    output.write(" ".join(text))
             if (
                 db_name in inference_config["databases"]
                 and db_config["text_object_level"] == inference_config["databases"][db_name]["text_object_level"]
@@ -218,7 +231,9 @@ def prepare_data(
             is_philo_db=True,
             workers=args.workers,
             progress=False,
+            post_processing_function=dictionary_filter,
         )
+        dictionary = dictionary_filter((prep_config["dictionary"]), preproc)
         philo_ids = set()
         if metadata_filters:
             file_list, philo_ids = get_file_list(os.path.join(db_config["db_path"], "data"), metadata_filters)
@@ -232,6 +247,7 @@ def prepare_data(
             file_list,
             progress_prefix=f"Processing {file_count} files from collection {count} of {len(inference_config['databases'])}...",
         ):
+
             if (
                 inference_config["min_tokens_per_doc"] > len(text)
                 or metadata_filters
@@ -241,7 +257,10 @@ def prepare_data(
             with open(
                 os.path.join(inference_texts_path, db_name, "texts", str(pos)), "w", 65536
             ) as output:  ## Set buffer to 64K to speed up writes and avoid build-up in RAM
-                output.write(" ".join(text))
+                if dictionary:
+                    output.write(" ".join([t for t in text if t.text in dictionary]))
+                else:
+                    output.write(" ".join(text))
             text.metadata["philo_db"] = db_name
             metadata[pos] = text.metadata
             pos += 1
