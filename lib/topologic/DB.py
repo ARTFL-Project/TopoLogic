@@ -326,10 +326,6 @@ class DBSearch:
             f"SELECT * FROM {self.table}_docs WHERE philo_{self.object_level}_id=%s AND philo_db=%s",
             (philo_id, philo_db),
         )
-        print(
-            f"SELECT * FROM {self.table}_docs WHERE philo_{self.object_level}_id=%s AND philo_db=%s",
-            (philo_id, philo_db),
-        )
         return self.cursor.fetchone()
 
     def get_metadata(self, doc_id, metadata_fields):
