@@ -125,13 +125,17 @@ def main(args):
         os.system(f"rm -rf {args.data_output}")
 
 
-def get_file_list(data_path, metadata_filters):
+OBJECT_LEVELS = {"doc": 1, "div1": 2, "div2": 3, "div3": 4, "para": 5}
+
+
+def get_file_list(data_path, metadata_filters, object_level, word_length):
     philo_db = DB(data_path)
+    query_string = "." * word_length + "+"
     hits = philo_db.query(
-        qs="", method="", method_arg="", limit="", sort_order=["rowid"], raw_results=True, **metadata_filters,
+        qs=query_string, method="", method_arg="", limit="", sort_order=["rowid"], raw_results=True, **metadata_filters,
     )
     hits.finish()
-    philo_ids = {" ".join(str(i) for i in hit) for hit in hits}
+    philo_ids = {" ".join(map(str, hit[: OBJECT_LEVELS[object_level]])) for hit in hits}
     file_list = {os.path.join(data_path, f"words_and_philo_ids/{hit.split()[0]}") for hit in philo_ids}
     return file_list, philo_ids
 
@@ -172,8 +176,13 @@ def prepare_data(
         dictionary = dictionary_filter((prep_config["dictionary"]), preproc)
         philo_ids = set()
         if metadata_filters:
-            file_list, philo_ids = get_file_list(os.path.join(db_config["db_path"], "data"), metadata_filters)
-            file_count = len(philo_ids)
+            file_list, philo_ids = get_file_list(
+                os.path.join(db_config["db_path"], "data"),
+                metadata_filters,
+                db_config["text_object_level"],
+                prep_config["minimum_word_length"],
+            )
+            file_count = len(file_list)
         else:
             file_list = [f.path for f in os.scandir(os.path.join(db_config["db_path"], "data/words_and_philo_ids"))]
             file_count = len(file_list)
@@ -187,7 +196,7 @@ def prepare_data(
             if (
                 training_config["min_tokens_per_doc"] > len(text)
                 or metadata_filters
-                and text.metadata["philo_id"] not in philo_ids
+                and text.metadata[f"philo_{db_config['text_object_level']}_id"] not in philo_ids
             ):
                 continue
             with open(
