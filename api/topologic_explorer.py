@@ -75,14 +75,14 @@ def index(table_name: str):
 
 @app.get("/{table_name}/css/{css_file}")
 def get_css(table_name: str, css_file: str):
-    with open(os.path.join(APP_PATH, table_name, "css", css_file)) as css:
+    with open(os.path.join(APP_PATH, table_name, "dist/css", css_file)) as css:
         css_content = css.read()
     return Response(css_content, media_type="text/css")
 
 
 @app.get("/{table_name}")
 def get_js(table_name: str, js_file: str):
-    with open(os.path.join(APP_PATH, table_name, "js", js_file)) as js:
+    with open(os.path.join(APP_PATH, table_name, "dist/js", js_file)) as js:
         js_content = js.read()
     return Response(js_content, media_type="application/javascript")
 
