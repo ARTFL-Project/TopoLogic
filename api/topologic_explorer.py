@@ -7,6 +7,7 @@ from collections import defaultdict
 
 
 from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
 from starlette.middleware.cors import CORSMiddleware
 from topologic import read_config
 from topologic.DB import DBSearch
@@ -63,6 +64,13 @@ def read_json_config(path):
     with open(path) as input_file:
         config = json.load(input_file)
     return config
+
+
+@app.get("/{table_name}")
+def index(table_name: str):
+    with open(os.path.join(APP_PATH, table_name, "dist/index.html")) as html:
+        index_html = html.read()
+    return HTMLResponse(index_html)
 
 
 @app.get("/get_config/{table}")
