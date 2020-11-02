@@ -67,6 +67,11 @@ def read_json_config(path):
 
 
 @app.get("/{table_name}")
+@app.get("/{table_name}/topic/{topic_num}")
+@app.get("/{table_name}/document/{philo_db}/{doc}")
+@app.get("/{table_name}/word/{word}")
+@app.get("/{table_name}/time")
+@app.get("/{table_name}/view/{field_name}")
 def index(table_name: str):
     with open(os.path.join(APP_PATH, table_name, "dist/index.html")) as html:
         index_html = html.read()
