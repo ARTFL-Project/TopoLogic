@@ -80,7 +80,7 @@ def get_css(table_name: str, css_file: str):
     return Response(css_content, media_type="text/css")
 
 
-@app.get("/{table_name}")
+@app.get("/{table_name}/js/{js_file}")
 def get_js(table_name: str, js_file: str):
     with open(os.path.join(APP_PATH, table_name, "dist/js", js_file)) as js:
         js_content = js.read()
