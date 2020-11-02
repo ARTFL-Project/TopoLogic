@@ -5,30 +5,43 @@
             <b>{{ topic }}</b>
             across corpus (overall frequency of {{ frequency }}%)
         </h5>
+        <div
+            v-if="loading"
+            class="text-center"
+            style="position: absolute; left: 0; right: 0; z-index: 10"
+        >
+            <b-spinner
+                label="Loading..."
+                style="width: 5rem; height: 5rem"
+            ></b-spinner>
+        </div>
         <b-row>
             <b-col cols="3">
-                <b-card no-body class="shadow-sm" header="Top 50 Tokens">
-                    <b-list-group flush>
-                        <b-list-group-item>
-                            <a
-                                :href="philoTimeSeriesQueryLink"
-                                target="_blank"
-                            >Show frequency of top 10 tokens over time</a>
-                        </b-list-group-item>
-                        <!-- <b-list-group-item>
-                            <a :href="whooshSearchLink" target="_blank"
-                                >Rank documents by occurrence of top 10 tokens</a
+                <b-card no-body class="shadow-sm" header="Top Tokens">
+                    <div class="px-3 pt-2 pb-2">
+                        <div
+                            class="px-3"
+                            v-for="word in wordWeights"
+                            :key="word.word"
+                        >
+                            <b-row
+                                class="word-weight"
+                                @click="goToWord(word.word)"
                             >
-                        </b-list-group-item>-->
-                    </b-list-group>
-                    <div class="pl-4 pt-4 pb-4">
-                        <apexchart
-                            type="bar"
-                            height="1000px"
-                            width="100%"
-                            :options="wordDistributionChartOptions"
-                            :series="wordDistributionSeries"
-                        />
+                                <span
+                                    class="frequency-bar"
+                                    :style="`width: ${word.barWidth}%;`"
+                                ></span>
+                                <b-col cols="8" class="word pl-1">{{
+                                    word.word
+                                }}</b-col>
+                                <b-col cols="4" class="position-relative">
+                                    <span class="frequency-value">{{
+                                        word.weight
+                                    }}</span>
+                                </b-col>
+                            </b-row>
+                        </div>
                     </div>
                 </b-card>
             </b-col>
@@ -53,7 +66,9 @@
                                 <a
                                     :href="philoTimeSeriesBiBlioLink"
                                     target="_blank"
-                                >See topic frequency over time in PhiloLogic</a>
+                                    >See topic frequency over time in
+                                    PhiloLogic</a
+                                >
                             </div>
                         </b-card>
                     </b-col>
@@ -71,7 +86,8 @@
                                 :options="similarEvolutionOptions"
                             ></apexchart>
                             <div
-                                v-for="(localTopic, seriesIndex) in similarEvolutionSeries"
+                                v-for="(localTopic,
+                                seriesIndex) in similarEvolutionSeries"
                                 :key="localTopic.name"
                                 class="topic pl-2 pr-2 pb-1"
                                 style="font-size: 80%"
@@ -84,7 +100,10 @@
                                         :style="`background-color: ${similarEvolutionOptions.colors[seriesIndex]}`"
                                     ></span>
                                     Topic {{ localTopic.name }}:
-                                    {{ topicData[parseInt(localTopic.name)].description }}
+                                    {{
+                                        topicData[parseInt(localTopic.name)]
+                                            .description
+                                    }}
                                 </span>
                             </div>
                         </b-card>
@@ -97,13 +116,19 @@
                         >
                             <div
                                 class="d-flex justify-content-center position-absolute"
-                                style="left: 0; right: 0; top: 4rem; z-index: 1;"
-                                v-if="loading"
+                                style="left: 0; right: 0; top: 4rem; z-index: 1"
+                                v-if="yearLoading"
                             >
-                                <b-spinner style="width: 4rem; height: 4rem;" label="Large Spinner"></b-spinner>
+                                <b-spinner
+                                    style="width: 4rem; height: 4rem"
+                                    label="Large Spinner"
+                                ></b-spinner>
                             </div>
                             <b-list-group flush>
-                                <b-list-group-item v-for="doc in documents" :key="doc.doc_id">
+                                <b-list-group-item
+                                    v-for="doc in documents"
+                                    :key="doc.doc_id"
+                                >
                                     <citations
                                         :doc="doc"
                                         :id="`${doc.doc_id}`"
@@ -113,7 +138,10 @@
                                         variant="secondary"
                                         pill
                                         class="float-right"
-                                    >{{ (doc.score * 100).toFixed(2) }}%</b-badge>
+                                        >{{
+                                            (doc.score * 100).toFixed(2)
+                                        }}%</b-badge
+                                    >
                                 </b-list-group-item>
                             </b-list-group>
                         </b-card>
@@ -135,10 +163,11 @@ export default {
     data() {
         return {
             topicData: topicData,
-            wordDistributionLabels: [],
+            wordWeights: [],
             documents: [],
             similarTopics: [],
             loading: false,
+            yearLoading: false,
             frequency: 0,
             year: 0,
             topic: this.$route.params.topic,
@@ -185,78 +214,6 @@ export default {
             topicEvolutionSeries: [
                 {
                     name: "Topic Evolution",
-                    data: [],
-                },
-            ],
-            wordDistributionChartOptions: {
-                chart: {
-                    sparkline: {
-                        enabled: true,
-                    },
-                    toolbar: {
-                        show: false,
-                    },
-                    events: {
-                        click: this.goToWord,
-                    },
-                },
-                plotOptions: {
-                    bar: {
-                        barHeight: "100%",
-                        distributed: true,
-                        horizontal: true,
-                        dataLabels: {
-                            position: "bottom",
-                        },
-                    },
-                },
-                colors: [
-                    "#33b2df",
-                    "#546E7A",
-                    "#d4526e",
-                    "#13d8aa",
-                    "#A5978B",
-                    "#2b908f",
-                    "#f9a3a4",
-                    "#90ee7e",
-                    "#f48024",
-                    "#69d2e7",
-                ],
-                dataLabels: {
-                    enabled: true,
-                    textAnchor: "start",
-                    style: {
-                        colors: ["#000"],
-                        fontSize: "14px",
-                    },
-                    formatter: function (val, opt) {
-                        return (
-                            opt.w.globals.labels[opt.dataPointIndex] +
-                            ":  " +
-                            val
-                        );
-                    },
-                    offsetX: 0,
-                    dropShadow: {
-                        enabled: true,
-                        color: "#fff",
-                        blur: 0.85,
-                    },
-                },
-                stroke: {
-                    width: 0.5,
-                    colors: ["#fff"],
-                },
-                xaxis: {
-                    categories: [],
-                },
-                grid: {
-                    show: false,
-                },
-            },
-            wordDistributionSeries: [
-                {
-                    name: "Word weight within topic",
                     data: [],
                 },
             ],
@@ -316,17 +273,6 @@ export default {
                 .join(" OR ");
             return `${this.$globalConfig.philoLogicUrl}/query?report=time_series&year_interval=${this.$modelConfig.TOPICS_OVER_TIME.topics_over_time_interval}&start_date=${this.$globalConfig.timeSeriesConfig.startDate}&end_date=${this.$globalConfig.timeSeriesConfig.endDate}&q=${queryString}`;
         },
-        // whooshSearchLink: function() {
-        //     let queryString = []
-        //     for (let wordIndex = 0; wordIndex < 10; wordIndex += 1) {
-        //         queryString.push(
-        //             `${this.wordDistributionLabels[wordIndex]}^${this.wordDistributionSeries[0].data[wordIndex]}`
-        //         )
-        //     }
-        //     return `http://anomander.uchicago.edu/cgi-bin/mark/frc1787-99.whoosh.py?binding=OR&reslimit=100&showsnippets=YES&words=${queryString.join(
-        //         " "
-        //     )}`
-        // }
     },
     mounted() {
         this.fetchData();
@@ -337,16 +283,30 @@ export default {
     },
     methods: {
         fetchData() {
+            this.loading = true;
             this.$http
                 .get(
                     `${this.$globalConfig.apiServer}/get_topic_data/${this.$globalConfig.databaseName}/${this.$route.params.topic}`
                 )
                 .then((response) => {
+                    this.loading = false;
                     this.topic = this.$route.params.topic;
                     this.documents = response.data.documents;
                     this.frequency = (response.data.frequency * 100).toFixed(4);
                     this.similarTopics = response.data.similar_topics;
-                    this.buildWordDistribution(response.data.word_distribution);
+                    let maxFrequency = response.data.word_distribution.data[0];
+                    this.wordWeights = response.data.word_distribution.labels.map(
+                        (word, i) => ({
+                            word: word,
+                            weight: response.data.word_distribution.data[
+                                i
+                            ].toFixed(2),
+                            barWidth:
+                                (100 / maxFrequency) *
+                                response.data.word_distribution.data[i],
+                        })
+                    );
+
                     let startIndex = response.data.topic_evolution.labels.indexOf(
                         this.$globalConfig.timeSeriesConfig.startDate
                     );
@@ -454,26 +414,6 @@ export default {
             }
             return weightedTopicEvolution;
         },
-        formatWordDistribution(wordDistribution) {
-            for (let index = 0; index < wordDistribution.length; index += 1) {
-                wordDistribution[index] = wordDistribution[index].toFixed(2);
-            }
-            return wordDistribution;
-        },
-        buildWordDistribution(wordDistribution) {
-            this.wordDistributionChartOptions = {
-                ...this.wordDistributionChartOptions,
-                ...{
-                    xaxis: {
-                        categories: wordDistribution.labels,
-                    },
-                },
-            };
-            this.wordDistributionSeries[0].data = this.formatWordDistribution(
-                wordDistribution.data
-            );
-            this.wordDistributionLabels = wordDistribution.labels;
-        },
         buildTopicEvolution(topicEvolution, startIndex, endIndex) {
             topicEvolution.data = topicEvolution.data.slice(
                 startIndex,
@@ -496,18 +436,15 @@ export default {
                 },
             };
         },
-        goToWord(event) {
-            let seriesIndex = parseInt(event.target.getAttribute("j"));
-            this.$router.push(
-                `/word/${this.wordDistributionChartOptions.xaxis.categories[seriesIndex]}`
-            );
+        goToWord(word) {
+            this.$router.push(`/word/${word}`);
         },
         goToYear(event) {
             let seriesIndex = parseInt(event.target.getAttribute("j"));
             let year = this.topicEvolutionChartOptions.xaxis.categories[
                 seriesIndex
             ];
-            this.loading = true;
+            this.yearLoading = true;
             this.$http
                 .get(
                     `${this.$globalConfig.apiServer}/get_docs_in_topic_by_year/${this.$globalConfig.databaseName}/${this.$route.params.topic}/${year}`
@@ -515,7 +452,7 @@ export default {
                 .then((response) => {
                     this.documents = response.data;
                     this.year = year;
-                    this.loading = false;
+                    this.yearLoading = false;
                 });
         },
         goToTopic(topic) {
@@ -525,7 +462,7 @@ export default {
 };
 </script>
 <style scoped>
-/deep/ path[selected="true"] {
+::v-deep path[selected="true"] {
     fill: rgba(212, 82, 110, 0.9);
 }
 .topic {
@@ -541,5 +478,36 @@ export default {
     vertical-align: middle;
     display: inline-block;
     border-radius: 50%;
+}
+
+.word-weight {
+    position: relative;
+    cursor: pointer;
+    line-height: 1.75rem;
+    margin-bottom: 0.5rem;
+}
+.frequency-value {
+    display: inline-block;
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    text-align: end;
+}
+.frequency-bar {
+    display: inline-block;
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    background-color: rgba(51, 178, 223, 0.9);
+}
+.row:hover > .frequency-bar {
+    background-color: rgb(51, 178, 223);
+}
+.row:hover > .word {
+    font-weight: 600;
+}
+.row.word-weight:hover {
+    background-color: #f8f8f8;
 }
 </style>

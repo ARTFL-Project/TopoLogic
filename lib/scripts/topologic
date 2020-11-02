@@ -187,6 +187,9 @@ def prepare_data(
             file_list = [f.path for f in os.scandir(os.path.join(db_config["db_path"], "data/words_and_philo_ids"))]
             file_count = len(file_list)
         metadata = {}
+        if file_count == 0:
+            print(f"Skipping collection {count}... No files matched based on metadata filter.")
+            continue
 
         os.system(f"mkdir -p {os.path.join(training_texts_path, db_name, 'texts')}")
         for text in preproc.process_texts(
@@ -245,12 +248,20 @@ def prepare_data(
         dictionary = dictionary_filter((prep_config["dictionary"]), preproc)
         philo_ids = set()
         if metadata_filters:
-            file_list, philo_ids = get_file_list(os.path.join(db_config["db_path"], "data"), metadata_filters)
+            file_list, philo_ids = get_file_list(
+                os.path.join(db_config["db_path"], "data"),
+                metadata_filters,
+                db_config["text_object_level"],
+                prep_config["minimum_word_length"],
+            )
             file_count = len(philo_ids)
         else:
             file_list = [f.path for f in os.scandir(os.path.join(db_config["db_path"], "data/words_and_philo_ids"))]
             file_count = len(file_list)
         metadata = {}
+        if file_count == 0:
+            print(f"Skipping collection {count}... No files matched based on metadata filter.")
+            continue
         os.system(f"mkdir -p {os.path.join(inference_texts_path, db_name, 'texts')}")
         for text in preproc.process_texts(
             file_list,
@@ -260,7 +271,7 @@ def prepare_data(
             if (
                 inference_config["min_tokens_per_doc"] > len(text)
                 or metadata_filters
-                and text.metadata["philo_id"] not in philo_ids
+                and text.metadata[f"philo_{db_config['text_object_level']}_id"] not in philo_ids
             ):
                 continue
             with open(
