@@ -243,7 +243,6 @@ def prepare_data(
             is_philo_db=True,
             workers=args.workers,
             progress=False,
-            post_processing_function=dictionary_filter,
         )
         dictionary = dictionary_filter((prep_config["dictionary"]), preproc)
         philo_ids = set()
