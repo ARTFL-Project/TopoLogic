@@ -140,7 +140,7 @@
                                         class="float-right"
                                         >{{
                                             (doc.score * 100).toFixed(2)
-                                        }}%</b-badge
+                                        }}</b-badge
                                     >
                                 </b-list-group-item>
                             </b-list-group>

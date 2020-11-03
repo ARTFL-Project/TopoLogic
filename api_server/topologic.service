@@ -1,0 +1,9 @@
+[Unit]
+Description=Topologic start-up
+After=network.service share-letsencrypt.mount
+
+[Service]
+ExecStart=/var/lib/topologic/api_server/web_server.sh
+
+[Install]
+WantedBy=default.target
