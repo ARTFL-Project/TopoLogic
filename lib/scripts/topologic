@@ -215,7 +215,7 @@ def prepare_data(
             ):  # if training collection and inference collection are the same, we won't process it again
                 text.metadata["philo_db"] = db_name
                 metadata[pos] = text.metadata
-                pos += 1
+            pos += 1
         with open(os.path.join(training_texts_path, db_name, "metadata.pickle"), "wb") as output_metadata:
             pickle.dump(metadata, output_metadata)
 

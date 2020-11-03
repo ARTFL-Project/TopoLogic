@@ -109,11 +109,12 @@ class Corpus:
         self.sklearn_vector_space = self.vectorizer.transform(t for t in self.texts_to_vectorize.random_sample())
 
     def build_annoy_index(self):
+        print("Building Annoy index of document vectors...", flush=True)
         self.annoy_index = AnnoyIndex(self.sklearn_vector_space.shape[1], "angular")
         for i, doc_vector in tqdm(
             enumerate(self.sklearn_vector_space),
             total=self.sklearn_vector_space.shape[0],
-            desc="Building Annoy index of document vectors",
+            desc="Adding document vectors to Annoy index",
             leave=False,
         ):
             self.annoy_index.add_item(i, doc_vector[0].toarray()[0])
