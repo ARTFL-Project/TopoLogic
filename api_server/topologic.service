@@ -1,6 +1,6 @@
 [Unit]
 Description=Topologic start-up
-After=network.service share-letsencrypt.mount
+After=network.service
 
 [Service]
 ExecStart=/var/lib/topologic/api_server/web_server.sh
