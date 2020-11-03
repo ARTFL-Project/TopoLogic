@@ -1,17 +1,7 @@
 const fs = require('fs');
 
 module.exports = {
-    devServer: {
-        https: true,
-        key: fs.readFileSync("/etc/letsencrypt/live/anomander.uchicago.edu/privkey.pem"),
-        cert: fs.readFileSync("/etc/letsencrypt/live/anomander.uchicago.edu/fullchain.pem"),
-        compress: true,
-        disableHostCheck: true,
-        host: "anomander.uchicago.edu",
-        headers: {
-            'Access-Control-Allow-Origin': '*'
-        }
-    },
+    devServer: getDevServerConfig(),
     configureWebpack: {
         output: {
             globalObject: "this",
@@ -23,4 +13,16 @@ module.exports = {
 function getAppPath() {
     const globalConfig = require("./appConfig.json");
     return "/" + globalConfig.appPath;
+}
+
+function getDevServerConfig() {
+    const globalConfig = require("./appConfig.json");
+    if (process.env.NODE_ENV === "production") {
+        return {}
+    } else {
+        let config = globalConfig.devServerConfig
+        config.cert = fs.readFileSync(config.cert)
+        config.key = fs.readFileSync(config.key)
+        return config
+    }
 }
