@@ -62,6 +62,15 @@ class TopicModel(object):
         self.document_topic_matrix = coo_matrix((data, (row, col)), shape=(self.corpus.size, self.nb_topics)).tocsr()
         topic_frequencies = np.sum(self.document_topic_matrix.transpose(), axis=1)
         self.topic_frequencies = topic_frequencies / np.sum(topic_frequencies)
+        self.annoy_index = AnnoyIndex(self.document_topic_matrix.shape[1], "angular")
+        for i, doc_vector in tqdm(
+            enumerate(self.document_topic_matrix),
+            total=self.document_topic_matrix.shape[0],
+            desc="Building Annoy index of document-topic vectors",
+            leave=False,
+        ):
+            self.annoy_index.add_item(i, doc_vector[0].toarray()[0])
+        self.annoy_index.build(1000, n_jobs=cpu_count() - 1)
 
     def most_similar_topic_by_doc_distribution(self):
         return pairwise_distances(self.document_topic_matrix.transpose())
@@ -187,13 +196,5 @@ class NonNegativeMatrixFactorization(TopicModel):
                 topic_count += 1
             doc_count += 1
         document_topic_matrix = coo_matrix((data, (row, col)), shape=(self.corpus.size, self.nb_topics)).tocsr()
-        self.annoy_index = AnnoyIndex(document_topic_matrix.shape[1], "angular")
-        for i, doc_vector in tqdm(
-            enumerate(document_topic_matrix),
-            total=document_topic_matrix.shape[0],
-            desc="Building Annoy index of document-topic vectors",
-            leave=False,
-        ):
-            self.annoy_index.add_item(i, doc_vector[0].toarray()[0])
-        self.annoy_index.build(1000, n_jobs=cpu_count() - 1)
+        self.annoy_index = None
 

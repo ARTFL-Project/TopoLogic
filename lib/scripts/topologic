@@ -348,7 +348,7 @@ def build_model(
             ngram=training_corpus.ngram,
         )
 
-    print("inference corpus size:", training_corpus.size)
+    print("inference corpus size:", full_corpus.size)
 
     # Instantiate a topic model
     if algorithm == "nmf":
