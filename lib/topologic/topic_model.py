@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
 
 import itertools
-import os
 from abc import ABCMeta, abstractmethod
 
 import numpy as np
+from annoy import AnnoyIndex
+from multiprocess import cpu_count
 from scipy.sparse import coo_matrix
 from sklearn.decomposition import NMF
 from sklearn.decomposition import LatentDirichletAllocation as LDA
 from sklearn.metrics import pairwise_distances
-from annoy import AnnoyIndex
 from tqdm import tqdm
-from multiprocess import cpu_count
 
 
 class TopicModel(object):
@@ -197,4 +196,3 @@ class NonNegativeMatrixFactorization(TopicModel):
             doc_count += 1
         document_topic_matrix = coo_matrix((data, (row, col)), shape=(self.corpus.size, self.nb_topics)).tocsr()
         self.annoy_index = None
-

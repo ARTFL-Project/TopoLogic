@@ -2,21 +2,14 @@
 
 import itertools
 import os
-import random
-import json
-from math import floor
 import pickle
+import random
+from math import floor
 
-import numpy as np
-from dill import dump, load
-from scipy import spatial
-from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
-from sklearn.metrics import pairwise_distances
-from sklearn.metrics.pairwise import linear_kernel, cosine_similarity
-from scipy.spatial.distance import cdist
 from annoy import AnnoyIndex
-from tqdm import tqdm
 from multiprocess import cpu_count
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+from tqdm import tqdm
 
 
 class savedTexts:
@@ -110,16 +103,15 @@ class Corpus:
 
     def build_annoy_index(self):
         print("Building Annoy index of document vectors...", flush=True)
-        annoy_index = AnnoyIndex(self.sklearn_vector_space.shape[1], "angular")
+        self.annoy_index = AnnoyIndex(self.sklearn_vector_space.shape[1], "angular")
         for i, doc_vector in tqdm(
             enumerate(self.sklearn_vector_space),
             total=self.sklearn_vector_space.shape[0],
             desc="Adding document vectors to Annoy index",
             leave=False,
         ):
-            annoy_index.add_item(i, doc_vector[0].toarray()[0])
-        annoy_index.build(1000, n_jobs=cpu_count() - 1)
-        annoy_index.save(os.path.join(self._source_files, "index.annoy"))
+            self.annoy_index.add_item(i, doc_vector[0].toarray()[0])
+        self.annoy_index.build(1000, n_jobs=cpu_count() - 1)
 
     def docs_for_word(self, word_id):
         ids = []
@@ -144,13 +136,9 @@ class Corpus:
             return -1
 
     def similar_docs_by_vector(self, doc_id, num_docs):
-        if self.annoy_index is None:
-            self.annoy_index = AnnoyIndex(self.sklearn_vector_space.shape[1], "angular")
-            self.annoy_index.load(os.path.join(self._source_files, "index.annoy"))
         docs, scores = self.annoy_index.get_nns_by_item(doc_id, num_docs + 1, include_distances=True)
         return [(doc, score) for doc, score in zip(docs, scores) if doc != doc_id]
 
     def similar_docs_by_topic_distribution(self, doc_id, num_docs, topic_model):
         docs, scores = topic_model.annoy_index.get_nns_by_item(doc_id, num_docs + 1, include_distances=True)
         return [(doc, score) for doc, score in zip(docs, scores) if doc != doc_id]
-
