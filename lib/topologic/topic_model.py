@@ -23,6 +23,7 @@ class TopicModel(object):
         self.nb_topics = None  # a scalar value > 1
         self.model = None
         self.max_iter = max_iter
+        self.annoy_index = None
 
     @abstractmethod
     def infer_topics(self, num_topics=10, **kwargs):
@@ -194,5 +195,3 @@ class NonNegativeMatrixFactorization(TopicModel):
                 data.append(topic_weight)
                 topic_count += 1
             doc_count += 1
-        document_topic_matrix = coo_matrix((data, (row, col)), shape=(self.corpus.size, self.nb_topics)).tocsr()
-        self.annoy_index = None
