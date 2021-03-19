@@ -7,7 +7,7 @@ Originally based off https://github.com/AdrienGuille/TOM with many changes and e
 ## INSTALLATION
 
 -   PostgreSQL will need to be installed. You will need to create a database with associated user with read and write permissions.
--   You will need to edit the /etc/topic-modeling-browser/global_settings.ini file with the database information and web configuration.
+-   You will need to edit the /etc/topologic/global_settings.ini file with the database information and web configuration.
 -   You will need a running instance of <a href="https://github.com/ARTFL-Project/PhiloLogic4">PhiloLogic4</a> with the collections to be processed already loaded.
 -   Run the install.sh script
 -   If you OS uses systemd for start-up services, you will want to use the topologic.service file (template for Ubuntu provided as an example) located in api_server/topologic.service to start-up the API server needed to run Topologic
