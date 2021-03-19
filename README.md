@@ -19,7 +19,7 @@ Originally based off https://github.com/AdrienGuille/TOM with many changes and e
 -   Make a copy of the topologic_config.ini file found in /var/lib/topic-modeling-browser/config to your working directory, Edit the topic_modeling_browser_config.ini accordingly.
 -   Use the topic_modeling_browser executable while passing the config and the number of workers to use. E.g.
 
-`TopoLogic --config=topologic_config.ini --workers=32`
+`topoLogic --config=topologic_config.ini --workers=32`
 
 ### NOTE
 
