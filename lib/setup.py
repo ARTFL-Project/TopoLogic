@@ -26,6 +26,7 @@ setup(
         "fastapi",
         "gunicorn",
         "uvicorn",
+        "uvloop",
         "annoy",
         "text_preprocessing @ git+https://github.com/ARTFL-Project/text-preprocessing@v0.8.2#egg=text_preprocessing",
     ],
