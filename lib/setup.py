@@ -26,7 +26,10 @@ setup(
         "fastapi",
         "gunicorn",
         "uvicorn",
+        "uvloop",
+        "httptools",
         "annoy",
-        "text_preprocessing @ git+https://github.com/ARTFL-Project/text-preprocessing@v0.8.2#egg=text_preprocessing",
+        "psycopg2",
+        "text_preprocessing @ git+https://github.com/ARTFL-Project/text-preprocessing@v0.8.3#egg=text_preprocessing",
     ],
 )
