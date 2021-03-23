@@ -208,7 +208,7 @@ def get_doc_data(table, philo_db, philo_id):
 
 
 @app.get("/get_word_data/{table}/{word}")
-def get_word_data(table, word):
+def get_word_data(table, word, word_limit=20):
     config = read_model_config(table)
     db = DBSearch(DATABASE, table, config["object_level"])
     word_data = db.get_word_data(word)
@@ -233,8 +233,8 @@ def get_word_data(table, word):
         "topic_ids": list(range(config["topics"])),
         "topic_distribution": word_data["distribution_across_topics"],
         "documents": documents[:100],
-        "similar_words_by_topic": word_data["similar_words_by_topic"][1:21],
-        "similar_words_by_cooc": word_data["similar_words_by_cooc"][1:21],
+        "similar_words_by_topic": word_data["similar_words_by_topic"][1 : word_limit + 1],
+        "similar_words_by_cooc": word_data["similar_words_by_cooc"][1 : word_limit + 1],
     }
 
 
