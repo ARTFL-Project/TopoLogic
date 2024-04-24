@@ -6,7 +6,6 @@ from sys import platform
 
 from setuptools import setup
 
-
 setup(
     name="topologic",
     version="0.3",
@@ -30,6 +29,6 @@ setup(
         "httptools",
         "annoy",
         "psycopg2",
-        "text_preprocessing @ git+https://github.com/ARTFL-Project/text-preprocessing@v0.8.3#egg=text_preprocessing",
+        "text_preprocessing @ git+https://github.com/ARTFL-Project/text-preprocessing@v1.0.3#egg=text_preprocessing",
     ],
 )

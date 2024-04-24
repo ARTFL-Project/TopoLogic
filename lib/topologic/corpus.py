@@ -88,7 +88,7 @@ class Corpus:
             self.vectorizer = vectorizer
             self.sklearn_vector_space = self.vectorizer.transform(t for t in self.texts_to_vectorize)
         self.size = self.sklearn_vector_space.shape[0]
-        self.feature_names = self.vectorizer.get_feature_names()
+        self.feature_names = self.vectorizer.get_feature_names_out()
         self.annoy_index = None
 
     def __get_metadata(self, data_path):

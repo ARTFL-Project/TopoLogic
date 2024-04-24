@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 
-import codecs
 import json
-import os
 from collections import Counter
 from itertools import repeat
 from math import log
-from pickle import OBJ
 
 import numpy as np
 import psycopg2
@@ -14,9 +11,8 @@ from multiprocess import Pool, cpu_count
 from psycopg2.extras import RealDictCursor
 from sklearn.metrics import pairwise_distances
 from sklearn.metrics.pairwise import cosine_similarity
-from tqdm import tqdm, trange
 from topologic import year_normalizer
-
+from tqdm import tqdm, trange
 
 OBJECT_LEVELS = {"doc": 1, "div1": 2, "div2": 3, "para": 4, "sent": 5}
 
@@ -36,10 +32,19 @@ class DBHandler:
 
     @classmethod
     def set_class_attributes(
-        cls, config, table, model, corpus, min_year, max_year, topics_over_time_interval,
+        cls,
+        config,
+        table,
+        model,
+        corpus,
+        min_year,
+        max_year,
+        topics_over_time_interval,
     ):
         cls.db = psycopg2.connect(
-            user=config["database_user"], password=config["database_password"], database=config["database_name"],
+            user=config["database_user"],
+            password=config["database_password"],
+            database=config["database_name"],
         )
         cls.cursor = cls.db.cursor()
         cls.model = model
@@ -81,7 +86,9 @@ class DBHandler:
         # Compute word similarity based on document co-occurrence
         print("Compute word similarity by document co-occurrence...", flush=True)
         word_similarities_by_cooc = pairwise_distances(
-            cls.model.corpus.sklearn_vector_space.transpose(), metric="cosine", n_jobs=-1,
+            cls.model.corpus.sklearn_vector_space.transpose(),
+            metric="cosine",
+            n_jobs=-1,
         )
         # Get word weights across docs
         word_weights = {}
@@ -100,11 +107,17 @@ class DBHandler:
                     word_weights[word_id] = []
                 word_weights[word_id].append((doc_id, weight))
 
-        for word_id, docs in tqdm(word_weights.items(), leave=False, desc="Generating TF-IDF scores for all tokens",):
+        for word_id, docs in tqdm(
+            word_weights.items(),
+            leave=False,
+            desc="Generating TF-IDF scores for all tokens",
+        ):
             word = cls.model.corpus.feature_names[word_id]
             idf = log(cls.model.corpus.size / len(docs))
             sorted_docs = sorted(
-                [(doc_id, float(weight * idf)) for doc_id, weight in docs], key=lambda x: x[1], reverse=True,
+                [(doc_id, float(weight * idf)) for doc_id, weight in docs],
+                key=lambda x: x[1],
+                reverse=True,
             )
             word_distribution = cls.model.topic_distribution_for_word(word_id)
             topics = []
@@ -203,7 +216,11 @@ class DBHandler:
         non_zero = vector != 0
         word_list = json.dumps(
             [
-                (cls.model.corpus.feature_names[word_id], float(vector[word_id]), int(word_id),)
+                (
+                    cls.model.corpus.feature_names[word_id],
+                    float(vector[word_id]),
+                    int(word_id),
+                )
                 for word_id in np.where(non_zero, vector, np.nan).argsort()[: non_zero.sum()][::-1]
             ]
         )
@@ -239,14 +256,23 @@ class DBHandler:
                     description,
                 ) in pool.imap_unordered(
                     cls.compute_topic,
-                    zip(range(cls.model.nb_topics), repeat(start_date), repeat(end_date), repeat(year_interval),),
+                    zip(
+                        range(cls.model.nb_topics),
+                        repeat(start_date),
+                        repeat(end_date),
+                        repeat(year_interval),
+                    ),
                 ):
                     cls.cursor.execute(
                         f"INSERT INTO {cls.table}_topics (topic_id, word_distribution, topic_evolution, frequency, docs) VALUES (%s, %s, %s, %s, %s)",
                         (topic_id, word_distribution, topic_evolution, frequency, docs),
                     )
                     topic_words.append(
-                        {"name": topic_id, "frequency": frequency, "description": ", ".join(description),}
+                        {
+                            "name": topic_id,
+                            "frequency": frequency,
+                            "description": ", ".join(description),
+                        }
                     )
                     pbar.update()
 
@@ -303,7 +329,9 @@ class DBHandler:
 class DBSearch:
     def __init__(self, config, table, object_level):
         self.db = psycopg2.connect(
-            user=config["database_user"], password=config["database_password"], database=config["database_name"],
+            user=config["database_user"],
+            password=config["database_password"],
+            database=config["database_name"],
         )
         self.cursor = self.db.cursor(cursor_factory=RealDictCursor)
         self.table = table
@@ -330,14 +358,16 @@ class DBSearch:
 
     def get_metadata(self, doc_id, metadata_fields):
         self.cursor.execute(
-            f"SELECT {', '.join(metadata_fields)} FROM {self.table}_docs WHERE doc_id=%s", (doc_id,),
+            f"SELECT {', '.join(metadata_fields)} FROM {self.table}_docs WHERE doc_id=%s",
+            (doc_id,),
         )
         return self.cursor.fetchone()
 
     def get_doc_ids_by_metadata(self, field, value, end_value=None):
         if end_value is None:
             self.cursor.execute(
-                f"SELECT distinct doc_id FROM {self.table}_docs WHERE {field}=%s", (value,),
+                f"SELECT distinct doc_id FROM {self.table}_docs WHERE {field}=%s",
+                (value,),
             )
         else:
             self.cursor.execute(
@@ -361,7 +391,11 @@ class DBSearch:
                 cosine_similarity(current_topic_evolution_array, np.array([topic_evolution["data"]]))[0, 0]
             )
             similar_topics.append(
-                {"topic": topic, "topic_evolution": topic_evolution, "score": similarity,}
+                {
+                    "topic": topic,
+                    "topic_evolution": topic_evolution,
+                    "score": similarity,
+                }
             )
         similar_topics.sort(key=lambda x: x["score"], reverse=True)
         word_distribution = {"data": [], "labels": []}
@@ -397,7 +431,8 @@ class DBSearch:
 
     def get_topic_evolutions(self, topic_id):
         self.cursor.execute(
-            f"SELECT topic_id, topic_evolution FROM {self.table}_topics WHERE topic_id!=%s", (topic_id,),
+            f"SELECT topic_id, topic_evolution FROM {self.table}_topics WHERE topic_id!=%s",
+            (topic_id,),
         )
         return [(row["topic_id"], row["topic_evolution"]) for row in self.cursor]
 
