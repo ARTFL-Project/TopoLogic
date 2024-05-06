@@ -26,7 +26,7 @@ class savedTexts:
                 files.append((input_file.path, int(input_file.name)))
         files.sort(key=lambda x: x[1])
         for file, _ in files:
-            with open(file) as input_file:
+            with open(file, encoding="utf8") as input_file:
                 text = input_file.read()
                 yield text
 
@@ -34,7 +34,7 @@ class savedTexts:
         for text_collection in os.scandir(self.text_path):
             sample_size = floor(len(os.listdir(text_collection.path + "/texts")) * proportion)
             for file in random.sample([f.path for f in os.scandir(self.text_path)], sample_size):
-                with open(file) as input_file:
+                with open(file, encoding="utf8") as input_file:
                     text = input_file.read()
                     yield text
 

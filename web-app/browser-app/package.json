@@ -1,56 +1,56 @@
 {
-    "name": "topologic",
-    "version": "0.1.0",
-    "private": true,
-    "scripts": {
-        "serve": "vue-cli-service serve",
-        "build": "NODE_OPTIONS=--openssl-legacy-provider vue-cli-service build",
-        "lint": "vue-cli-service lint"
+  "name": "topologic",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "serve": "vue-cli-service serve",
+    "build": "npm i && NODE_OPTIONS=--openssl-legacy-provider vue-cli-service build && rm -rf node_modules",
+    "lint": "vue-cli-service lint"
+  },
+  "dependencies": {
+    "apexcharts": "^3.22.1",
+    "axios": "^0.21.1",
+    "bootstrap": "^4.5.3",
+    "bootstrap-vue": "^2.18.1",
+    "core-js": "^2.6.11",
+    "vue": "^2.6.12",
+    "vue-apexcharts": "^1.6.0",
+    "vue-router": "^3.4.8"
+  },
+  "devDependencies": {
+    "@vue/cli-plugin-babel": "^3.12.1",
+    "@vue/cli-plugin-eslint": "^3.12.1",
+    "@vue/cli-service": "^4.5.8",
+    "babel-eslint": "^10.1.0",
+    "eslint": "^5.16.0",
+    "eslint-plugin-vue": "^5.0.0",
+    "raw-loader": "^4.0.2",
+    "vue-template-compiler": "^2.6.12"
+  },
+  "eslintConfig": {
+    "root": true,
+    "env": {
+      "node": true
     },
-    "dependencies": {
-        "apexcharts": "^3.22.1",
-        "axios": "^0.21.1",
-        "bootstrap": "^4.5.3",
-        "bootstrap-vue": "^2.18.1",
-        "core-js": "^2.6.11",
-        "vue": "^2.6.12",
-        "vue-apexcharts": "^1.6.0",
-        "vue-router": "^3.4.8"
+    "extends": [
+      "plugin:vue/essential",
+      "eslint:recommended"
+    ],
+    "rules": {
+      "no-console": "off"
     },
-    "devDependencies": {
-        "@vue/cli-plugin-babel": "^3.12.1",
-        "@vue/cli-plugin-eslint": "^3.12.1",
-        "@vue/cli-service": "^4.5.8",
-        "babel-eslint": "^10.1.0",
-        "eslint": "^5.16.0",
-        "eslint-plugin-vue": "^5.0.0",
-        "raw-loader": "^4.0.2",
-        "vue-template-compiler": "^2.6.12"
-    },
-    "eslintConfig": {
-        "root": true,
-        "env": {
-            "node": true
-        },
-        "extends": [
-            "plugin:vue/essential",
-            "eslint:recommended"
-        ],
-        "rules": {
-            "no-console": "off"
-        },
-        "parserOptions": {
-            "parser": "babel-eslint"
-        }
-    },
-    "postcss": {
-        "plugins": {
-            "autoprefixer": {}
-        }
-    },
-    "browserslist": [
-        "> 1%",
-        "last 2 versions",
-        "not ie <= 8"
-    ]
+    "parserOptions": {
+      "parser": "babel-eslint"
+    }
+  },
+  "postcss": {
+    "plugins": {
+      "autoprefixer": {}
+    }
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not ie <= 8"
+  ]
 }
