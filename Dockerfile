@@ -1,28 +1,40 @@
 FROM artfl/philologic:latest
 
-RUN apt update && apt install -y postgresql postgresql-contrib postgresql-server-dev-12 apache2-dev curl git locales
+ENV DEBIAN_FRONTEND=noninteractive
 
-RUN curl -sL https://deb.nodesource.com/setup_14.x | sudo -E bash && apt-get install -y nodejs
+RUN apt update && apt install -y postgresql postgresql-contrib postgresql-server-dev-14 locales
 
 RUN apt-get clean && rm -rf /var/lib/apt
 
 RUN service apache2 start && a2enmod proxy && a2enmod proxy_http && service apache2 stop
 
-RUN mkdir topologic && curl -L  https://github.com/ARTFL-Project/TopoLogic/archive/refs/tags/v0.3.tar.gz | tar xz -C topologic --strip-components 1 &&\
-    cd topologic && sh install.sh && \
-    perl -p -i -e 's/PORT=80/PORT=8080/' /var/lib/topologic/api_server/web_server.sh
+RUN mkdir topologic
+COPY api /topologic/api
+COPY api_server /topologic/api_server
+COPY lib /topologic/lib
+COPY web-app /topologic/web-app
+COPY install.sh /topologic/install.sh
 
-RUN perl -p -i -e 's/(<\/VirtualHost>)/<Location \/topologic-api>\nProxyPass http:\/\/localhost:8080 Keepalive=On\nProxyPassReverse http:\/\/localhost:8080\n<\/Location>\n$1/' /etc/apache2/sites-enabled/000-default.conf
-
-RUN echo "## WEB APPLICATION SETTINGS ##\n[WEB_APP]\nweb_app_path = /var/www/html/topologic\nserver_name = http://localhost/\n[DATABASE]\ndatabase_name = topologic\ndatabase_user = topologic\ndatabase_password = topologic" > /etc/topologic/global_settings.ini
+RUN cd /topologic && ./install.sh
+RUN mkdir /var/www/html/topologic
+COPY init_topologic /usr/local/bin/init_topologic
+RUN chmod +x /usr/local/bin/init_topologic
 
 # Set the locale
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \
     locale-gen
-ENV LANG en_US.UTF-8  
-ENV LANGUAGE en_US:en  
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
 
-RUN echo "#!/bin/bash\nif [ ! -d \"/data/psql_data\" ]; then\nsu postgres <<'EOF'\n/usr/lib/postgresql/12/bin/initdb --pgdata=/data/psql_data;\ncd /data/psql_data\n/usr/lib/postgresql/12/bin/pg_ctl -D /data/psql_data/ -l logfile start\npsql -c \"create database\ntopologic ENCODING = 'UTF8' LC_COLLATE = 'en_US.UTF-8' LC_CTYPE = 'en_US.UTF-8';\"\npsql -c \"create role topologic with login password 'topologic';\"\npsql -c \"GRANT ALL PRIVILEGES ON database topologic to topologic;\"\nEOF\nperl -pi -e 's/^(local.*)peer$/$1md5/;' /data/psql_data/pg_hba.conf\nsu postgres <<'EOF'\ncd /data/psql_data\n/usr/lib/postgresql/12/bin/pg_ctl -D /data/psql_data/ -l logfile restart\nEOF\nmkdir /data/topologic && ln -s /data/topologic /var/www/html/topologic\nelse\nsu postgres <<'EOF'\ncd /data/psql_data\n/usr/lib/postgresql/12/bin/pg_ctl -D /data/psql_data/ -l logfile restart\nEOF\nln -s /data/topologic /var/www/html/topologic\nfi\nservice apache2 start\n/var/lib/topologic/api_server/web_server.sh &\n/bin/bash" > /usr/local/bin/init_topologic_db && chmod +x /usr/local/bin/init_topologic_db
+RUN perl -pi -e 's/^(local.*)peer$/$1md5/;' /etc/postgresql/14/main/pg_hba.conf
+RUN echo "local all all trust" > /etc/postgresql/14/main/pg_hba.conf && \
+    echo "host all all 127.0.0.1/32 trust" >> /etc/postgresql/14/main/pg_hba.conf && \
+    echo "host all all ::1/128 trust" >> /etc/postgresql/14/main/pg_hba.conf
+RUN service postgresql start && \
+    su postgres -c "psql -c \"CREATE DATABASE topologic ENCODING = 'UTF8' LC_COLLATE = 'en_US.UTF-8' LC_CTYPE = 'en_US.UTF-8' TEMPLATE template0;\"" && \
+    su postgres -c 'psql -c "create role topologic with login password '\''topologic'\'';"' && \
+    su postgres -c 'psql -c "GRANT ALL PRIVILEGES ON database topologic to topologic;"'
+RUN service postgresql restart
 
-CMD ["/usr/local/bin/init_topologic_db"]
+CMD ["/usr/local/bin/init_topologic"]

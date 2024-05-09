@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 """Python package install script"""
 
-import os
-from sys import platform
-
 from setuptools import setup
 
 setup(

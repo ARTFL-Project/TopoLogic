@@ -15,15 +15,7 @@ fi
 if [ ! -f /etc/topologic/global_settings.ini ]
     then
         sudo mkdir -p /etc/topologic/
-        sudo touch /etc/topologic/global_settings.ini
-        echo "## WEB APPLICATION SETTINGS ##" | sudo tee -a /etc/topologic/global_settings.ini > /dev/null
-        echo "[WEB_APP]" | sudo tee -a /etc/topologic/global_settings.ini > /dev/null
-        echo "web_app_path =" | sudo tee -a /etc/topologic/global_settings.ini > /dev/null
-        echo "server_name =" | sudo tee -a /etc/topologic/global_settings.ini > /dev/null
-        echo "[DATABASE]" | sudo tee -a /etc/topologic/global_settings.ini > /dev/null
-        echo "database_name =" | sudo tee -a /etc/topologic/global_settings.ini > /dev/null
-        echo "database_user =" | sudo tee -a /etc/topologic/global_settings.ini > /dev/null
-        echo "database_password =" | sudo tee -a /etc/topologic/global_settings.ini > /dev/null
+        cp global_settings.ini /etc/topologic/
         echo "Make sure you create a PostgreSQL database with a user with read/write access to that database and configure /etc/topologic/global_settings.ini accordingly."
 else
     echo "/etc/topologic/global_settings.ini already exists, not modifying..."
