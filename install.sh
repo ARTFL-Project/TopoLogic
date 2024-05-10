@@ -19,7 +19,7 @@ sudo chmod +x /usr/local/bin/topologic
 
 echo -e "\nMoving web application components into place..."
 
-if [ -d /web-app/browser-app/node_modules ]
+if [ -d web-app/browser-app/node_modules ]
     then
         sudo rm -rf web/web_app/node_modules
 fi
@@ -33,11 +33,12 @@ else
     echo "/etc/topologic/global_settings.ini already exists, not modifying..."
 fi
 
-if [ ! -f /var/lib/topologic/api_server/web_server.sh ]
+sudo cp api_server/web_server.sh /var/lib/topologic/api_server/
+if [ ! -f /var/lib/topologic/api_server/gunicorn.conf.py ]
     then
-        sudo cp -R api_server /var/lib/topologic/
+        sudo cp api_server/gunicorn.conf.py /var/lib/topologic/api_server/
 else
-    echo "/var/lib/topologic/api_server/web_server.sh already exists, not modifying..."
+    echo "/var/lib/topologic/api_server/gunicorn.conf.py already exists, not modifying..."
 fi
 
 sudo cp -R api /var/lib/topologic/
