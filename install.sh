@@ -33,19 +33,21 @@ else
     echo "/etc/topologic/global_settings.ini already exists, not modifying..."
 fi
 
-sudo cp api_server/web_server.sh /var/lib/topologic/api_server/
+sudo mkdir -p /var/lib/topologic/api_server/
+sudo chown -R $USER:$USER /var/lib/topologic/api_server
+cp api_server/web_server.sh /var/lib/topologic/api_server/
 if [ ! -f /var/lib/topologic/api_server/gunicorn.conf.py ]
     then
-        sudo cp api_server/gunicorn.conf.py /var/lib/topologic/api_server/
+        cp api_server/gunicorn.conf.py /var/lib/topologic/api_server/
 else
     echo "/var/lib/topologic/api_server/gunicorn.conf.py already exists, not modifying..."
 fi
 
-sudo cp -R api /var/lib/topologic/
-sudo rm -rf /var/lib/topologic/web-app
-sudo cp -Rf web-app /var/lib/topologic
-sudo rm -rf /var/lib/topologic/config
-sudo cp -Rf config /var/lib/topologic
+cp -R api /var/lib/topologic/
+rm -rf /var/lib/topologic/web-app
+cp -Rf web-app /var/lib/topologic
+rm -rf /var/lib/topologic/config
+cp -Rf config /var/lib/topologic
 echo -e "\n## IMPORTANT ##\nTopoLogic runs behind the Gunicorn web server. Make sure you configure the Gunicorn config file in /var/lib/topologic/api_server/gunicorn.conf.py. You should also make sure it autostarts on boot.\n"
 
 
