@@ -5,7 +5,7 @@ from setuptools import setup
 
 setup(
     name="topologic",
-    version="0.3",
+    version="0.4",
     author="The ARTFL Project",
     author_email="clovisgladstone@gmail.com",
     packages=["topologic"],

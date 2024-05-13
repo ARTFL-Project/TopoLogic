@@ -8,4 +8,4 @@ EOF
 fi
 cd /var/lib/topologic/api_server
 ./web_server.sh &
-/bin/bash
+bash /autostart.sh

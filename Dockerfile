@@ -2,7 +2,7 @@ FROM artfl/philologic:latest
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt update && apt install -y postgresql postgresql-contrib postgresql-server-dev-14 locales
+RUN apt update && apt install -y postgresql postgresql-contrib postgresql-server-dev-14 locales git g++
 
 RUN apt-get clean && rm -rf /var/lib/apt
 
@@ -13,6 +13,9 @@ COPY api /topologic/api
 COPY api_server /topologic/api_server
 COPY lib /topologic/lib
 COPY web-app /topologic/web-app
+COPY config /topologic/config
+COPY init_topologic /topologic/init_topologic
+COPY topologic /topologic/topologic
 COPY install.sh /topologic/install.sh
 
 RUN cd /topologic && ./install.sh
