@@ -6,12 +6,23 @@ Originally based off https://github.com/AdrienGuille/TOM with many changes and e
 
 ## INSTALLATION
 
+While you can build and install TopoLogic directly, it is highly encouraged to use a Docker container instead.
+
+### Docker install
+Note that the docker container will come with PhiloLogic 4.7 pre-installed. You will need to build PhiloLogic databases within the container before running TopoLogic
+- Just run `docker build -t topologic .` to build the image
+- Then run `docker run -td --name topologic topologic bash` to initialize the container
+- Once the container is running, enter the container with `docker exec -it topologic bash`.
+- Note that if you need to install SpaCy models, you will need to enter the topologic virtual environment like so: `source /var/lib/topologic/topologic_env/bin/activate`
+
+
+### Manual installation
 -   PostgreSQL will need to be installed. You will need to create a database with associated user with read and write permissions.
 -   You will need to edit the /etc/topologic/global_settings.ini file with the database information and web configuration.
 -   You will need a running instance of <a href="https://github.com/ARTFL-Project/PhiloLogic4">PhiloLogic4</a> with the collections to be processed already loaded.
 -   Run the install.sh script
 -   If you OS uses systemd for start-up services, you will want to use the topologic.service file (template for Ubuntu provided as an example) located in api_server/topologic.service to start-up the API server needed to run Topologic
--  The installation includes the Gunicorn webserver which is used to run the TopoLogic web app. You will need to start the server from a shell script installed in /var/lib/topologic/api_server/. This wil require some configuring in the shell script depending on your setup. 
+-  The installation includes the Gunicorn webserver which is used to run the TopoLogic web app. You will need to start the server from a shell script installed in /var/lib/topologic/api_server/. This wil require some configuring in the shell script depending on your setup.
 
 
 ## HOW TO USE
