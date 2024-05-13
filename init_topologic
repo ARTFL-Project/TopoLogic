@@ -5,7 +5,6 @@ su postgres <<'EOF'
 rm -f /var/lib/postgresql/14/main/postmaster.pid
 service postgresql restart
 EOF
-fi
 cd /var/lib/topologic/api_server
 ./web_server.sh &
 bash /autostart.sh
