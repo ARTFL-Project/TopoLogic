@@ -46,7 +46,3 @@ sudo rm -rf /var/lib/topologic/web_app/dist
 rm -rf /var/lib/topologic/config
 cp -Rf config /var/lib/topologic
 echo -e "\n## IMPORTANT ##\nTopoLogic runs behind the Gunicorn web server. Make sure you configure the Gunicorn config file in /var/lib/topologic/api_server/gunicorn.conf.py. You should also make sure it autostarts on boot.\n"
-
-
-
-
