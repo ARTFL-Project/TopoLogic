@@ -11,7 +11,7 @@ While you can build and install TopoLogic directly, it is highly encouraged to u
 ### Docker install
 Note that the docker container will come with PhiloLogic 4.7 pre-installed. You will need to build PhiloLogic databases within the container before running TopoLogic
 - Just run `docker build -t topologic .` to build the image
-- Then run `docker run -td --name topologic topologic bash` to initialize the container
+- Then run `docker run -td --name topologic topologic init_topologic` to initialize the container. You may want to specify ports for web passthrough (e.g. `-p 8080:80` to map port 8080 on the host to port 80 on the container)
 - Once the container is running, enter the container with `docker exec -it topologic bash`.
 - Note that if you need to install SpaCy models, you will need to enter the topologic virtual environment like so: `source /var/lib/topologic/topologic_env/bin/activate`
 

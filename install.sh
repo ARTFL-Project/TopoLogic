@@ -19,11 +19,6 @@ sudo chmod +x /usr/local/bin/topologic
 
 echo -e "\nMoving web application components into place..."
 
-if [ -d web-app/browser-app/node_modules ]
-    then
-        sudo rm -rf web/web_app/node_modules
-fi
-
 if [ ! -f /etc/topologic/global_settings.ini ]
     then
         sudo mkdir -p /etc/topologic/
@@ -46,6 +41,8 @@ fi
 cp -R api /var/lib/topologic/
 rm -rf /var/lib/topologic/web-app
 cp -Rf web-app /var/lib/topologic
+sudo rm -rf /var/lib/topologic/web_app/node_modules
+sudo rm -rf /var/lib/topologic/web_app/dist
 rm -rf /var/lib/topologic/config
 cp -Rf config /var/lib/topologic
 echo -e "\n## IMPORTANT ##\nTopoLogic runs behind the Gunicorn web server. Make sure you configure the Gunicorn config file in /var/lib/topologic/api_server/gunicorn.conf.py. You should also make sure it autostarts on boot.\n"

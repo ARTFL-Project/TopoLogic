@@ -2,7 +2,11 @@ FROM artfl/philologic:latest
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt update && apt install -y postgresql postgresql-contrib postgresql-server-dev-14 locales git g++
+RUN apt remove nodejs libnode72 libnode-dev
+
+RUN curl -sL https://deb.nodesource.com/setup_16.x | sudo -E bash -
+
+RUN apt update && apt install -y postgresql postgresql-contrib postgresql-server-dev-14 locales git g++ nodejs
 
 RUN apt-get clean && rm -rf /var/lib/apt
 

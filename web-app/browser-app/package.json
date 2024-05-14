@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "serve": "vue-cli-service serve",
-    "build": "npm i && NODE_OPTIONS=--openssl-legacy-provider vue-cli-service build && rm -rf node_modules",
+    "serve": "vue-cli-service serve ",
+    "build": "npm i && vue-cli-service build && rm -rf node_modules",
     "lint": "vue-cli-service lint"
   },
   "dependencies": {
@@ -25,7 +25,8 @@
     "eslint": "^5.16.0",
     "eslint-plugin-vue": "^5.0.0",
     "raw-loader": "^4.0.2",
-    "vue-template-compiler": "^2.6.12"
+    "vue-template-compiler": "^2.6.12",
+    "ini": "^3.0.1"
   },
   "eslintConfig": {
     "root": true,
