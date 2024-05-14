@@ -1,6 +1,3 @@
-const ini = require("ini");
-const fs = require("fs");
-
 module.exports = {
   devServer: getDevServerConfig(),
   configureWebpack: {
@@ -12,10 +9,11 @@ module.exports = {
 };
 
 function getAppPath() {
-  let text = fs.readFileSync("/etc/topologic/global_settings.ini", "utf8");
-  const globalConfig = ini.parse(text);
   const localConfig = require("./appConfig.json");
-  return globalConfig.WEB_APP.server_name + "/" + localConfig.appPath;
+  if (!localConfig.appPath.startsWith("/")) {
+    return "/" + localConfig.appPath;
+  }
+  return localConfig.appPath;
 }
 
 function getDevServerConfig() {

@@ -99,16 +99,16 @@ def read_config(config_path):
     )
 
 
-def write_app_config(db_path, database_name, server_name, philologic_links, start_date, end_date, interval):
+def write_app_config(db_path, database_name, server_name, proxy_path, philologic_links, start_date, end_date, interval):
     """Write app config used to build topic modeling browser web app"""
     with open(os.path.join(db_path, "appConfig.json"), "w") as app_config:
         json.dump(
             {
                 "webServer": "Apache",
-                "apiServer": os.path.join(server_name, "topologic-api"),
+                "apiServer": os.path.join(server_name, proxy_path, "topologic-api"),
                 "philoLogicUrls": philologic_links,
                 "databaseName": database_name,
-                "appPath": os.path.join("topologic", database_name),
+                "appPath": os.path.join(proxy_path, "topologic", database_name),
                 "metadataFields": [
                     {"field": "author", "style": {}, "link": False},
                     {"field": "title", "style": {"font-style": "italic"}, "link": True},
