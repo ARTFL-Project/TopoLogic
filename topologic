@@ -1,0 +1,5 @@
+#!/bin/bash
+
+source /var/lib/topologic/topologic_env/bin/activate
+python3 -m topologic "$@"
+deactivate
