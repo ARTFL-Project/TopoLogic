@@ -2,7 +2,7 @@ FROM artfl/philologic:latest
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt remove -y nodejs libnode72 libnode-dev
+RUN apt remove -y nodejs libnode72 libnode-dev && apt install curl
 
 RUN curl -sL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 

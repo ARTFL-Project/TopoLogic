@@ -25,7 +25,7 @@ setup(
         "annoy",
         "psycopg2",
         "multiprocess",
-        "text_preprocessing @ git+https://github.com/ARTFL-Project/text-preprocessing@v1.0.5.5#egg=text_preprocessing",
+        "text_preprocessing @ git+https://github.com/ARTFL-Project/text-preprocessing@v1.1#egg=text_preprocessing",
         "philologic>=4.7.4.4",
     ],
 )

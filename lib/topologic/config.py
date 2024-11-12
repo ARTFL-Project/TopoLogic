@@ -46,6 +46,8 @@ def read_config(config_path):
     for key, value in config["PREPROCESSING"].items():
         if key == "pos_to_keep" and value != "":
             preprocessing[key] = [i.strip() for i in value.split(",")]
+        elif key == "ner_to_keep" and value != "":
+            preprocessing[key] = [i.strip() for i in value.split(",")]
         elif key == "minimum_word_length":
             preprocessing[key] = int(value)
         elif key in ("numbers", "lowercase", "stemmer", "modernize", "ascii"):
@@ -56,6 +58,25 @@ def read_config(config_path):
             preprocessing[key] = value
         else:
             preprocessing[key] = value
+    if "ner_to_keep" not in preprocessing:
+        preprocessing["ner_to_keep"] = ""
+        print(
+            "You are using on older version of the config file. You can now filter on NER. See the ner_to_keep variable in updated config file found in /var/lib/topologic/config/topologic_config.ini."
+        )
+    if not preprocessing.get("language_model") and preprocessing["pos_to_keep"] or preprocessing.get("ner_to_keep"):
+        if "language_model" not in preprocessing:
+            print(
+                "You are using on older version of the config file. Please add the language_model variable and a corresponding value under the PREPROCESSING section.\n"
+            )
+            sys.exit(1)
+        elif preprocessing["language_model"] == "":
+            print(
+                "You need to specify a a SpaCy language model in the config file if you want to keep specific POS or NER tags."
+            )
+        print(
+            """For a list of SpaCy Models to use, see https://spacy.io/models/. Make sure to use the full name of the model, including the language code. For example, en_core_web_sm for English.\nYou will also need to ensure the model is installed within the topologic environment."""
+        )
+        sys.exit(1)
     vectorization = {}
     for key, value in config["VECTORIZATION"].items():
         if key in ("min_freq", "max_freq"):
@@ -99,7 +120,16 @@ def read_config(config_path):
     )
 
 
-def write_app_config(db_path, database_name, server_name, proxy_path, philologic_links, start_date, end_date, interval):
+def write_app_config(
+    db_path,
+    database_name,
+    server_name,
+    proxy_path,
+    philologic_links,
+    start_date,
+    end_date,
+    interval,
+):
     """Write app config used to build topic modeling browser web app"""
     with open(os.path.join(db_path, "appConfig.json"), "w") as app_config:
         json.dump(
@@ -116,13 +146,25 @@ def write_app_config(db_path, database_name, server_name, proxy_path, philologic
                 ],
                 "citations": {
                     db_name: [
-                        {"field": "author", "style": {"font-variant": "small-caps"}, "link": False},
-                        {"field": "title", "style": {"font-style": "italic"}, "link": True},
+                        {
+                            "field": "author",
+                            "style": {"font-variant": "small-caps"},
+                            "link": False,
+                        },
+                        {
+                            "field": "title",
+                            "style": {"font-style": "italic"},
+                            "link": True,
+                        },
                         {"field": "year", "style": {}, "link": False},
                     ]
                     for db_name in philologic_links.keys()
                 },
-                "timeSeriesConfig": {"interval": interval, "startDate": start_date, "endDate": end_date},
+                "timeSeriesConfig": {
+                    "interval": interval,
+                    "startDate": start_date,
+                    "endDate": end_date,
+                },
                 "metadataDistributions": [{"label": "author", "field": "author", "filterFrequency": 1}],
             },
             app_config,

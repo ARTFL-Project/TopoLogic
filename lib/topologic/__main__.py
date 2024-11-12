@@ -189,6 +189,7 @@ def prepare_data(
         preproc = PreProcessor(
             text_object_type=db_config["text_object_level"],
             language=prep_config["language"],
+            language_model=prep_config["language_model"],
             stemmer=prep_config["stemmer"],
             lemmatizer=prep_config["lemmatizer"],
             modernize=prep_config["modernize"],
@@ -196,6 +197,7 @@ def prepare_data(
             strip_numbers=prep_config["numbers"],
             stopwords=prep_config["stopwords"],
             pos_to_keep=prep_config["pos_to_keep"],
+            ner_to_keep=prep_config["ner_to_keep"],
             ascii=prep_config["ascii"],
             min_word_length=prep_config["minimum_word_length"],
             is_philo_db=True,
@@ -260,6 +262,7 @@ def prepare_data(
         preproc = PreProcessor(
             text_object_type=db_config["text_object_level"],
             language=prep_config["language"],
+            language_model=prep_config["language_model"],
             stemmer=prep_config["stemmer"],
             lemmatizer=prep_config["lemmatizer"],
             modernize=prep_config["modernize"],
@@ -267,6 +270,7 @@ def prepare_data(
             strip_numbers=prep_config["numbers"],
             stopwords=prep_config["stopwords"],
             pos_to_keep=prep_config["pos_to_keep"],
+            ner_to_keep=prep_config["ner_to_keep"],
             ascii=prep_config["ascii"],
             min_word_length=prep_config["minimum_word_length"],
             is_philo_db=True,
@@ -478,7 +482,7 @@ def build_web_app(
     os.system(f"cd {db_path}; npm run build")
 
     print(
-        f"TopoLogic web application is viewable at: {os.path.join(GLOBAL_CONFIG['WEB_APP']['server_name'], GLOBAL_CONFIG["WEB_APP"]["proxy_path"], 'topologic', os.path.basename(db_path))}"
+        f"""TopoLogic web application is viewable at: {os.path.join(GLOBAL_CONFIG['WEB_APP']['server_name'], GLOBAL_CONFIG["WEB_APP"]["proxy_path"], 'topologic', os.path.basename(db_path))}"""
     )
 
 
