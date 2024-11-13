@@ -17,11 +17,11 @@
                                 <span class="frequency-bar" :style="`width: ${word.barWidth}%;`"></span>
                                 <b-col cols="8" class="word pl-1">{{
                                     word.word
-                                    }}</b-col>
+                                }}</b-col>
                                 <b-col cols="4" class="position-relative">
                                     <span class="frequency-value">{{
                                         word.weight
-                                        }}</span>
+                                    }}</span>
                                 </b-col>
                             </b-row>
                         </div>
@@ -36,6 +36,7 @@
                                 <apexchart width="100%" height="300px" type="bar" :options="topicEvolutionChartOptions"
                                     :series="topicEvolutionSeries"></apexchart>
                             </div>
+                            <!--
                             <div class="pb-4 pl-4 pr-4">
                                 <ul v-if="Object.keys(philoTimeSeriesBiBlioLink).length > 1">
                                     <li v-for="(url, db) in philoTimeSeriesBiBlioLink" :key="db">
@@ -48,7 +49,7 @@
                                     frequency
                                     over time in the {{ Object.keys(philoTimeSeriesBiBlioLink)[0] }} PhiloLogic
                                     database</a>
-                            </div>
+                            </div>-->
                         </b-card>
                     </b-col>
                     <b-col cols="6">
@@ -83,7 +84,7 @@
                                     </citations>
                                     <b-badge variant="secondary" pill class="float-right">{{
                                         (doc.score * 100).toFixed(2)
-                                    }}</b-badge>
+                                        }}</b-badge>
                                 </b-list-group-item>
                             </b-list-group>
                         </b-card>
