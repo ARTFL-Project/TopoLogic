@@ -166,7 +166,14 @@ class NonNegativeMatrixFactorization(TopicModel):
     def infer_topics(self, num_topics=10, **kwargs):
         self.nb_topics = num_topics
         self.model = NMF(
-            n_components=num_topics, init="nndsvda", solver="cd", max_iter=self.max_iter, random_state=0, verbose=True
+            n_components=num_topics,
+            init="nndsvda",
+            solver="mu",
+            beta_loss="kullback-leibler",
+            alpha_H=0.00025 * num_topics,  # a nice sweet spot for making sure the top word doesn't dominate
+            max_iter=self.max_iter,
+            random_state=0,
+            verbose=True,
         )
         topic_document = self.model.fit_transform(self.corpus.sklearn_vector_space)
         self.topic_word_matrix = []

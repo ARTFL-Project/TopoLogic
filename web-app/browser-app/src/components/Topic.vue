@@ -236,18 +236,19 @@ export default {
                     this.loading = false;
                     this.topic = this.$route.params.topic;
                     this.documents = response.data.documents;
-                    this.frequency = (response.data.frequency * 100).toFixed(4);
+                    this.frequency = this.smartRound(response.data.frequency * 100);
                     this.similarTopics = response.data.similar_topics;
-                    let maxFrequency = response.data.word_distribution.data[0];
+                    let scaledWeights = this.scaleWordWeights(
+                        response.data.word_distribution.data
+                    );
                     this.wordWeights = response.data.word_distribution.labels.map(
                         (word, i) => ({
                             word: word,
-                            weight: response.data.word_distribution.data[
+                            weight: this.smartRound(response.data.word_distribution.data[
                                 i
-                            ].toFixed(2),
+                            ]),
                             barWidth:
-                                (100 / maxFrequency) *
-                                response.data.word_distribution.data[i],
+                                scaledWeights[i],
                         })
                     );
 
@@ -341,6 +342,47 @@ export default {
                         }
                     });
                 });
+        },
+        scaleWordWeights(wordWeights) {
+            // We want to scale the word weights so that the largest weight is 100
+            let maxWeight = Math.max(...wordWeights);
+            return wordWeights.map((weight) => (weight / maxWeight) * 100);
+        },
+        smartRound(num) {
+            if (num === 0) return "0.00";
+
+            // Convert to string and find first non-zero digit after decimal
+            const str = num.toFixed(20);
+            const decimal = str.split('.')[1];
+            let leadingZeros = '';
+            let firstNonZeroIndex = 0;
+
+            // Count leading zeros
+            for (let i = 0; i < decimal.length; i++) {
+                if (decimal[i] === '0') {
+                    leadingZeros += '0';
+                } else {
+                    firstNonZeroIndex = i;
+                    break;
+                }
+            }
+
+            // Get the significant part (two digits after first non-zero)
+            const significantPart = decimal.slice(firstNonZeroIndex, firstNonZeroIndex + 2);
+            const restOfNumber = decimal.slice(firstNonZeroIndex + 2);
+
+            // Round if there are more digits
+            let roundedSignificant = significantPart;
+            if (restOfNumber.length > 0) {
+                const roundingDigit = parseInt(restOfNumber[0]);
+                let num = parseInt(significantPart);
+                if (roundingDigit >= 5) {
+                    num++;
+                    roundedSignificant = num.toString().padStart(2, '0');
+                }
+            }
+
+            return `0.${leadingZeros}${roundedSignificant}`;
         },
         sumArray: function (arr) {
             return arr.reduce(function (a, b) {

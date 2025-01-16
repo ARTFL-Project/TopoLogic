@@ -400,7 +400,7 @@ class DBSearch:
         similar_topics.sort(key=lambda x: x["score"], reverse=True)
         word_distribution = {"data": [], "labels": []}
         for weight, word in zip(topic_data["word_distribution"]["data"], topic_data["word_distribution"]["labels"]):
-            if weight >= 0.01:
+            if len(word_distribution["data"]) < 50:
                 word_distribution["data"].append(weight)
                 word_distribution["labels"].append(word)
         return {

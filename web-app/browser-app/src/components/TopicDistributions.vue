@@ -3,16 +3,10 @@
         <b-card no-body class="shadow-sm mb-4">
             <h6 slot="header" class="mb-0 text-center">
                 Topics and their relative distribution in
-                <b>{{fieldValue}}</b>
+                <b>{{ fieldValue }}</b>
             </h6>
-            <b-table
-                hover
-                :items="sortedTopicDistribution"
-                :fields="fields"
-                :sort-by.sync="sortBy"
-                :sort-desc.sync="sortDesc"
-                @row-clicked="goToTopic"
-            >
+            <b-table hover :items="sortedTopicDistribution" :fields="fields" :sort-by.sync="sortBy"
+                :sort-desc.sync="sortDesc" @row-clicked="goToTopic">
                 <template v-slot:cell(name)="data">
                     <span class="frequency-parent">Topic {{ data.value }}</span>
                 </template>
@@ -20,13 +14,8 @@
                     <span class="frequency-parent">{{ data.value }}</span>
                 </template>
                 <template v-slot:cell(frequency)="data">
-                    <span
-                        class="frequency-value pl-2"
-                    >{{ (data.value.toFixed(8) * 100).toFixed(4) }}%</span>
-                    <span
-                        class="frequency-bar"
-                        :style="`width: ${data.value*frequencyMultiplier}%;`"
-                    ></span>
+                    <span class="frequency-value pl-2">{{ data.value }}%</span>
+                    <span class="frequency-bar" :style="`width: ${data.value / 100 * frequencyMultiplier}%;`"></span>
                 </template>
             </b-table>
         </b-card>
@@ -48,13 +37,13 @@ export default {
     mounted() {
         document
             .querySelectorAll("tr > td:nth-child(3)")
-            .forEach(function(element) {
+            .forEach(function (element) {
                 element.style.position = "relative";
                 element.style.padding = "0.75rem";
             });
     },
     computed: {
-        fields: function() {
+        fields: function () {
             let fields = [
                 { key: "name", label: "Topic", sortable: true },
                 { key: "description", label: "Top 10 tokens", sortable: false },
@@ -70,7 +59,7 @@ export default {
             return fields;
         },
         sortBy: {
-            get: function() {
+            get: function () {
                 if (this.$route.name == "home") {
                     return "name";
                 } else {
@@ -82,7 +71,7 @@ export default {
             }
         },
         sortDesc: {
-            get: function() {
+            get: function () {
                 if (this.$route.name == "home") {
                     return false;
                 } else {
@@ -115,7 +104,7 @@ export default {
                 topicsWithDescription.push({
                     name: `${topicName}`,
                     description: topicData[topicName].description,
-                    frequency: this.localTopics[topicName].frequency
+                    frequency: this.smartRound(this.localTopics[topicName].frequency * 100)
                 });
             }
             return topicsWithDescription;
@@ -138,6 +127,43 @@ export default {
                     );
                 }
             }
+        },
+        smartRound(num) {
+            num = parseFloat(num);
+            if (num === 0) return "0.00";
+
+            // Convert to string and find first non-zero digit after decimal
+            const str = num.toFixed(20);
+            const decimal = str.split('.')[1];
+            let leadingZeros = '';
+            let firstNonZeroIndex = 0;
+
+            // Count leading zeros
+            for (let i = 0; i < decimal.length; i++) {
+                if (decimal[i] === '0') {
+                    leadingZeros += '0';
+                } else {
+                    firstNonZeroIndex = i;
+                    break;
+                }
+            }
+
+            // Get the significant part (two digits after first non-zero)
+            const significantPart = decimal.slice(firstNonZeroIndex, firstNonZeroIndex + 2);
+            const restOfNumber = decimal.slice(firstNonZeroIndex + 2);
+
+            // Round if there are more digits
+            let roundedSignificant = significantPart;
+            if (restOfNumber.length > 0) {
+                const roundingDigit = parseInt(restOfNumber[0]);
+                let num = parseInt(significantPart);
+                if (roundingDigit >= 5) {
+                    num++;
+                    roundedSignificant = num.toString().padStart(2, '0');
+                }
+            }
+
+            return `0.${leadingZeros}${roundedSignificant}`;
         }
     }
 };
@@ -147,6 +173,7 @@ export default {
 .frequency-value {
     display: inline-block;
 }
+
 .frequency-bar {
     display: inline-block;
     position: absolute;
@@ -157,6 +184,7 @@ export default {
     background-color: rgba(85, 172, 238, 0.4);
     background-clip: content-box;
 }
+
 /deep/ td {
     cursor: pointer;
 }

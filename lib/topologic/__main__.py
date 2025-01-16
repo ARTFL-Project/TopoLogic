@@ -2,8 +2,10 @@
 
 import argparse
 import configparser
+import gc
 import os
 import pickle
+import time
 
 from joblib import dump
 from philologic.runtime.DB import DB
@@ -23,6 +25,8 @@ from topologic.DB import DBHandler
 GLOBAL_CONFIG = configparser.ConfigParser()
 GLOBAL_CONFIG.read("/etc/topologic/global_settings.ini")
 
+OBJECT_LEVELS = {"doc": 1, "div1": 2, "div2": 3, "div3": 4, "para": 5}
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Define files to process")
@@ -38,6 +42,11 @@ def parse_args():
         help="How many threads or cores to use for preprocessing and modeling",
         type=int,
         default=4,
+    )
+    parser.add_argument(
+        "--preprocessed_data_path",
+        help="skips preprocessing, decompresses preprocessed data from this path, and uses it for model building",
+        type=str,
     )
     parser.add_argument(
         "--evaluate",
@@ -81,22 +90,28 @@ def main(args):
         model_config,
         topics_over_time,
     ) = read_config(args.config)
-    if os.path.exists(args.data_output) is True:
-        os.system(f"rm -rf {args.data_output}")
     training_texts_path = os.path.join(args.data_output, "training/")
     inference_texts_path = os.path.join(args.data_output, "inference/")
-    os.system(f"mkdir -p {inference_texts_path}")
-    os.system(f"mkdir -p {training_texts_path}")
+    if os.path.exists(args.data_output) is True and args.preprocessed_data_path is None:
+        os.system(f"rm -rf {args.data_output}")
+        os.system(f"mkdir -p {inference_texts_path}")
+        os.system(f"mkdir -p {training_texts_path}")
 
-    print("## PROCESSING DATA ##", flush=True)
-    prepare_data(
-        prep_config,
-        training_config,
-        training_texts_path,
-        inference_config,
-        inference_texts_path,
-        metadata_filters,
-    )
+    if args.preprocessed_data_path is None:
+        print("## PROCESSING DATA ##", flush=True)
+        prepare_data(
+            prep_config,
+            training_config,
+            training_texts_path,
+            inference_config,
+            inference_texts_path,
+            metadata_filters,
+        )
+    else:
+        # Decompress preprocessed data
+        os.system(f"tar -xzf {args.preprocessed_data_path}")
+        training_texts_path = os.path.join(args.data_output, "training/")
+        inference_texts_path = os.path.join(args.data_output, "inference/")
 
     topic_model, full_corpus, training_corpus = build_model(
         training_texts_path,
@@ -143,9 +158,6 @@ def main(args):
         os.system(f"rm -rf {args.data_output}")
 
 
-OBJECT_LEVELS = {"doc": 1, "div1": 2, "div2": 3, "div3": 4, "para": 5}
-
-
 def get_file_list(data_path, metadata_filters, object_level, word_length):
     philo_db = DB(data_path)
     query_string = "." * word_length + "+"
@@ -167,9 +179,9 @@ def get_file_list(data_path, metadata_filters, object_level, word_length):
 def dictionary_filter(dictionary_file: str, preprocessor: PreProcessor):
     dictionary = set()
     if dictionary_file:
-        with open(dictionary_file) as dico:
+        with open(dictionary_file, encoding="utf8") as dico:
             for word in dico:
-                dictionary.add(preprocessor.normalize((Token(word.strip()))))
+                dictionary.add(word.strip())
     return dictionary
 
 
@@ -249,6 +261,8 @@ def prepare_data(
             pos += 1
         with open(os.path.join(training_texts_path, db_name, "metadata.pickle"), "wb") as output_metadata:
             pickle.dump(metadata, output_metadata)
+        preproc = None
+        gc.collect()
 
     pos = 0
     count = 0
@@ -318,6 +332,13 @@ def prepare_data(
             pos += 1
         with open(os.path.join(inference_texts_path, db_name, "metadata.pickle"), "wb") as output_metadata:
             pickle.dump(metadata, output_metadata)
+        preproc = None
+        gc.collect()
+
+    # Compress data output for if a new model is to be built from the same preprocessed data
+    # Add timestamp to tarball YYYY-MM-DD_HH-MM
+    tarball_name = f"{args.data_output}_{time.strftime('%Y-%m-%d_%H-%M')}.tar.gz"
+    os.system(f"tar -czf {tarball_name} {args.data_output}")
 
 
 def build_model(
@@ -443,7 +464,7 @@ def build_web_app(
         "metadata": ",".join(metadata_field_names),
     }
 
-    with open(os.path.join(db_path, "model_config.ini"), "w") as configfile:
+    with open(os.path.join(db_path, "model_config.ini"), "w", encoding="utf8") as configfile:
         config.write(configfile)
 
     db = DBHandler.set_class_attributes(

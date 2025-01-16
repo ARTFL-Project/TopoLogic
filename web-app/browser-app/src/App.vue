@@ -6,19 +6,13 @@
             <b-collapse class="mr-auto" id="nav-collapse" is-nav>
                 <b-navbar-nav>
                     <b-nav-item-dropdown text="Navigate Topics" id="vocab-list">
-                        <b-dropdown-item
-                            v-for="topic in topicData"
-                            :key="topic.name"
-                            :to="`/topic/${topic.name}`"
-                            class="pt-1 pb-1"
-                        >Topic {{ topic.name }}: {{ topic.description }}</b-dropdown-item>
+                        <b-dropdown-item v-for="topic in topicData" :key="topic.name" :to="`/topic/${topic.name}`"
+                            class="pt-1 pb-1">Topic {{ topic.name }}: {{ topic.description }}</b-dropdown-item>
                     </b-nav-item-dropdown>
                     <b-nav-item to="/view/word">Vocabulary</b-nav-item>
-                    <b-nav-item
-                        v-for="field in metadataDistributions"
-                        :key="field.field"
-                        :to="`/view/${field.field}?filter=${field.filterFrequency}`"
-                    >Topics in {{ field.label }}s</b-nav-item>
+                    <b-nav-item v-for="field in metadataDistributions" :key="field.field"
+                        :to="`/view/${field.field}?filter=${field.filterFrequency}`">Topics in {{ field.label
+                        }}s</b-nav-item>
                     <b-nav-item to="/time">Topics across Time</b-nav-item>
                 </b-navbar-nav>
                 <b-navbar-nav class="ml-auto">
@@ -62,7 +56,7 @@ export default {
         searchVocab() {
             this.$router.push(`/word/${this.wordSelected}`);
             this.wordSelected = "";
-        }
+        },
     }
 };
 </script>
@@ -72,6 +66,7 @@ export default {
     overflow: scroll;
     max-height: 440px;
 }
+
 a:link {
     color: #55acee;
 }

@@ -15,16 +15,11 @@
                         <b-card no-body class="shadow-sm">
                             <template v-slot:header>
                                 <span class="mb-0">
-                                    5 most important topics for
+                                    Most important topics for
                                     <b>{{ word }}</b>
                                 </span>
                             </template>
-                            <b-table
-                                hover
-                                :items="topicDistribution"
-                                :fields="fields"
-                                @row-clicked="goToTopic"
-                            >
+                            <b-table hover :items="topicDistribution" :fields="fields" @row-clicked="goToTopic">
                                 <template slot="[name]" slot-scope="data">
                                     <span class="frequency-parent">Topic {{ data.value }}</span>
                                 </template>
@@ -40,25 +35,19 @@
                 </b-row>
                 <b-row class="mt-4">
                     <b-col cols="6">
-                        <b-card
-                            no-body
-                            :header="`${simWordsByTopics.length} most associated words by topic distribution`"
-                        >
+                        <b-card no-body
+                            :header="`${simWordsByTopics.length} most associated words by topic distribution`">
                             <b-list-group flush>
-                                <b-list-group-item
-                                    v-for="word in simWordsByTopics"
-                                    :key="word.word"
+                                <b-list-group-item v-for="word in simWordsByTopics" :key="word.word"
                                     class="list-group-item"
-                                    style="border-radius: 0px; border-width: 1px 0px; font-size: 90%"
-                                >
-                                    <a
-                                        :id="`${word.word}-topics`"
-                                        style="display:inline-block; cursor: pointer; color: #55acee"
-                                    >{{ word.word }}</a>
+                                    style="border-radius: 0px; border-width: 1px 0px; font-size: 90%">
+                                    <a :id="`${word.word}-topics`"
+                                        style="display:inline-block; cursor: pointer; color: #55acee">{{
+                                            word.word }}</a>
                                     <word-link :target="`${word.word}-topics`" :word="word.word"></word-link>
                                     <b-badge variant="secondary" pill class="float-right">
                                         {{
-                                        word.weight.toFixed(4)
+                                            word.weight.toFixed(4)
                                         }}
                                     </b-badge>
                                 </b-list-group-item>
@@ -66,25 +55,19 @@
                         </b-card>
                     </b-col>
                     <b-col cols="6">
-                        <b-card
-                            no-body
-                            :header="`${simWordsByCooc.length} most associated words by document co-occurrence`"
-                        >
+                        <b-card no-body
+                            :header="`${simWordsByCooc.length} most associated words by document co-occurrence`">
                             <b-list-group flush>
-                                <b-list-group-item
-                                    v-for="word in simWordsByCooc"
-                                    :key="word.word"
+                                <b-list-group-item v-for="word in simWordsByCooc" :key="word.word"
                                     class="list-group-item"
-                                    style="border-radius: 0px; border-width: 1px 0px; font-size: 90%"
-                                >
-                                    <a
-                                        :id="`${word.word}-docs`"
-                                        style="display:inline-block; cursor: pointer; color: #55acee"
-                                    >{{ word.word }}</a>
+                                    style="border-radius: 0px; border-width: 1px 0px; font-size: 90%">
+                                    <a :id="`${word.word}-docs`"
+                                        style="display:inline-block; cursor: pointer; color: #55acee">{{
+                                            word.word }}</a>
                                     <word-link :target="`${word.word}-docs`" :word="word.word"></word-link>
                                     <b-badge variant="secondary" pill class="float-right">
                                         {{
-                                        word.weight.toFixed(4)
+                                            word.weight.toFixed(4)
                                         }}
                                     </b-badge>
                                 </b-list-group-item>
@@ -94,28 +77,13 @@
                 </b-row>
             </div>
             <div class="col-5">
-                <b-card
-                    no-body
-                    class="shadow-sm"
-                    :header="`Top ${documents.length} documents by relevance`"
-                >
+                <b-card no-body class="shadow-sm" :header="`Top ${documents.length} documents by relevance`">
                     <b-list-group flush>
-                        <b-list-group-item
-                            v-for="doc in documents"
-                            :key="doc.doc_id"
-                            class="list-group-item"
-                            style="border-radius: 0px; border-width: 1px 0px; font-size: 90%"
-                        >
-                            <citations
-                                :doc="doc"
-                                :id="`${doc.doc_id}`"
-                                :philo-db="`${doc.metadata.philo_db}`"
-                            ></citations>
-                            <b-badge
-                                variant="secondary"
-                                pill
-                                class="float-right"
-                            >{{ doc.score.toFixed(2) }}</b-badge>
+                        <b-list-group-item v-for="doc in documents" :key="doc.doc_id" class="list-group-item"
+                            style="border-radius: 0px; border-width: 1px 0px; font-size: 90%">
+                            <citations :doc="doc" :id="`${doc.doc_id}`" :philo-db="`${doc.metadata.philo_db}`">
+                            </citations>
+                            <b-badge variant="secondary" pill class="float-right">{{ doc.score.toFixed(2) }}</b-badge>
                         </b-list-group-item>
                     </b-list-group>
                 </b-card>
@@ -188,13 +156,17 @@ export default {
         build_topic_distribution(topicDistribution) {
             let joinedDistribution = [];
             for (let i = 0; i < topicData.length; i += 1) {
+                let frequency = this.smartRound(topicDistribution.data[i])
+                if (frequency == 0.0) {
+                    continue;
+                }
                 joinedDistribution.push({
                     name: i,
-                    frequency: topicDistribution.data[i].toFixed(3),
+                    frequency: this.smartRound(topicDistribution.data[i]),
                     description: topicData[i].description
                 });
             }
-            joinedDistribution.sort(function(a, b) {
+            joinedDistribution.sort(function (a, b) {
                 return b.frequency - a.frequency;
             });
             return joinedDistribution.slice(0, 5);
@@ -204,7 +176,43 @@ export default {
         },
         goToTopic(topic) {
             this.$router.push(`/topic/${topic.name}`);
-        }
+        },
+        smartRound(num) {
+            if (num === 0) return "0.00";
+
+            // Convert to string and find first non-zero digit after decimal
+            const str = num.toFixed(20);
+            const decimal = str.split('.')[1];
+            let leadingZeros = '';
+            let firstNonZeroIndex = 0;
+
+            // Count leading zeros
+            for (let i = 0; i < decimal.length; i++) {
+                if (decimal[i] === '0') {
+                    leadingZeros += '0';
+                } else {
+                    firstNonZeroIndex = i;
+                    break;
+                }
+            }
+
+            // Get the significant part (two digits after first non-zero)
+            const significantPart = decimal.slice(firstNonZeroIndex, firstNonZeroIndex + 2);
+            const restOfNumber = decimal.slice(firstNonZeroIndex + 2);
+
+            // Round if there are more digits
+            let roundedSignificant = significantPart;
+            if (restOfNumber.length > 0) {
+                const roundingDigit = parseInt(restOfNumber[0]);
+                let num = parseInt(significantPart);
+                if (roundingDigit >= 5) {
+                    num++;
+                    roundedSignificant = num.toString().padStart(2, '0');
+                }
+            }
+
+            return `0.${leadingZeros}${roundedSignificant}`;
+        },
     }
 };
 </script>
