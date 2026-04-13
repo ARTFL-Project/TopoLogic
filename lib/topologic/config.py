@@ -129,6 +129,7 @@ def write_app_config(
     start_date,
     end_date,
     interval,
+    time_series_enabled=True,
 ):
     """Write app config used to build topic modeling browser web app"""
     with open(os.path.join(db_path, "appConfig.json"), "w") as app_config:
@@ -161,6 +162,7 @@ def write_app_config(
                     for db_name in philologic_links.keys()
                 },
                 "timeSeriesConfig": {
+                    "enabled": time_series_enabled,
                     "interval": interval,
                     "startDate": start_date,
                     "endDate": end_date,

@@ -30,7 +30,7 @@
             </b-col>
             <b-col cols="9">
                 <b-row>
-                    <b-col cols="12">
+                    <b-col cols="12" v-if="timeSeriesEnabled">
                         <b-card no-body class="shadow-sm" header="Distribution of topic weight over time">
                             <div class="pl-2 pr-2 pt-2">
                                 <apexchart width="100%" height="300px" type="bar" :options="topicEvolutionChartOptions"
@@ -52,7 +52,7 @@
                             </div>-->
                         </b-card>
                     </b-col>
-                    <b-col cols="6">
+                    <b-col cols="6" v-if="timeSeriesEnabled">
                         <b-card no-body header="5 most correlated topics over time" class="mt-4 shadow-sm">
                             <apexchart ref="timeChart" width="100%" height="400px" :series="similarEvolutionSeries"
                                 :options="similarEvolutionOptions"></apexchart>
@@ -71,8 +71,8 @@
                             </div>
                         </b-card>
                     </b-col>
-                    <b-col cols="6">
-                        <b-card no-body :header="`Top ${documents.length} documents by weight for this topic (${year})`"
+                    <b-col :cols="timeSeriesEnabled ? 6 : 12">
+                        <b-card no-body :header="documentsHeader"
                             class="mt-4 shadow-sm">
                             <div class="d-flex justify-content-center position-absolute"
                                 style="left: 0; right: 0; top: 4rem; z-index: 1" v-if="yearLoading">
@@ -106,6 +106,7 @@ export default {
     data() {
         return {
             topicData: topicData,
+            timeSeriesEnabled: this.$globalConfig.timeSeriesConfig.enabled !== false,
             wordWeights: [],
             documents: [],
             similarTopics: [],
@@ -202,6 +203,12 @@ export default {
         };
     },
     computed: {
+        documentsHeader: function () {
+            if (this.timeSeriesEnabled && this.year) {
+                return `Top ${this.documents.length} documents by weight for this topic (${this.year})`;
+            }
+            return `Top ${this.documents.length} documents by weight for this topic`;
+        },
         philoTimeSeriesBiBlioLink: function () {
             let dbUrls = {}
             for (let dbname in this.$globalConfig.philoLogicUrls) {
@@ -252,95 +259,97 @@ export default {
                         })
                     );
 
-                    let startIndex = response.data.topic_evolution.labels.indexOf(
-                        this.$globalConfig.timeSeriesConfig.startDate
-                    );
-                    let endIndex = response.data.topic_evolution.labels.length;
-                    for (
-                        let index = 0;
-                        index < response.data.topic_evolution.labels.length;
-                        index += 1
-                    ) {
-                        if (
-                            response.data.topic_evolution.labels[index] >
-                            this.$globalConfig.timeSeriesConfig.endDate
-                        ) {
-                            endIndex = index + 1;
-                            break;
-                        }
-                    }
-                    this.year = `${response.data.topic_evolution.labels[startIndex]
-                        }-${response.data.topic_evolution.labels[endIndex - 1]}`;
-                    this.buildTopicEvolution(
-                        response.data.topic_evolution,
-                        startIndex,
-                        endIndex
-                    );
-
-                    this.similarEvolutionSeries = [
-                        ...response.data.similar_topics
-                            .slice(0, 5)
-                            .map((topic) => ({
-                                data: topic.topic_evolution.data.slice(
-                                    startIndex,
-                                    endIndex
-                                ),
-                                name: topic.topic.toString(),
-                                type: "line",
-                            })),
-                        {
-                            name: this.topic,
-                            data: response.data.topic_evolution.data.slice(
-                                startIndex,
-                                endIndex
-                            ),
-                            type: "area",
-                        },
-                    ];
-                    this.similarEvolutionOptions = {
-                        ...this.similarEvolutionOptions,
-                        ...{
-                            xaxis: {
-                                categories: response.data.similar_topics[0].topic_evolution.labels.slice(
-                                    startIndex,
-                                    endIndex
-                                ),
-                            },
-                            fill: {
-                                opacity: [
-                                    ...response.data.similar_topics,
-                                    this.topic,
-                                ]
-                                    .slice(startIndex, endIndex)
-                                    .map((topic) => {
-                                        if (
-                                            topic.topic !=
-                                            this.$route.params.topic
-                                        ) {
-                                            return 1;
-                                        } else {
-                                            return 0.1;
-                                        }
-                                    }),
-                            },
-                            colors: [
-                                "#2E93fA",
-                                "#66DA26",
-                                "#546E7A",
-                                "#E91E63",
-                                "#FF9800",
-                                "rgba(51, 178, 223, 0.09)",
-                            ],
-                        },
-                    };
-                    this.$nextTick(function () {
-                        let selectedYear = document.querySelector(
-                            "path[selected='true']"
+                    if (this.timeSeriesEnabled) {
+                        let startIndex = response.data.topic_evolution.labels.indexOf(
+                            this.$globalConfig.timeSeriesConfig.startDate
                         );
-                        if (selectedYear != null) {
-                            selectedYear.setAttribute("selected", "false");
+                        let endIndex = response.data.topic_evolution.labels.length;
+                        for (
+                            let index = 0;
+                            index < response.data.topic_evolution.labels.length;
+                            index += 1
+                        ) {
+                            if (
+                                response.data.topic_evolution.labels[index] >
+                                this.$globalConfig.timeSeriesConfig.endDate
+                            ) {
+                                endIndex = index + 1;
+                                break;
+                            }
                         }
-                    });
+                        this.year = `${response.data.topic_evolution.labels[startIndex]
+                            }-${response.data.topic_evolution.labels[endIndex - 1]}`;
+                        this.buildTopicEvolution(
+                            response.data.topic_evolution,
+                            startIndex,
+                            endIndex
+                        );
+
+                        this.similarEvolutionSeries = [
+                            ...response.data.similar_topics
+                                .slice(0, 5)
+                                .map((topic) => ({
+                                    data: topic.topic_evolution.data.slice(
+                                        startIndex,
+                                        endIndex
+                                    ),
+                                    name: topic.topic.toString(),
+                                    type: "line",
+                                })),
+                            {
+                                name: this.topic,
+                                data: response.data.topic_evolution.data.slice(
+                                    startIndex,
+                                    endIndex
+                                ),
+                                type: "area",
+                            },
+                        ];
+                        this.similarEvolutionOptions = {
+                            ...this.similarEvolutionOptions,
+                            ...{
+                                xaxis: {
+                                    categories: response.data.similar_topics[0].topic_evolution.labels.slice(
+                                        startIndex,
+                                        endIndex
+                                    ),
+                                },
+                                fill: {
+                                    opacity: [
+                                        ...response.data.similar_topics,
+                                        this.topic,
+                                    ]
+                                        .slice(startIndex, endIndex)
+                                        .map((topic) => {
+                                            if (
+                                                topic.topic !=
+                                                this.$route.params.topic
+                                            ) {
+                                                return 1;
+                                            } else {
+                                                return 0.1;
+                                            }
+                                        }),
+                                },
+                                colors: [
+                                    "#2E93fA",
+                                    "#66DA26",
+                                    "#546E7A",
+                                    "#E91E63",
+                                    "#FF9800",
+                                    "rgba(51, 178, 223, 0.09)",
+                                ],
+                            },
+                        };
+                        this.$nextTick(function () {
+                            let selectedYear = document.querySelector(
+                                "path[selected='true']"
+                            );
+                            if (selectedYear != null) {
+                                selectedYear.setAttribute("selected", "false");
+                            }
+                        });
+                    }
                 });
         },
         scaleWordWeights(wordWeights) {
@@ -349,40 +358,7 @@ export default {
             return wordWeights.map((weight) => (weight / maxWeight) * 100);
         },
         smartRound(num) {
-            if (num === 0) return "0.00";
-
-            // Convert to string and find first non-zero digit after decimal
-            const str = num.toFixed(20);
-            const decimal = str.split('.')[1];
-            let leadingZeros = '';
-            let firstNonZeroIndex = 0;
-
-            // Count leading zeros
-            for (let i = 0; i < decimal.length; i++) {
-                if (decimal[i] === '0') {
-                    leadingZeros += '0';
-                } else {
-                    firstNonZeroIndex = i;
-                    break;
-                }
-            }
-
-            // Get the significant part (two digits after first non-zero)
-            const significantPart = decimal.slice(firstNonZeroIndex, firstNonZeroIndex + 2);
-            const restOfNumber = decimal.slice(firstNonZeroIndex + 2);
-
-            // Round if there are more digits
-            let roundedSignificant = significantPart;
-            if (restOfNumber.length > 0) {
-                const roundingDigit = parseInt(restOfNumber[0]);
-                let num = parseInt(significantPart);
-                if (roundingDigit >= 5) {
-                    num++;
-                    roundedSignificant = num.toString().padStart(2, '0');
-                }
-            }
-
-            return `0.${leadingZeros}${roundedSignificant}`;
+            return num === 0 ? "0.00" : Number(Number(num).toPrecision(2)).toString();
         },
         sumArray: function (arr) {
             return arr.reduce(function (a, b) {

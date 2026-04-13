@@ -130,40 +130,7 @@ export default {
         },
         smartRound(num) {
             num = parseFloat(num);
-            if (num === 0) return "0.00";
-
-            // Convert to string and find first non-zero digit after decimal
-            const str = num.toFixed(20);
-            const decimal = str.split('.')[1];
-            let leadingZeros = '';
-            let firstNonZeroIndex = 0;
-
-            // Count leading zeros
-            for (let i = 0; i < decimal.length; i++) {
-                if (decimal[i] === '0') {
-                    leadingZeros += '0';
-                } else {
-                    firstNonZeroIndex = i;
-                    break;
-                }
-            }
-
-            // Get the significant part (two digits after first non-zero)
-            const significantPart = decimal.slice(firstNonZeroIndex, firstNonZeroIndex + 2);
-            const restOfNumber = decimal.slice(firstNonZeroIndex + 2);
-
-            // Round if there are more digits
-            let roundedSignificant = significantPart;
-            if (restOfNumber.length > 0) {
-                const roundingDigit = parseInt(restOfNumber[0]);
-                let num = parseInt(significantPart);
-                if (roundingDigit >= 5) {
-                    num++;
-                    roundedSignificant = num.toString().padStart(2, '0');
-                }
-            }
-
-            return `0.${leadingZeros}${roundedSignificant}`;
+            return num === 0 ? "0.00" : Number(num.toPrecision(2)).toString();
         }
     }
 };

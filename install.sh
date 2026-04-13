@@ -1,17 +1,20 @@
 #!/bin/bash
 
-# Install virtualenv to sidestep venv (python3-venv installs python3-setuptools which causes issues on Ubuntu 22.04)
-pip3 install virtualenv
+# Ensure uv is installed — https://docs.astral.sh/uv/getting-started/installation/
+if ! command -v uv >/dev/null 2>&1; then
+    echo "uv is not installed. Install it first with:"
+    echo "  curl -LsSf https://astral.sh/uv/install.sh | sh"
+    exit 1
+fi
 
 # Give current user permission to write to /var/lib/topologic
 sudo mkdir -p /var/lib/topologic
 sudo chown -R $USER:$USER /var/lib/topologic
 
-# Create the virtual environment
-virtualenv /var/lib/topologic/topologic_env
-source /var/lib/topologic/topologic_env/bin/activate
-pip3 install lib/. --upgrade --use-pep517
-deactivate
+# Install a uv-managed Python 3.12 and create the virtual environment
+uv python install 3.12
+uv venv --python 3.12 /var/lib/topologic/topologic_env
+uv pip install --python /var/lib/topologic/topologic_env/bin/python --upgrade lib/.
 
 # Install the topologic script
 sudo cp topologic /usr/local/bin/

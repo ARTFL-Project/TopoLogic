@@ -13,7 +13,7 @@
                     <b-nav-item v-for="field in metadataDistributions" :key="field.field"
                         :to="`/view/${field.field}?filter=${field.filterFrequency}`">Topics in {{ field.label
                         }}s</b-nav-item>
-                    <b-nav-item to="/time">Topics across Time</b-nav-item>
+                    <b-nav-item v-if="timeSeriesEnabled" to="/time">Topics across Time</b-nav-item>
                 </b-navbar-nav>
                 <b-navbar-nav class="ml-auto">
                     <b-nav-form @submit.stop.prevent="searchVocab()">
@@ -46,6 +46,7 @@ export default {
             topicData: topics,
             topicIds: [],
             metadataDistributions: this.$globalConfig.metadataDistributions,
+            timeSeriesEnabled: this.$globalConfig.timeSeriesConfig.enabled !== false,
             wordSelected: ""
         };
     },

@@ -5,6 +5,8 @@ import configparser
 import gc
 import os
 import pickle
+import shutil
+import subprocess
 import time
 
 from joblib import dump
@@ -92,10 +94,11 @@ def main(args):
     ) = read_config(args.config)
     training_texts_path = os.path.join(args.data_output, "training/")
     inference_texts_path = os.path.join(args.data_output, "inference/")
-    if os.path.exists(args.data_output) is True and args.preprocessed_data_path is None:
-        os.system(f"rm -rf {args.data_output}")
-        os.system(f"mkdir -p {inference_texts_path}")
-        os.system(f"mkdir -p {training_texts_path}")
+    if args.preprocessed_data_path is None:
+        if os.path.exists(args.data_output):
+            shutil.rmtree(args.data_output)
+        os.makedirs(inference_texts_path, exist_ok=True)
+        os.makedirs(training_texts_path, exist_ok=True)
 
     if args.preprocessed_data_path is None:
         print("## PROCESSING DATA ##", flush=True)
@@ -109,7 +112,7 @@ def main(args):
         )
     else:
         # Decompress preprocessed data
-        os.system(f"tar -xzf {args.preprocessed_data_path}")
+        subprocess.run(["tar", "-xzf", args.preprocessed_data_path], check=True)
         training_texts_path = os.path.join(args.data_output, "training/")
         inference_texts_path = os.path.join(args.data_output, "inference/")
 
@@ -142,7 +145,7 @@ def main(args):
         print("Estimating the number of topics...")
         corpus_path = os.path.join(args.data_output, "corpus")
         dump(training_corpus, corpus_path)
-        os.system("mkdir -p ./evaluation_output")
+        os.makedirs("./evaluation_output", exist_ok=True)
         topic_num_evaluator(
             corpus_path,
             args.min_num_topics,
@@ -155,7 +158,7 @@ def main(args):
         )
 
     if args.debug is False:
-        os.system(f"rm -rf {args.data_output}")
+        shutil.rmtree(args.data_output, ignore_errors=True)
 
 
 def get_file_list(data_path, metadata_filters, object_level, word_length):
@@ -234,7 +237,7 @@ def prepare_data(
             print(f"Skipping collection {count}... No files matched based on metadata filter.")
             continue
 
-        os.system(f"mkdir -p {os.path.join(training_texts_path, db_name, 'texts')}")
+        os.makedirs(os.path.join(training_texts_path, db_name, "texts"), exist_ok=True)
         for text in preproc.process_texts(
             file_list,
             progress_prefix=f"Processing {file_count} files from collection {count} of {len(training_config['databases'])}...",
@@ -271,7 +274,10 @@ def prepare_data(
         count += 1
         if db_name in training_config["databases"]:
             if db_config["text_object_level"] == training_config["databases"][db_name]["text_object_level"]:
-                os.system(f"ln -s {os.path.abspath(training_texts_path)}/{db_name} {inference_texts_path}/{db_name}")
+                os.symlink(
+                    os.path.join(os.path.abspath(training_texts_path), db_name),
+                    os.path.join(inference_texts_path, db_name),
+                )
                 continue
         preproc = PreProcessor(
             text_object_type=db_config["text_object_level"],
@@ -308,7 +314,7 @@ def prepare_data(
         if file_count == 0:
             print(f"Skipping collection {count}... No files matched based on metadata filter.")
             continue
-        os.system(f"mkdir -p {os.path.join(inference_texts_path, db_name, 'texts')}")
+        os.makedirs(os.path.join(inference_texts_path, db_name, "texts"), exist_ok=True)
         for text in preproc.process_texts(
             file_list,
             progress_prefix=f"Processing {file_count} files from collection {count} of {len(inference_config['databases'])}...",
@@ -338,7 +344,7 @@ def prepare_data(
     # Compress data output for if a new model is to be built from the same preprocessed data
     # Add timestamp to tarball YYYY-MM-DD_HH-MM
     tarball_name = f"{args.data_output}_{time.strftime('%Y-%m-%d_%H-%M')}.tar.gz"
-    os.system(f"tar -czf {tarball_name} {args.data_output}")
+    subprocess.run(["tar", "-czf", tarball_name, args.data_output], check=True)
 
 
 def build_model(
@@ -429,11 +435,10 @@ def build_web_app(
     topics_over_time,
 ):
     db_path = os.path.join(GLOBAL_CONFIG["WEB_APP"]["web_app_path"], database_name)
-    if os.path.exists(db_path) is True:
-        os.system(f"rm -rf {db_path}")
-    os.mkdir(db_path)
-    os.system(f"cp -R /var/lib/topologic/web-app/browser-app/* {db_path}/")
-    os.system(f"cp /var/lib/topologic/web-app/apache_htaccess.conf {db_path}/.htaccess")
+    if os.path.exists(db_path):
+        shutil.rmtree(db_path)
+    shutil.copytree("/var/lib/topologic/web-app/browser-app", db_path)
+    shutil.copy2("/var/lib/topologic/web-app/apache_htaccess.conf", os.path.join(db_path, ".htaccess"))
     config = configparser.ConfigParser()
     config.read(config_path)
 
@@ -444,19 +449,26 @@ def build_web_app(
             metadata_field_names.add(field)
         try:
             years.add(int(fields["year"]))
-        except ValueError:
+        except (KeyError, ValueError, TypeError):
             pass
-    if topics_over_time["start_date"] is None:
-        min_year = min(years)
+
+    configured_start = topics_over_time["start_date"]
+    configured_end = topics_over_time["end_date"]
+    time_series_enabled = bool(years) or configured_start is not None or configured_end is not None
+
+    if time_series_enabled:
+        min_year = configured_start if configured_start is not None else min(years)
+        max_year = configured_end if configured_end is not None else max(years)
+        if topics_over_time["topics_over_time_interval"] != 1:
+            min_year = year_normalizer(min_year, topics_over_time["topics_over_time_interval"])
+            max_year = max_year_normalizer(max_year, topics_over_time["topics_over_time_interval"])
     else:
-        min_year = topics_over_time["start_date"]
-    if topics_over_time["end_date"] is None:
-        max_year = max(years)
-    else:
-        max_year = topics_over_time["end_date"]
-    if topics_over_time["topics_over_time_interval"] != 1:
-        min_year = year_normalizer(min_year, topics_over_time["topics_over_time_interval"])
-        max_year = max_year_normalizer(max_year, topics_over_time["topics_over_time_interval"])
+        print(
+            "No parseable 'year' metadata found in corpus; disabling time-series features.",
+            flush=True,
+        )
+        min_year = None
+        max_year = None
 
     config["DATA"] = {
         "num_docs": full_corpus.size,
@@ -467,7 +479,7 @@ def build_web_app(
     with open(os.path.join(db_path, "model_config.ini"), "w", encoding="utf8") as configfile:
         config.write(configfile)
 
-    db = DBHandler.set_class_attributes(
+    with DBHandler.set_class_attributes(
         GLOBAL_CONFIG["DATABASE"],
         database_name,
         topic_model,
@@ -475,20 +487,21 @@ def build_web_app(
         min_year,
         max_year,
         topics_over_time["topics_over_time_interval"],
-    )
-    print("Saving words...", flush=True)
-    db.save_words()
+        time_series_enabled,
+    ) as db:
+        print("Saving words...", flush=True)
+        db.save_words()
 
-    print("Saving docs...", flush=True)
-    db.save_docs()
+        print("Saving docs...", flush=True)
+        db.save_docs()
 
-    print("Saving topics...", flush=True)
-    db.save_topics(
-        f"{db_path}/topic_words.json",
-        min_year,
-        max_year,
-        topics_over_time["topics_over_time_interval"],
-    )
+        print("Saving topics...", flush=True)
+        db.save_topics(
+            f"{db_path}/topic_words.json",
+            min_year,
+            max_year,
+            topics_over_time["topics_over_time_interval"],
+        )
 
     write_app_config(
         db_path,
@@ -499,8 +512,9 @@ def build_web_app(
         min_year,
         max_year,
         topics_over_time["topics_over_time_interval"],
+        time_series_enabled,
     )
-    os.system(f"cd {db_path}; npm run build")
+    subprocess.run(["npm", "run", "build"], cwd=db_path, check=True)
 
     print(
         f"""TopoLogic web application is viewable at: {os.path.join(GLOBAL_CONFIG['WEB_APP']['server_name'], GLOBAL_CONFIG["WEB_APP"]["proxy_path"], 'topologic', os.path.basename(db_path))}"""

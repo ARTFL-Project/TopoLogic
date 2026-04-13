@@ -30,7 +30,7 @@ export default {
     computed: {
         philoLink: function() {
             let philoType = `philo_${this.metadata.philo_type}_id`;
-            if (typeof word == "undefined") {
+            if (typeof this.word != "undefined") {
                 return `${this.philoUrl}/query?report=concordance&q=${this.word}&${philoType}=${this.metadata[philoType]}`;
             } else if (this.metadata.philo_type == "doc") {
                 return `${this.philoUrl}/navigate/${this.metadata[philoType]}/table-of-contents/`;

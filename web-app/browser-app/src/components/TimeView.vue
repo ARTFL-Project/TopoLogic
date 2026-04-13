@@ -1,6 +1,11 @@
 <template>
     <b-container fluid>
-        <b-card no-body header="Evolution of all topics over time">
+        <b-card v-if="!timeSeriesEnabled" no-body header="Evolution of all topics over time">
+            <div class="p-4 text-center text-muted">
+                Time-series view is unavailable for this corpus because no year metadata was found.
+            </div>
+        </b-card>
+        <b-card v-else no-body header="Evolution of all topics over time">
             <b-row class="p-2">
                 <b-col cols="4">
                     <div class="mb-2">
@@ -44,6 +49,7 @@ export default {
     name: "TimeVue",
     data() {
         return {
+            timeSeriesEnabled: this.$globalConfig.timeSeriesConfig.enabled !== false,
             startIndex: 0,
             endIndex: 0,
             topicsOverTime: [],
@@ -89,7 +95,9 @@ export default {
         };
     },
     created() {
-        this.fetchData();
+        if (this.timeSeriesEnabled) {
+            this.fetchData();
+        }
     },
     watch: {
         // call again the method if the route changes
@@ -97,6 +105,9 @@ export default {
     },
     methods: {
         fetchData() {
+            if (!this.timeSeriesEnabled) {
+                return;
+            }
             this.fieldName = this.$route.params.fieldName;
             this.$http
                 .get(
