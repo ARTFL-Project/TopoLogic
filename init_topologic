@@ -7,4 +7,3 @@ service postgresql restart
 EOF
 cd /var/lib/topologic/api_server
 ./web_server.sh &
-bash /autostart.sh

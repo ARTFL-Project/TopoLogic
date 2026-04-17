@@ -37,7 +37,7 @@ echo -e "\nMoving web application components into place..."
 if [ ! -f /etc/topologic/global_settings.ini ]
     then
         sudo mkdir -p /etc/topologic/
-        cp config/global_settings.ini /etc/topologic/
+        sudo cp config/global_settings.ini /etc/topologic/
         echo "Make sure you create a PostgreSQL database with a user with read/write access to that database and configure /etc/topologic/global_settings.ini accordingly."
 else
     echo "/etc/topologic/global_settings.ini already exists, not modifying..."
