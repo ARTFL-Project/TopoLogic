@@ -6,9 +6,8 @@ import re
 from collections import defaultdict
 
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from starlette.middleware.cors import CORSMiddleware
-from starlette.responses import Response
 from topologic import read_config
 from topologic.DB import DBSearch
 
@@ -86,24 +85,48 @@ def read_json_config(path):
 @app.get("/{table_name}/word/{word}")
 @app.get("/{table_name}/time")
 @app.get("/{table_name}/view/{field_name}")
+@app.get("/{table_name}/metadata/{field_name}/{field_value}")
 def index(table_name: str):
     with open(_safe_path(table_name, "dist/index.html")) as html:
         index_html = html.read()
     return HTMLResponse(index_html)
 
 
+# Vite layout — current builds emit everything under dist/assets/ with
+# content-hashed filenames (index-XXXX.css, index-XXXX.js, etc.).
+@app.get("/{table_name}/assets/{asset_file}")
+def get_asset(table_name: str, asset_file: str):
+    path = _safe_path(table_name, "dist/assets", asset_file)
+    if not os.path.isfile(path):
+        raise HTTPException(status_code=404, detail="Asset not found")
+    return FileResponse(path)
+
+
+@app.get("/{table_name}/favicon.ico")
+def get_favicon(table_name: str):
+    path = _safe_path(table_name, "dist/favicon.ico")
+    if not os.path.isfile(path):
+        raise HTTPException(status_code=404, detail="Favicon not found")
+    return FileResponse(path)
+
+
+# Legacy Vue CLI / Webpack layout — pre-Vite builds split CSS and JS into
+# dist/css/ and dist/js/. Kept so older deployed DBs continue to work
+# without a rebuild.
 @app.get("/{table_name}/css/{css_file}")
 def get_css(table_name: str, css_file: str):
-    with open(_safe_path(table_name, "dist/css", css_file)) as css:
-        css_content = css.read()
-    return Response(css_content, media_type="text/css")
+    path = _safe_path(table_name, "dist/css", css_file)
+    if not os.path.isfile(path):
+        raise HTTPException(status_code=404, detail="CSS file not found")
+    return FileResponse(path, media_type="text/css")
 
 
 @app.get("/{table_name}/js/{js_file}")
 def get_js(table_name: str, js_file: str):
-    with open(_safe_path(table_name, "dist/js", js_file)) as js:
-        js_content = js.read()
-    return Response(js_content, media_type="application/javascript")
+    path = _safe_path(table_name, "dist/js", js_file)
+    if not os.path.isfile(path):
+        raise HTTPException(status_code=404, detail="JS file not found")
+    return FileResponse(path, media_type="application/javascript")
 
 
 @app.get("/get_config/{table}")

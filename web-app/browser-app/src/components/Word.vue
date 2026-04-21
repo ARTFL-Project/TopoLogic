@@ -158,7 +158,7 @@ export default {
                 joinedDistribution.push({
                     name: i,
                     frequency: this.smartRound(topicDistribution.data[i]),
-                    description: topicData[i].description
+                    description: topicData[i].label || topicData[i].description
                 });
             }
             joinedDistribution.sort(function (a, b) {

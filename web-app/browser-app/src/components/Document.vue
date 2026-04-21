@@ -195,7 +195,7 @@ export default {
                 sortedDistribution.push({
                     name: topic[0],
                     frequency: topic[1],
-                    description: topicData[topic[0]].description,
+                    description: topicData[topic[0]].label || topicData[topic[0]].description,
                 });
                 count++;
                 if (count == 10) {

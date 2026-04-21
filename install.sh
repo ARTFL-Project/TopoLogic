@@ -23,10 +23,19 @@ sudo chown -R $USER:$USER /var/lib/topologic
 uv python install 3.12
 
 # Copy the Python project (pyproject.toml + uv.lock + topologic package) into place,
-# then sync the venv from the lockfile. The venv lives at /var/lib/topologic/lib/.venv.
+# then sync the venv from the lockfile. The venv lives at /var/lib/topologic/topologic_env
+# (visible top-level path rather than a hidden `.venv` inside the project).
 rm -rf /var/lib/topologic/lib
 cp -R lib /var/lib/topologic/lib
-( cd /var/lib/topologic/lib && uv sync --frozen )
+( cd /var/lib/topologic/lib && UV_PROJECT_ENVIRONMENT=/var/lib/topologic/topologic_env uv sync --frozen )
+
+# The labeler lives in its own package + venv because it needs a newer
+# `transformers` than spacy-transformers allows in the main env. The main
+# topologic pipeline shells out to `topologic-labeler` on demand.
+rm -rf /var/lib/topologic/labeler
+cp -R labeler /var/lib/topologic/labeler
+( cd /var/lib/topologic/labeler && UV_PROJECT_ENVIRONMENT=/var/lib/topologic/topologic_labeler_env uv sync --frozen )
+sudo ln -sf /var/lib/topologic/topologic_labeler_env/bin/topologic-labeler /usr/local/bin/topologic-labeler
 
 # Install the topologic script
 sudo cp topologic /usr/local/bin/

@@ -286,7 +286,7 @@ class DBHandler:
         return values
 
     @classmethod
-    def save_topics(cls, topic_words_path, start_date, end_date, year_interval):
+    def save_topics(cls, topic_words_path, start_date, end_date, year_interval, topic_labeling=None):
         topic_words = []
         topics_table = sql.Identifier(f"{cls.table}_topics")
         cls.cursor.execute(sql.SQL("DROP TABLE IF EXISTS {}").format(topics_table))
@@ -302,6 +302,7 @@ class DBHandler:
                     frequency,
                     docs,
                     description,
+                    top_words,
                 ) in pool.imap_unordered(
                     cls.compute_topic,
                     zip(
@@ -320,6 +321,7 @@ class DBHandler:
                             "name": topic_id,
                             "frequency": frequency,
                             "description": ", ".join(description),
+                            "top_words": top_words,
                         }
                     )
                     pbar.update()
@@ -327,6 +329,26 @@ class DBHandler:
         topic_words.sort(key=lambda x: x["name"])
         with open(topic_words_path, "w") as out_file:
             json.dump(topic_words, out_file)
+
+        if topic_labeling and topic_labeling.get("enabled"):
+            import subprocess
+
+            print("Labeling topics with LLM...", flush=True)
+            result = subprocess.run(
+                [
+                    "topologic-labeler",
+                    topic_words_path,
+                    "--model", topic_labeling.get("model", "google/gemma-4-E2B-it"),
+                    "--language", topic_labeling.get("language", "English"),
+                ],
+                check=False,
+            )
+            if result.returncode != 0:
+                print(
+                    f"topologic-labeler returned {result.returncode}; topics will fall "
+                    "back to their top-word description.",
+                    flush=True,
+                )
 
         cls.cursor.execute(sql.SQL("CREATE INDEX {} ON {} USING HASH(topic_id)").format(
             sql.Identifier(f"{cls.table}_topic_id_index"), topics_table
@@ -369,6 +391,8 @@ class DBHandler:
         description = []
         for weighted_word in cls.model.top_words(topic_id, 10):
             description.append(weighted_word[0])
+        # Richer top-20-with-weights payload, used by the LLM labeler.
+        top_words = [[w, float(weight)] for w, weight in cls.model.top_words(topic_id, 20)]
         return (
             topic_id,
             word_distribution,
@@ -376,6 +400,7 @@ class DBHandler:
             frequency,
             docs,
             description,
+            top_words,
         )
 
 

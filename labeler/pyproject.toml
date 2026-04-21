@@ -1,0 +1,33 @@
+[project]
+name = "topologic-labeler"
+version = "0.1"
+description = "Isolated LLM-based topic labeler for TopoLogic. Installed in its own venv so it can pin a newer `transformers` without conflicting with the main topologic package's `spacy-transformers` ceiling."
+authors = [
+    { name = "The ARTFL Project", email = "clovisgladstone@gmail.com" },
+]
+requires-python = ">=3.11"
+dependencies = [
+    "torch",
+    "transformers>=4.56",
+    "accelerate>=0.26.0",
+    "tqdm",
+]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu124" }
+
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true
+
+[project.scripts]
+topologic-labeler = "topologic_labeler.__main__:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["topologic_labeler*"]

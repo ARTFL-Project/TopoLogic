@@ -28,7 +28,7 @@
                             class="topic-legend"
                             :style="`background-color: ${options.colors[topic.name]}`"
                         ></span>
-                        Topic {{ topic.name }}: {{ topic.description }}
+                        Topic {{ topic.name }}: {{ topic.label || topic.description }}
                     </div>
                 </div>
                 <div class="col-8">

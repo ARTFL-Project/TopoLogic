@@ -49,7 +49,7 @@
                                     <span :id="`topic-${localTopic.name}`" class="topic-legend"
                                         :style="`background-color: ${similarEvolutionOptions.colors[seriesIndex]}`"></span>
                                     Topic {{ localTopic.name }}:
-                                    {{ topicData[parseInt(localTopic.name)].description }}
+                                    {{ topicData[parseInt(localTopic.name)].label || topicData[parseInt(localTopic.name)].description }}
                                 </span>
                             </div>
                         </div>

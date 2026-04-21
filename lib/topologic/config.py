@@ -108,6 +108,20 @@ def read_config(config_path):
                 topics_over_time[key] = int(value)
             except ValueError:
                 topics_over_time[key] = None
+    topic_labeling = {
+        "enabled": False,
+        "model": "google/gemma-4-E2B-it",
+        "language": "English",
+    }
+    if config.has_section("TOPIC_LABELING"):
+        section = config["TOPIC_LABELING"]
+        raw_enabled = section.get("enabled", "false").strip().lower()
+        topic_labeling["enabled"] = raw_enabled in ("1", "true", "yes", "on")
+        if section.get("model", "").strip():
+            topic_labeling["model"] = section["model"].strip()
+        if section.get("language", "").strip():
+            topic_labeling["language"] = section["language"].strip()
+
     return (
         training_data,
         inference_data,
@@ -117,6 +131,7 @@ def read_config(config_path):
         vectorization,
         topic_modeling,
         topics_over_time,
+        topic_labeling,
     )
 
 

@@ -27,7 +27,7 @@
                             <ul class="dropdown-menu">
                                 <li v-for="topic in topicData" :key="topic.name">
                                     <router-link class="dropdown-item" :to="`/topic/${topic.name}`">
-                                        Topic {{ topic.name }}: {{ topic.description }}
+                                        Topic {{ topic.name }}: {{ topic.label || topic.description }}
                                     </router-link>
                                 </li>
                             </ul>

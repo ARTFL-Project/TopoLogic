@@ -91,6 +91,7 @@ def main(args):
         vector_config,
         model_config,
         topics_over_time,
+        topic_labeling,
     ) = read_config(args.config)
     training_texts_path = os.path.join(args.data_output, "training/")
     inference_texts_path = os.path.join(args.data_output, "inference/")
@@ -140,6 +141,7 @@ def main(args):
             topic_model,
             full_corpus,
             topics_over_time,
+            topic_labeling,
         )
     else:
         print("Estimating the number of topics...")
@@ -433,6 +435,7 @@ def build_web_app(
     topic_model,
     full_corpus,
     topics_over_time,
+    topic_labeling,
 ):
     db_path = os.path.join(GLOBAL_CONFIG["WEB_APP"]["web_app_path"], database_name)
     if os.path.exists(db_path):
@@ -501,6 +504,7 @@ def build_web_app(
             min_year,
             max_year,
             topics_over_time["topics_over_time_interval"],
+            topic_labeling=topic_labeling,
         )
 
     write_app_config(

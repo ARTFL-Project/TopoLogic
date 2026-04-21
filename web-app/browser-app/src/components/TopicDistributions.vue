@@ -94,7 +94,7 @@ export default {
             for (let topicName in this.localTopics) {
                 topicsWithDescription.push({
                     name: `${topicName}`,
-                    description: topicData[topicName].description,
+                    description: topicData[topicName].label || topicData[topicName].description,
                     frequency: this.smartRound(this.localTopics[topicName].frequency * 100)
                 });
             }
