@@ -1,6 +1,6 @@
 <template>
-    <b-container fluid class="mt-4">
-        <h5 class="pl-4 pr-4" style="text-align: center">
+    <div class="container-fluid mt-4">
+        <h5 class="ps-4 pe-4" style="text-align: center">
             <citations
                 :doc="mainDoc"
                 :philo-db="`${mainDoc.metadata.philo_db}`"
@@ -8,41 +8,32 @@
             ></citations>
         </h5>
 
-        <b-row class="mb-4 mt-4">
-            <b-col cols="9">
-                <b-card no-body header="Top 10 Topics">
-                    <div class="pl-2 pr-2">
-                        <b-table
-                            hover
+        <div class="row mb-4 mt-4">
+            <div class="col-9">
+                <div class="card">
+                    <div class="card-header">Top 10 Topics</div>
+                    <div class="ps-2 pe-2">
+                        <sortable-table
                             :items="topicDistribution"
                             :fields="fields"
                             @row-clicked="goToTopic"
                         >
-                            <template slot="[name]" slot-scope="data">
-                                <span class="frequency-parent"
-                                    >Topic {{ data.value }}</span
-                                >
+                            <template v-slot:cell(name)="data">
+                                <span class="frequency-parent">Topic {{ data.value }}</span>
                             </template>
-                            <template slot="[description]" slot-scope="data">
-                                <span class="frequency-parent">
-                                    {{ data.value }}
-                                </span>
+                            <template v-slot:cell(description)="data">
+                                <span class="frequency-parent">{{ data.value }}</span>
                             </template>
-                            <template slot="[frequency]" slot-scope="data">
-                                <span class="frequency-value pl-2"
-                                    >{{ data.value }}%</span
-                                >
+                            <template v-slot:cell(frequency)="data">
+                                <span class="frequency-value ps-2">{{ data.value }}%</span>
                             </template>
-                        </b-table>
+                        </sortable-table>
                     </div>
-                </b-card>
-            </b-col>
-            <b-col cols="3">
-                <b-card
-                    no-body
-                    style="height: 100%"
-                    header="Vector Representation (up to 50 tokens shown)"
-                >
+                </div>
+            </div>
+            <div class="col-3">
+                <div class="card" style="height: 100%">
+                    <div class="card-header">Vector Representation (up to 50 tokens shown)</div>
                     <div
                         style="
                             display: flex;
@@ -62,8 +53,7 @@
                                     :style="`display:inline-block; padding: 5px; cursor: pointer; font-size: ${
                                         1 + weightedWord[1]
                                     }rem; color: ${weightedWord[3]}`"
-                                    >{{ weightedWord[0] }}</a
-                                >
+                                >{{ weightedWord[0] }}</a>
                                 <word-link
                                     :target="weightedWord[2]"
                                     :metadata="mainDoc.metadata"
@@ -72,17 +62,17 @@
                             </span>
                         </div>
                     </div>
-                </b-card>
-            </b-col>
-        </b-row>
-        <b-row class="mt-2">
+                </div>
+            </div>
+        </div>
+        <div class="row mt-2">
             <div class="col-6">
-                <b-card
-                    no-body
-                    :header="`Top ${topicSimDocs.length} documents with most similar topic distribution`"
-                >
-                    <b-list-group flush>
-                        <b-list-group-item
+                <div class="card">
+                    <div class="card-header">
+                        Top {{ topicSimDocs.length }} documents with most similar topic distribution
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        <li
                             v-for="doc in topicSimDocs"
                             :key="doc.doc_id"
                             class="list-group-item"
@@ -93,23 +83,18 @@
                                 :id="`${doc.doc_id}`"
                                 :philo-db="`${doc.metadata.philo_db}`"
                             ></citations>
-                            <b-badge
-                                variant="secondary"
-                                pill
-                                class="float-right"
-                                >{{ doc.score.toFixed(3) }}</b-badge
-                            >
-                        </b-list-group-item>
-                    </b-list-group>
-                </b-card>
+                            <span class="badge rounded-pill bg-secondary float-end">{{ doc.score.toFixed(3) }}</span>
+                        </li>
+                    </ul>
+                </div>
             </div>
             <div class="col-6">
-                <b-card
-                    no-body
-                    :header="`Top ${vectorSimDocs.length} documents with most similar vocabulary`"
-                >
-                    <b-list-group flush>
-                        <b-list-group-item
+                <div class="card">
+                    <div class="card-header">
+                        Top {{ vectorSimDocs.length }} documents with most similar vocabulary
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        <li
                             v-for="doc in vectorSimDocs"
                             :key="doc.doc_id"
                             class="list-group-item"
@@ -120,29 +105,26 @@
                                 :id="`${doc.doc_id}`"
                                 :philo-db="`${doc.metadata.philo_db}`"
                             ></citations>
-                            <b-badge
-                                variant="secondary"
-                                pill
-                                class="float-right"
-                                >{{ doc.score.toFixed(3) }}</b-badge
-                            >
-                        </b-list-group-item>
-                    </b-list-group>
-                </b-card>
+                            <span class="badge rounded-pill bg-secondary float-end">{{ doc.score.toFixed(3) }}</span>
+                        </li>
+                    </ul>
+                </div>
             </div>
-        </b-row>
-    </b-container>
+        </div>
+    </div>
 </template>
 <script>
 import topicData from "../../topic_words.json";
-import Citations from "./Citations";
-import WordLink from "./WordLink";
+import Citations from "./Citations.vue";
+import WordLink from "./WordLink.vue";
+import SortableTable from "./SortableTable.vue";
 
 export default {
     name: "Document",
     components: {
         Citations,
         WordLink,
+        SortableTable,
     },
     data() {
         return {
@@ -235,7 +217,7 @@ export default {
 .popover {
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
 }
-/deep/ .popover-body {
+:deep(.popover-body) {
     padding: 0;
 }
 </style>

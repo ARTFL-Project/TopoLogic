@@ -6,97 +6,79 @@
             across corpus (overall frequency of {{ frequency }}%)
         </h5>
         <div v-if="loading" class="text-center" style="position: absolute; left: 0; right: 0; z-index: 10">
-            <b-spinner label="Loading..." style="width: 5rem; height: 5rem"></b-spinner>
+            <div class="spinner-border" style="width: 5rem; height: 5rem" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
         </div>
-        <b-row>
-            <b-col cols="3">
-                <b-card no-body class="shadow-sm" header="Top Tokens">
+        <div class="row">
+            <div class="col-3">
+                <div class="card shadow-sm">
+                    <div class="card-header">Top Tokens</div>
                     <div class="px-3 pt-2 pb-2">
                         <div class="px-3" v-for="word in wordWeights" :key="word.word">
-                            <b-row class="word-weight" @click="goToWord(word.word)">
+                            <div class="row word-weight" @click="goToWord(word.word)">
                                 <span class="frequency-bar" :style="`width: ${word.barWidth}%;`"></span>
-                                <b-col cols="8" class="word pl-1">{{
-                                    word.word
-                                }}</b-col>
-                                <b-col cols="4" class="position-relative">
-                                    <span class="frequency-value">{{
-                                        word.weight
-                                    }}</span>
-                                </b-col>
-                            </b-row>
+                                <div class="col-8 word ps-1">{{ word.word }}</div>
+                                <div class="col-4 position-relative">
+                                    <span class="frequency-value">{{ word.weight }}</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </b-card>
-            </b-col>
-            <b-col cols="9">
-                <b-row>
-                    <b-col cols="12" v-if="timeSeriesEnabled">
-                        <b-card no-body class="shadow-sm" header="Distribution of topic weight over time">
-                            <div class="pl-2 pr-2 pt-2">
+                </div>
+            </div>
+            <div class="col-9">
+                <div class="row">
+                    <div class="col-12" v-if="timeSeriesEnabled">
+                        <div class="card shadow-sm">
+                            <div class="card-header">Distribution of topic weight over time</div>
+                            <div class="ps-2 pe-2 pt-2">
                                 <apexchart width="100%" height="300px" type="bar" :options="topicEvolutionChartOptions"
                                     :series="topicEvolutionSeries"></apexchart>
                             </div>
-                            <!--
-                            <div class="pb-4 pl-4 pr-4">
-                                <ul v-if="Object.keys(philoTimeSeriesBiBlioLink).length > 1">
-                                    <li v-for="(url, db) in philoTimeSeriesBiBlioLink" :key="db">
-                                        <a :href="url" target="_blank">See topic frequency
-                                            over time in the {{ db }}
-                                            PhiloLogic database</a>
-                                    </li>
-                                </ul>
-                                <a v-else :href="Object.values(philoTimeSeriesBiBlioLink)[0]" target="_blank">See topic
-                                    frequency
-                                    over time in the {{ Object.keys(philoTimeSeriesBiBlioLink)[0] }} PhiloLogic
-                                    database</a>
-                            </div>-->
-                        </b-card>
-                    </b-col>
-                    <b-col cols="6" v-if="timeSeriesEnabled">
-                        <b-card no-body header="5 most correlated topics over time" class="mt-4 shadow-sm">
+                        </div>
+                    </div>
+                    <div class="col-6" v-if="timeSeriesEnabled">
+                        <div class="card mt-4 shadow-sm">
+                            <div class="card-header">5 most correlated topics over time</div>
                             <apexchart ref="timeChart" width="100%" height="400px" :series="similarEvolutionSeries"
                                 :options="similarEvolutionOptions"></apexchart>
-                            <div v-for="(localTopic,
-                                seriesIndex) in similarEvolutionSeries" :key="localTopic.name"
-                                class="topic pl-2 pr-2 pb-1" style="font-size: 80%" @click="goToTopic(localTopic.name)">
+                            <div v-for="(localTopic, seriesIndex) in similarEvolutionSeries" :key="localTopic.name"
+                                class="topic ps-2 pe-2 pb-1" style="font-size: 80%" @click="goToTopic(localTopic.name)">
                                 <span v-if="localTopic.name != topic">
                                     <span :id="`topic-${localTopic.name}`" class="topic-legend"
                                         :style="`background-color: ${similarEvolutionOptions.colors[seriesIndex]}`"></span>
                                     Topic {{ localTopic.name }}:
-                                    {{
-                                        topicData[parseInt(localTopic.name)]
-                                            .description
-                                    }}
+                                    {{ topicData[parseInt(localTopic.name)].description }}
                                 </span>
                             </div>
-                        </b-card>
-                    </b-col>
-                    <b-col :cols="timeSeriesEnabled ? 6 : 12">
-                        <b-card no-body :header="documentsHeader"
-                            class="mt-4 shadow-sm">
+                        </div>
+                    </div>
+                    <div :class="timeSeriesEnabled ? 'col-6' : 'col-12'">
+                        <div class="card mt-4 shadow-sm">
+                            <div class="card-header">{{ documentsHeader }}</div>
                             <div class="d-flex justify-content-center position-absolute"
                                 style="left: 0; right: 0; top: 4rem; z-index: 1" v-if="yearLoading">
-                                <b-spinner style="width: 4rem; height: 4rem" label="Large Spinner"></b-spinner>
+                                <div class="spinner-border" style="width: 4rem; height: 4rem" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
                             </div>
-                            <b-list-group flush>
-                                <b-list-group-item v-for="doc in documents" :key="doc.doc_id">
-                                    <citations :doc="doc" :id="`${doc.doc_id}`" :philo-db="`${doc.metadata.philo_db}`">
-                                    </citations>
-                                    <b-badge variant="secondary" pill class="float-right">{{
-                                        (doc.score * 100).toFixed(2)
-                                        }}</b-badge>
-                                </b-list-group-item>
-                            </b-list-group>
-                        </b-card>
-                    </b-col>
-                </b-row>
-            </b-col>
-        </b-row>
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item" v-for="doc in documents" :key="doc.doc_id">
+                                    <citations :doc="doc" :id="`${doc.doc_id}`" :philo-db="`${doc.metadata.philo_db}`"></citations>
+                                    <span class="badge rounded-pill bg-secondary float-end">{{ (doc.score * 100).toFixed(2) }}</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 <script>
 import topicData from "../../topic_words.json";
-import Citations from "./Citations";
+import Citations from "./Citations.vue";
 
 export default {
     name: "Topic",
@@ -125,6 +107,7 @@ export default {
                         click: this.goToYear,
                     },
                 },
+                dataLabels: { enabled: false },
                 xaxis: {
                     categories: [],
                 },
@@ -167,6 +150,7 @@ export default {
                         show: false,
                     },
                 },
+                dataLabels: { enabled: false },
                 yaxis: {
                     labels: {
                         formatter: (val) => val.toFixed(3),
@@ -337,7 +321,7 @@ export default {
                                     "#546E7A",
                                     "#E91E63",
                                     "#FF9800",
-                                    "rgba(51, 178, 223, 0.09)",
+                                    "rgba(156, 60, 60, 0.15)",
                                 ],
                             },
                         };
@@ -422,9 +406,11 @@ export default {
     },
 };
 </script>
-<style scoped>
-::v-deep path[selected="true"] {
-    fill: rgba(212, 82, 110, 0.9);
+<style scoped lang="scss">
+@use "../assets/styles/theme.module.scss" as theme;
+
+:deep(path[selected="true"]) {
+    fill: rgba(theme.$passage-color, 0.9);
 }
 
 .topic {
@@ -464,11 +450,11 @@ export default {
     left: 0;
     top: 0;
     height: 100%;
-    background-color: rgba(51, 178, 223, 0.9);
+    background-color: rgba(theme.$link-color, 0.35);
 }
 
 .row:hover>.frequency-bar {
-    background-color: rgb(51, 178, 223);
+    background-color: rgba(theme.$link-color, 0.55);
 }
 
 .row:hover>.word {

@@ -1,10 +1,10 @@
 <template>
-    <b-container fluid class="mt-4">
+    <div class="container-fluid mt-4">
         <topic-distributions v-if="topics.length" :topics="topics"></topic-distributions>
-    </b-container>
+    </div>
 </template>
 <script>
-import topicDistributions from "./TopicDistributions";
+import topicDistributions from "./TopicDistributions.vue";
 
 export default {
     name: "FieldDistribution",

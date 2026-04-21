@@ -1,5 +1,5 @@
 <template>
-    <b-container fluid class="mt-4">
+    <div class="container-fluid mt-4">
         <h5 class="text-center">
             Distribution of
             <b>{{ word }}</b> in the corpus
@@ -10,95 +10,90 @@
         </div>
         <div class="row mt-4 p-2" v-if="!notFound">
             <div class="col-7">
-                <b-row>
-                    <b-col cols="12">
-                        <b-card no-body class="shadow-sm">
-                            <template v-slot:header>
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card shadow-sm">
+                            <div class="card-header">
                                 <span class="mb-0">
                                     Most important topics for
                                     <b>{{ word }}</b>
                                 </span>
-                            </template>
-                            <b-table hover :items="topicDistribution" :fields="fields" @row-clicked="goToTopic">
-                                <template slot="[name]" slot-scope="data">
+                            </div>
+                            <sortable-table :items="topicDistribution" :fields="fields" @row-clicked="goToTopic">
+                                <template v-slot:cell(name)="data">
                                     <span class="frequency-parent">Topic {{ data.value }}</span>
                                 </template>
-                                <template slot="[description]" slot-scope="data">
+                                <template v-slot:cell(description)="data">
                                     <span class="frequency-parent">{{ data.value }}</span>
                                 </template>
-                                <template slot="[frequency]" slot-scope="data">
-                                    <span class="frequency-value pl-2">{{ data.value }}%</span>
+                                <template v-slot:cell(frequency)="data">
+                                    <span class="frequency-value ps-2">{{ data.value }}%</span>
                                 </template>
-                            </b-table>
-                        </b-card>
-                    </b-col>
-                </b-row>
-                <b-row class="mt-4">
-                    <b-col cols="6">
-                        <b-card no-body
-                            :header="`${simWordsByTopics.length} most associated words by topic distribution`">
-                            <b-list-group flush>
-                                <b-list-group-item v-for="word in simWordsByTopics" :key="word.word"
+                            </sortable-table>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-4">
+                    <div class="col-6">
+                        <div class="card">
+                            <div class="card-header">{{ simWordsByTopics.length }} most associated words by topic distribution</div>
+                            <ul class="list-group list-group-flush">
+                                <li v-for="word in simWordsByTopics" :key="word.word"
                                     class="list-group-item"
                                     style="border-radius: 0px; border-width: 1px 0px; font-size: 90%">
                                     <a :id="`${word.word}-topics`"
-                                        style="display:inline-block; cursor: pointer; color: #55acee">{{
-                                            word.word }}</a>
+                                        class="word-link">{{ word.word }}</a>
                                     <word-link :target="`${word.word}-topics`" :word="word.word"></word-link>
-                                    <b-badge variant="secondary" pill class="float-right">
-                                        {{
-                                            word.weight.toFixed(4)
-                                        }}
-                                    </b-badge>
-                                </b-list-group-item>
-                            </b-list-group>
-                        </b-card>
-                    </b-col>
-                    <b-col cols="6">
-                        <b-card no-body
-                            :header="`${simWordsByCooc.length} most associated words by document co-occurrence`">
-                            <b-list-group flush>
-                                <b-list-group-item v-for="word in simWordsByCooc" :key="word.word"
+                                    <span class="badge rounded-pill bg-secondary float-end">
+                                        {{ word.weight.toFixed(4) }}
+                                    </span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="card">
+                            <div class="card-header">{{ simWordsByCooc.length }} most associated words by document co-occurrence</div>
+                            <ul class="list-group list-group-flush">
+                                <li v-for="word in simWordsByCooc" :key="word.word"
                                     class="list-group-item"
                                     style="border-radius: 0px; border-width: 1px 0px; font-size: 90%">
                                     <a :id="`${word.word}-docs`"
-                                        style="display:inline-block; cursor: pointer; color: #55acee">{{
-                                            word.word }}</a>
+                                        class="word-link">{{ word.word }}</a>
                                     <word-link :target="`${word.word}-docs`" :word="word.word"></word-link>
-                                    <b-badge variant="secondary" pill class="float-right">
-                                        {{
-                                            word.weight.toFixed(4)
-                                        }}
-                                    </b-badge>
-                                </b-list-group-item>
-                            </b-list-group>
-                        </b-card>
-                    </b-col>
-                </b-row>
+                                    <span class="badge rounded-pill bg-secondary float-end">
+                                        {{ word.weight.toFixed(4) }}
+                                    </span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="col-5">
-                <b-card no-body class="shadow-sm" :header="`Top ${documents.length} documents by relevance`">
-                    <b-list-group flush>
-                        <b-list-group-item v-for="doc in documents" :key="doc.doc_id" class="list-group-item"
+                <div class="card shadow-sm">
+                    <div class="card-header">Top {{ documents.length }} documents by relevance</div>
+                    <ul class="list-group list-group-flush">
+                        <li v-for="doc in documents" :key="doc.doc_id" class="list-group-item"
                             style="border-radius: 0px; border-width: 1px 0px; font-size: 90%">
-                            <citations :doc="doc" :id="`${doc.doc_id}`" :philo-db="`${doc.metadata.philo_db}`">
-                            </citations>
-                            <b-badge variant="secondary" pill class="float-right">{{ doc.score.toFixed(2) }}</b-badge>
-                        </b-list-group-item>
-                    </b-list-group>
-                </b-card>
+                            <citations :doc="doc" :id="`${doc.doc_id}`" :philo-db="`${doc.metadata.philo_db}`"></citations>
+                            <span class="badge rounded-pill bg-secondary float-end">{{ doc.score.toFixed(2) }}</span>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </div>
-    </b-container>
+    </div>
 </template>
 <script>
 import topicData from "../../topic_words.json";
-import Citations from "./Citations";
-import WordLink from "./WordLink";
+import Citations from "./Citations.vue";
+import WordLink from "./WordLink.vue";
+import SortableTable from "./SortableTable.vue";
 
 export default {
     name: "Word",
-    components: { Citations, WordLink },
+    components: { Citations, WordLink, SortableTable },
     data() {
         return {
             word: "",
@@ -183,3 +178,13 @@ export default {
     }
 };
 </script>
+
+<style scoped lang="scss">
+@use "../assets/styles/theme.module.scss" as theme;
+
+.word-link {
+    display: inline-block;
+    cursor: pointer;
+    color: theme.$link-color;
+}
+</style>

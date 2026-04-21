@@ -1,46 +1,37 @@
-import Vue from "vue"
+import { createApp } from "vue"
 import App from "./App.vue"
-import router from "./router"
-import BootstrapVue from "bootstrap-vue"
-import "bootstrap/dist/css/bootstrap.css"
-import "bootstrap-vue/dist/bootstrap-vue.css"
+import router from "./router/index.js"
 import axios from "axios"
-import VueApexCharts from "vue-apexcharts"
-import modelConfig from "!raw-loader!../model_config.ini"
+import VueApexCharts from "vue3-apexcharts"
+
+import "bootstrap/dist/css/bootstrap.css"
+import "bootstrap"
 
 import globalConfig from "../appConfig.json"
+import modelConfigRaw from "../model_config.ini?raw"
 
-Vue.config.productionTip = false
-Vue.use(BootstrapVue)
+const app = createApp(App)
 
-Vue.use(VueApexCharts)
-Vue.component("apexchart", VueApexCharts)
+app.use(router)
+app.component("apexchart", VueApexCharts)
 
-Vue.prototype.$http = axios
-Vue.prototype.$globalConfig = globalConfig
-Vue.prototype.$modelConfig = parseModelConfig()
+app.config.globalProperties.$http = axios
+app.config.globalProperties.$globalConfig = globalConfig
+app.config.globalProperties.$modelConfig = parseModelConfig(modelConfigRaw)
 
-new Vue({
-    el: "#app",
-    router,
-    template: "<App/>",
-    components: {
-        App
-    },
-    render: h => h(App)
-})
+app.mount("#app")
 
-function parseModelConfig() {
-    var regex = {
+function parseModelConfig(raw) {
+    const regex = {
         section: /^\s*\[\s*([^\]]*)\s*\]\s*$/,
         param: /^\s*([^=]+?)\s*=\s*(.*?)\s*$/,
         comment: /^\s*;.*$/
     }
-    var value = {}
-    var lines = modelConfig.split(/[\r\n]+/)
-    var section = null
-    var match
-    lines.forEach(function(line) {
+    const value = {}
+    const lines = raw.split(/[\r\n]+/)
+    let section = null
+    let match
+    lines.forEach((line) => {
         if (regex.comment.test(line)) {
             return
         } else if (regex.param.test(line)) {
@@ -54,7 +45,7 @@ function parseModelConfig() {
             match = line.match(regex.section)
             value[match[1]] = {}
             section = match[1]
-        } else if (line.length == 0 && section) {
+        } else if (line.length === 0 && section) {
             section = null
         }
     })

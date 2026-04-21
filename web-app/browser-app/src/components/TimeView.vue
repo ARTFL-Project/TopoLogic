@@ -1,13 +1,15 @@
 <template>
-    <b-container fluid>
-        <b-card v-if="!timeSeriesEnabled" no-body header="Evolution of all topics over time">
+    <div class="container-fluid">
+        <div v-if="!timeSeriesEnabled" class="card">
+            <div class="card-header">Evolution of all topics over time</div>
             <div class="p-4 text-center text-muted">
                 Time-series view is unavailable for this corpus because no year metadata was found.
             </div>
-        </b-card>
-        <b-card v-else no-body header="Evolution of all topics over time">
-            <b-row class="p-2">
-                <b-col cols="4">
+        </div>
+        <div v-else class="card">
+            <div class="card-header">Evolution of all topics over time</div>
+            <div class="row p-2">
+                <div class="col-4">
                     <div class="mb-2">
                         <span
                             class="btn btn-sm btn-outline-danger"
@@ -28,8 +30,8 @@
                         ></span>
                         Topic {{ topic.name }}: {{ topic.description }}
                     </div>
-                </b-col>
-                <b-col cols="8">
+                </div>
+                <div class="col-8">
                     <apexchart
                         ref="timeChart"
                         width="100%"
@@ -37,10 +39,10 @@
                         :series="series"
                         :options="options"
                     ></apexchart>
-                </b-col>
-            </b-row>
-        </b-card>
-    </b-container>
+                </div>
+            </div>
+        </div>
+    </div>
 </template>
 <script>
 import topicData from "../../topic_words.json";
@@ -63,6 +65,7 @@ export default {
                         show: false
                     }
                 },
+                dataLabels: { enabled: false },
                 yaxis: {
                     labels: {
                         formatter: val => val.toFixed(3)

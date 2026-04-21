@@ -1,32 +1,63 @@
 <template>
     <div id="app">
-        <b-navbar toggleable="lg" type="light" class="shadow-sm mb-4">
-            <b-navbar-brand class="navbar-brand" to="/">TopoLogic</b-navbar-brand>
-            <b-navbar-toggle target="nav-collapse"></b-navbar-toggle>
-            <b-collapse class="mr-auto" id="nav-collapse" is-nav>
-                <b-navbar-nav>
-                    <b-nav-item-dropdown text="Navigate Topics" id="vocab-list">
-                        <b-dropdown-item v-for="topic in topicData" :key="topic.name" :to="`/topic/${topic.name}`"
-                            class="pt-1 pb-1">Topic {{ topic.name }}: {{ topic.description }}</b-dropdown-item>
-                    </b-nav-item-dropdown>
-                    <b-nav-item to="/view/word">Vocabulary</b-nav-item>
-                    <b-nav-item v-for="field in metadataDistributions" :key="field.field"
-                        :to="`/view/${field.field}?filter=${field.filterFrequency}`">Topics in {{ field.label
-                        }}s</b-nav-item>
-                    <b-nav-item v-if="timeSeriesEnabled" to="/time">Topics across Time</b-nav-item>
-                </b-navbar-nav>
-                <b-navbar-nav class="ml-auto">
-                    <b-nav-form @submit.stop.prevent="searchVocab()">
-                        <b-input-group size="sm">
-                            <b-form-input placeholder="Search for tokens" v-model="wordSelected"></b-form-input>
-                            <b-input-group-append>
-                                <b-button @click="searchVocab()">Search</b-button>
-                            </b-input-group-append>
-                        </b-input-group>
-                    </b-nav-form>
-                </b-navbar-nav>
-            </b-collapse>
-        </b-navbar>
+        <nav class="navbar navbar-expand-lg navbar-light bg-light shadow-sm mb-4">
+            <div class="container-fluid">
+                <router-link class="navbar-brand" to="/">TopoLogic</router-link>
+                <button
+                    class="navbar-toggler"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#nav-collapse"
+                    aria-controls="nav-collapse"
+                    aria-expanded="false"
+                    aria-label="Toggle navigation"
+                >
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="nav-collapse">
+                    <ul class="navbar-nav me-auto">
+                        <li class="nav-item dropdown" id="vocab-list">
+                            <a
+                                class="nav-link dropdown-toggle"
+                                href="#"
+                                role="button"
+                                data-bs-toggle="dropdown"
+                                aria-expanded="false"
+                            >Navigate Topics</a>
+                            <ul class="dropdown-menu">
+                                <li v-for="topic in topicData" :key="topic.name">
+                                    <router-link class="dropdown-item" :to="`/topic/${topic.name}`">
+                                        Topic {{ topic.name }}: {{ topic.description }}
+                                    </router-link>
+                                </li>
+                            </ul>
+                        </li>
+                        <li class="nav-item">
+                            <router-link class="nav-link" to="/view/word">Vocabulary</router-link>
+                        </li>
+                        <li class="nav-item" v-for="field in metadataDistributions" :key="field.field">
+                            <router-link class="nav-link" :to="`/view/${field.field}?filter=${field.filterFrequency}`">
+                                Topics in {{ field.label }}s
+                            </router-link>
+                        </li>
+                        <li class="nav-item" v-if="timeSeriesEnabled">
+                            <router-link class="nav-link" to="/time">Topics across Time</router-link>
+                        </li>
+                    </ul>
+                    <form class="d-flex ms-auto" @submit.stop.prevent="searchVocab()">
+                        <div class="input-group input-group-sm">
+                            <input
+                                class="form-control"
+                                type="text"
+                                placeholder="Search for tokens"
+                                v-model="wordSelected"
+                            >
+                            <button class="btn btn-outline-secondary" type="submit">Search</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </nav>
         <model-statistics v-if="$route.name == 'home'"></model-statistics>
         <topic-distributions v-if="$route.name == 'home'"></topic-distributions>
         <router-view></router-view>
@@ -35,8 +66,8 @@
 
 <script>
 import topics from "../topic_words.json";
-import ModelStatistics from "./components/ModelStatistics";
-import TopicDistributions from "./components/TopicDistributions";
+import ModelStatistics from "./components/ModelStatistics.vue";
+import TopicDistributions from "./components/TopicDistributions.vue";
 
 export default {
     name: "app",
@@ -47,40 +78,73 @@ export default {
             topicIds: [],
             metadataDistributions: this.$globalConfig.metadataDistributions,
             timeSeriesEnabled: this.$globalConfig.timeSeriesConfig.enabled !== false,
-            wordSelected: ""
+            wordSelected: "",
         };
-    },
-    created() {
-        console.log(this.$route);
     },
     methods: {
         searchVocab() {
             this.$router.push(`/word/${this.wordSelected}`);
             this.wordSelected = "";
         },
-    }
+    },
 };
 </script>
 
-<style>
+<style lang="scss">
+@use "./assets/styles/theme.module.scss" as theme;
+
+// Lift every navbar dropdown off the page with a soft shadow.
+.dropdown-menu {
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.18);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
 #vocab-list .dropdown-menu {
-    overflow: scroll;
+    overflow-y: auto;
     max-height: 440px;
+    padding: 0 !important;   // Bootstrap's default 0.5rem top/bottom leaves blank strips
+
+    // Themed scrollbar (shows when scrolling on macOS, always on Win/Linux).
+    scrollbar-width: thin;
+    scrollbar-color: theme.$link-color rgba(theme.$link-color, 0.12);
+    &::-webkit-scrollbar {
+        width: 10px;
+    }
+    &::-webkit-scrollbar-track {
+        background-color: rgba(theme.$link-color, 0.12);
+    }
+    &::-webkit-scrollbar-thumb {
+        background-color: theme.$link-color;
+        border-radius: 5px;
+    }
 }
 
-a:link {
-    color: #55acee;
+
+a {
+    text-decoration: none !important;
+    transition: all 0.2s ease;
+    border-radius: 2px;
 }
 
-a:visited {
-    color: #55acee;
+// Slightly larger numeric values for accessibility (scores, percentages).
+.frequency-value {
+    font-weight: 600;
+}
+.badge.rounded-pill {
+    font-size: 0.85rem !important;
+    padding: 0.4em 0.65em !important;
 }
 
-a:hover {
-    color: #000;
+// Kill the default Bootstrap table bottom-margin when the table is the
+// last child of a card — the margin renders as an empty trailing row.
+.card > .table:last-child,
+.card > div > .table:last-child {
+    margin-bottom: 0;
 }
 
-a:active {
-    color: #55acee;
+a:hover,
+a:focus {
+    background-color: rgba(theme.$link-color, 0.08);
+    box-shadow: 0 0 0 3px rgba(theme.$link-color, 0.1);
 }
 </style>

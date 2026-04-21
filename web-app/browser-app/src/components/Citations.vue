@@ -54,18 +54,19 @@ export default {
     }
 };
 </script>
-<style scoped>
+<style scoped lang="scss">
+@use "../assets/styles/theme.module.scss" as theme;
+
 .separator {
     display: inline-block;
     margin: 0 0.25rem;
     font-style: italic;
 }
 a:not([href]) {
-    color: #55acee;
+    color: theme.$link-color;
     cursor: pointer;
 }
 a:not([href]):hover {
-    color: #55acee;
-    text-decoration: underline;
+    color: theme.$link-color;
 }
 </style>

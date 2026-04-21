@@ -1,20 +1,21 @@
 <template>
     <div class="container-fluid">
         <div class="d-flex justify-content-center" style="margin-top: 200px" v-if="loading">
-            <b-spinner style="width: 10rem; height: 10rem;" label="Loading..."></b-spinner>
+            <div class="spinner-border" style="width: 10rem; height: 10rem;" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
         </div>
         <h5 class="text-center mt-4 mb-4" v-if="!loading">{{ header }}</h5>
         <div class="row">
             <div class="col-6" v-for="(halfGroup, halfIndex) in fieldValues" :key="halfIndex">
-                <b-card
-                    no-body
-                    :header="group.firstLetter"
+                <div
+                    class="card mb-4 shadow-sm"
                     v-for="(group, index) in halfGroup"
                     :key="index"
-                    class="mb-4 shadow-sm"
                 >
-                    <b-list-group flush>
-                        <b-list-group-item
+                    <div class="card-header">{{ group.firstLetter }}</div>
+                    <ul class="list-group list-group-flush">
+                        <li
                             class="list-group-item"
                             style="padding: .5rem 1rem"
                             v-for="(value, valueIndex) in group.fields"
@@ -28,9 +29,9 @@
                                 :to="`/metadata/${fieldName}/${value}`"
                                 v-if="fieldName != 'word'"
                             >{{ value }}</router-link>
-                        </b-list-group-item>
-                    </b-list-group>
-                </b-card>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>

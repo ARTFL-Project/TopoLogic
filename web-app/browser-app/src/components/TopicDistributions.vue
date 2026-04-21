@@ -1,12 +1,19 @@
 <template>
-    <b-container fluid class="mt-4">
-        <b-card no-body class="shadow-sm mb-4">
-            <h6 slot="header" class="mb-0 text-center">
-                Topics and their relative distribution in
-                <b>{{ fieldValue }}</b>
-            </h6>
-            <b-table hover :items="sortedTopicDistribution" :fields="fields" :sort-by.sync="sortBy"
-                :sort-desc.sync="sortDesc" @row-clicked="goToTopic">
+    <div class="container-fluid mt-4">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h6 class="mb-0 text-center">
+                    Topics and their relative distribution in
+                    <b>{{ fieldValue }}</b>
+                </h6>
+            </div>
+            <sortable-table
+                :items="sortedTopicDistribution"
+                :fields="fields"
+                :initial-sort-by="initialSortBy"
+                :initial-sort-desc="initialSortDesc"
+                @row-clicked="goToTopic"
+            >
                 <template v-slot:cell(name)="data">
                     <span class="frequency-parent">Topic {{ data.value }}</span>
                 </template>
@@ -14,19 +21,21 @@
                     <span class="frequency-parent">{{ data.value }}</span>
                 </template>
                 <template v-slot:cell(frequency)="data">
-                    <span class="frequency-value pl-2">{{ data.value }}%</span>
+                    <span class="frequency-value ps-2">{{ data.value }}%</span>
                     <span class="frequency-bar" :style="`width: ${data.value / 100 * frequencyMultiplier}%;`"></span>
                 </template>
-            </b-table>
-        </b-card>
-    </b-container>
+            </sortable-table>
+        </div>
+    </div>
 </template>
 
 <script>
 import topicData from "../../topic_words.json";
+import SortableTable from "./SortableTable.vue";
 
 export default {
     name: "topicDistributions",
+    components: { SortableTable },
     props: ["topics"],
     data() {
         return {
@@ -58,29 +67,11 @@ export default {
             }
             return fields;
         },
-        sortBy: {
-            get: function () {
-                if (this.$route.name == "home") {
-                    return "name";
-                } else {
-                    return "frequency";
-                }
-            },
-            set: value => {
-                return value;
-            }
+        initialSortBy() {
+            return this.$route.name === "home" ? "name" : "frequency";
         },
-        sortDesc: {
-            get: function () {
-                if (this.$route.name == "home") {
-                    return false;
-                } else {
-                    return true;
-                }
-            },
-            set: value => {
-                return value;
-            }
+        initialSortDesc() {
+            return this.$route.name !== "home";
         },
         frequencyMultiplier() {
             let maxFrequency = 0.0;
@@ -136,7 +127,9 @@ export default {
 };
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+@use "../assets/styles/theme.module.scss" as theme;
+
 .frequency-value {
     display: inline-block;
 }
@@ -148,11 +141,11 @@ export default {
     top: 0;
     padding: 0.75rem;
     height: 100%;
-    background-color: rgba(85, 172, 238, 0.4);
+    background-color: rgba(theme.$link-color, 0.3);
     background-clip: content-box;
 }
 
-/deep/ td {
+:deep(td) {
     cursor: pointer;
 }
 </style>

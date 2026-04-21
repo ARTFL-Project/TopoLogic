@@ -55,9 +55,10 @@ fi
 
 cp -R api /var/lib/topologic/
 rm -rf /var/lib/topologic/web-app
-cp -Rf web-app /var/lib/topologic
-sudo rm -rf /var/lib/topologic/web_app/node_modules
-sudo rm -rf /var/lib/topologic/web_app/dist
+# Copy everything except node_modules and the pre-built dist; the dist is
+# regenerated per-deployment by the topologic CLI (which writes appConfig.json
+# and then runs `npm install && npm run build` in the target directory).
+rsync -a --exclude node_modules --exclude dist web-app/ /var/lib/topologic/web-app/
 rm -rf /var/lib/topologic/config
 cp -Rf config /var/lib/topologic
 echo -e "\n## IMPORTANT ##\nTopoLogic runs behind the Gunicorn web server. Make sure you configure the Gunicorn config file in /var/lib/topologic/api_server/gunicorn.conf.py. You should also make sure it autostarts on boot.\n"
