@@ -8,8 +8,15 @@ from math import log
 
 import numpy as np
 import psycopg2
-from psycopg2 import sql
+from psycopg2 import sql, extensions as psycopg2_extensions
 from psycopg2.extras import RealDictCursor
+
+# psycopg2 doesn't know how to adapt numpy scalars; in numpy 2.0 their repr
+# became "np.float64(x)" rather than "x", producing malformed SQL.
+psycopg2_extensions.register_adapter(np.int64, lambda v: psycopg2_extensions.AsIs(int(v)))
+psycopg2_extensions.register_adapter(np.int32, lambda v: psycopg2_extensions.AsIs(int(v)))
+psycopg2_extensions.register_adapter(np.float64, lambda v: psycopg2_extensions.AsIs(float(v)))
+psycopg2_extensions.register_adapter(np.float32, lambda v: psycopg2_extensions.AsIs(float(v)))
 from multiprocess import Pool, cpu_count
 from sklearn.metrics import pairwise_distances
 from sklearn.metrics.pairwise import cosine_similarity
@@ -434,6 +441,18 @@ class DBSearch:
             (doc_id,),
         )
         return self.cursor.fetchone()
+
+    def get_metadata_batch(self, doc_ids, metadata_fields):
+        if not doc_ids:
+            return {}
+        for f in metadata_fields:
+            self._validate_field(f)
+        fields = sql.SQL(", ").join(sql.Identifier(f) for f in ["doc_id", *metadata_fields])
+        self.cursor.execute(
+            sql.SQL("SELECT {} FROM {} WHERE doc_id = ANY(%s)").format(fields, self._docs_table),
+            (list(doc_ids),),
+        )
+        return {row["doc_id"]: row for row in self.cursor.fetchall()}
 
     def get_doc_ids_by_metadata(self, field, value, end_value=None):
         self._validate_field(field)

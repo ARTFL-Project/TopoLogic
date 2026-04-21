@@ -199,28 +199,25 @@ export default {
         },
         selectTopic(topic) {
             if (this.seriesActive.includes(topic)) {
-                for (let i = 0; i < this.series.length; i += 1) {
-                    if (topic == this.series[i].name) {
-                        this.series[i].data = [];
-                    }
-                }
+                const idx = this.series.findIndex(s => s.name === topic);
+                if (idx !== -1) this.series.splice(idx, 1);
                 this.seriesActive.splice(this.seriesActive.indexOf(topic), 1);
-                this.series.splice(this.series.indexOf(topic), 1);
                 let el = document.getElementById(`topic-${topic}`);
                 el.style.backgroundColor = "#fff";
                 el.parentNode.style.color = "rgba(0, 0, 0, .35)";
             } else {
-                let localSeries = JSON.parse(JSON.stringify(this.series));
-                localSeries[topic] = {
-                    name: topic,
-                    data: this.topicsOverTime[topic].topic_evolution.data.slice(
-                        this.startIndex,
-                        this.endIndex
-                    )
-                };
-                this.series = localSeries;
+                this.series = [
+                    ...this.series,
+                    {
+                        name: topic,
+                        data: this.topicsOverTime[topic].topic_evolution.data.slice(
+                            this.startIndex,
+                            this.endIndex
+                        )
+                    }
+                ];
                 this.seriesActive.push(topic);
-                this.highlightTopic(topic, topic, this.series.length);
+                this.highlightTopic(topic, this.series.length - 1);
                 let el = document.getElementById(`topic-${topic}`);
                 el.parentNode.style.color = "inherit";
             }

@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# HuggingFace tokenizers warns noisily when the parent process has used
+# tokenizer parallelism before forking (which multiprocess/joblib do).
+# Disable up front; the model already uses spaCy/torch for batching.
+export TOKENIZERS_PARALLELISM=false
+
 source /var/lib/topologic/lib/.venv/bin/activate
 python -m topologic "$@"
 deactivate

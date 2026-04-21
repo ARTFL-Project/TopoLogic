@@ -5,7 +5,7 @@ description = "Yet Another Topic Modeling Browser, tied to PhiloLogic"
 authors = [
     { name = "The ARTFL Project", email = "clovisgladstone@gmail.com" },
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "scikit-learn",
     "pandas",
@@ -24,10 +24,19 @@ dependencies = [
     "multiprocess",
     "text_preprocessing",
     "philologic>=4.7.4.4",
+    "torch",
+    "spacy-transformers",
+    "cupy-cuda12x",
 ]
 
 [tool.uv.sources]
-text_preprocessing = { git = "https://github.com/ARTFL-Project/text-preprocessing", tag = "v1.1" }
+text_preprocessing = { git = "https://github.com/ARTFL-Project/text-preprocessing", tag = "v1.1.2" }
+torch = { index = "pytorch-cu124" }
+
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true
 
 [build-system]
 requires = ["setuptools>=61"]

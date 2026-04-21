@@ -197,14 +197,16 @@ def get_doc_data(table, philo_db, philo_id):
         weighted_word_list = [(w[0], w[1] / 10, w[2], color_codes[w[1]]) for w in adjusted_word_list]
         weighted_word_list.sort(key=lambda x: x[0])
 
-        topic_similarity = []
-        for doc_id, score in doc_data["topic_similarity"]:
-            doc_metadata = db.get_metadata(doc_id, config["metadata_fields"])
-            topic_similarity.append({"doc_id": doc_id, "metadata": doc_metadata, "score": score})
-        vector_similarity = []
-        for doc_id, score in doc_data["vector_similarity"]:
-            doc_metadata = db.get_metadata(doc_id, config["metadata_fields"])
-            vector_similarity.append({"doc_id": doc_id, "metadata": doc_metadata, "score": score})
+        all_ids = [d for d, _ in doc_data["topic_similarity"]] + [d for d, _ in doc_data["vector_similarity"]]
+        metadata_map = db.get_metadata_batch(all_ids, config["metadata_fields"])
+        topic_similarity = [
+            {"doc_id": doc_id, "metadata": metadata_map.get(doc_id), "score": score}
+            for doc_id, score in doc_data["topic_similarity"]
+        ]
+        vector_similarity = [
+            {"doc_id": doc_id, "metadata": metadata_map.get(doc_id), "score": score}
+            for doc_id, score in doc_data["vector_similarity"]
+        ]
 
         metadata = {field: doc_data[field] for field in config["metadata_fields"]}
 
