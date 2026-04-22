@@ -484,9 +484,13 @@ def build_web_app(
     # Storage is always 1-year buckets; re-bucketing to any display interval
     # happens at query time so the UI can toggle it live.
     storage_interval = 1
+    # DuckDB file lives inside each model's webapp dir — one file per model,
+    # fully portable with the rest of the deployment.
+    db_file = os.path.join(db_path, "model.duckdb")
+    if os.path.exists(db_file):
+        os.remove(db_file)
     with DBHandler.set_class_attributes(
-        GLOBAL_CONFIG["DATABASE"],
-        database_name,
+        db_file,
         topic_model,
         full_corpus,
         min_year,

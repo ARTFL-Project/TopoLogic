@@ -15,7 +15,6 @@ from fastapi import HTTPException
 
 global_config = configparser.ConfigParser()
 global_config.read("/etc/topologic/global_settings.ini")
-DATABASE = global_config["DATABASE"]
 APP_PATH = os.path.realpath(global_config["WEB_APP"]["web_app_path"])
 
 TAGS = re.compile(r"<[^>]+>")
@@ -28,6 +27,11 @@ def _safe_path(*components):
     if not path.startswith(APP_PATH + os.sep) and path != APP_PATH:
         raise HTTPException(status_code=400, detail="Invalid path")
     return path
+
+
+def _db_path(table_name):
+    """Resolve the DuckDB file for a given model."""
+    return _safe_path(table_name, "model.duckdb")
 
 # FastAPI application server
 app = FastAPI()
@@ -161,7 +165,7 @@ def get_topic_data(
     direction: str = "positive",
 ):
     config = read_model_config(table)
-    with DBSearch(DATABASE, table, config["object_level"]) as db:
+    with DBSearch(_db_path(table), config["object_level"]) as db:
         topic_data = db.get_topic_data(
             int(topic_id),
             config["metadata_fields"],
@@ -174,7 +178,7 @@ def get_topic_data(
 @app.get("/get_docs_in_topic_by_year/{table}/{topic_id}/{year}")
 def get_docs_in_topic_by_year(table, topic_id, year, interval: int = 1):
     config = read_model_config(table)
-    with DBSearch(DATABASE, table, config["object_level"]) as db:
+    with DBSearch(_db_path(table), config["object_level"]) as db:
         documents = db.get_topic_data_by_year(
             int(topic_id), year, interval, config["metadata_fields"], 50,
         )
@@ -184,7 +188,7 @@ def get_docs_in_topic_by_year(table, topic_id, year, interval: int = 1):
 @app.get("/get_doc_data/{table}/{philo_db}")
 def get_doc_data(table, philo_db, philo_id):
     config = read_model_config(table)
-    with DBSearch(DATABASE, table, config["object_level"][philo_db]) as db:
+    with DBSearch(_db_path(table), config["object_level"][philo_db]) as db:
         doc_data = db.get_doc_data(philo_id, philo_db)
         if doc_data is None:
             return {
@@ -255,7 +259,7 @@ def get_doc_data(table, philo_db, philo_id):
 @app.get("/get_word_data/{table}/{word}")
 def get_word_data(table, word, word_limit=20):
     config = read_model_config(table)
-    with DBSearch(DATABASE, table, config["object_level"]) as db:
+    with DBSearch(_db_path(table), config["object_level"]) as db:
         word_data = db.get_word_data(word)
         if word_data is None:
             return {
@@ -286,7 +290,7 @@ def get_word_data(table, word, word_limit=20):
 @app.get("/get_all_field_values/{table}")
 def get_all_field_values(table, field: str, filter: int = None):
     config = read_model_config(table)
-    with DBSearch(DATABASE, table, config["object_level"]) as db:
+    with DBSearch(_db_path(table), config["object_level"]) as db:
         if field == "word":
             field_values = db.get_vocabulary()
         else:
@@ -297,7 +301,7 @@ def get_all_field_values(table, field: str, filter: int = None):
 @app.get("/get_field_distribution/{table}/{field}")
 def get_field_distribution(table, field, value: str):
     config = read_model_config(table)
-    with DBSearch(DATABASE, table, config["object_level"]) as db:
+    with DBSearch(_db_path(table), config["object_level"]) as db:
         topic_distribution = db.get_topic_distribution_by_metadata(field, value)
         return {"topic_distribution": topic_distribution}
 
@@ -305,6 +309,6 @@ def get_field_distribution(table, field, value: str):
 @app.get("/get_time_distributions/{table}/")
 def get_time_distributions(table):
     config = read_model_config(table)
-    with DBSearch(DATABASE, table, config["object_level"]) as db:
+    with DBSearch(_db_path(table), config["object_level"]) as db:
         distributions_over_time = db.get_topic_distributions_over_time()
         return {"distributions_over_time": distributions_over_time}

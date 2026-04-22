@@ -13,12 +13,11 @@ Note that the docker container will come with PhiloLogic 4.7 pre-installed. You 
 - Just run `docker build -t topologic .` to build the image
 - Then run `docker run -td --name topologic topologic init_topologic` to initialize the container. You may want to specify ports for web passthrough (e.g. `-p 8080:80` to map port 8080 on the host to port 80 on the container)
 - Once the container is running, enter the container with `docker exec -it topologic bash`.
-- Note that if you need to install SpaCy models, you will need to enter the topologic virtual environment like so: `source /var/lib/topologic/lib/.venv/bin/activate`
+- Note that if you need to install SpaCy models, you will need to enter the topologic virtual environment like so: `source /var/lib/topologic/topologic_env/bin/activate`
 
 
 ### Manual installation
--   PostgreSQL will need to be installed. You will need to create a database with associated user with read and write permissions.
--   You will need to edit the /etc/topologic/global_settings.ini file with the database information and web configuration.
+-   You will need to edit the /etc/topologic/global_settings.ini file with the web configuration (no database server to configure — storage is a per-model DuckDB file under the web app directory).
 -   You will need a running instance of <a href="https://github.com/ARTFL-Project/PhiloLogic4">PhiloLogic4</a> with the collections to be processed already loaded.
 -   Run the install.sh script (it will install [uv](https://docs.astral.sh/uv/getting-started/installation/) automatically if it isn't already on your system; uv then manages Python 3.12 and the project virtual environment)
 -   If you OS uses systemd for start-up services, you will want to use the topologic.service file (template for Ubuntu provided as an example) located in api_server/topologic.service to start-up the API server needed to run Topologic

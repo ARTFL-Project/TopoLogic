@@ -1,22 +1,23 @@
 #!/usr/bin/env python3
 
+"""DuckDB-backed storage for a single trained topic model.
+
+Each deployed model has its own `.duckdb` file (typically alongside the
+model's webapp directory). Tables live at well-known names inside the file
+(`words`, `docs`, `topics`); no shared database server, no permission setup.
+
+`DBHandler` is the write-side class used during training.
+`DBSearch`   is the read-side class used by the API at query time.
+"""
+
 import json
 import re
 from collections import Counter
 from itertools import repeat
 from math import log
 
+import duckdb
 import numpy as np
-import psycopg2
-from psycopg2 import sql, extensions as psycopg2_extensions
-from psycopg2.extras import RealDictCursor
-
-# psycopg2 doesn't know how to adapt numpy scalars; in numpy 2.0 their repr
-# became "np.float64(x)" rather than "x", producing malformed SQL.
-psycopg2_extensions.register_adapter(np.int64, lambda v: psycopg2_extensions.AsIs(int(v)))
-psycopg2_extensions.register_adapter(np.int32, lambda v: psycopg2_extensions.AsIs(int(v)))
-psycopg2_extensions.register_adapter(np.float64, lambda v: psycopg2_extensions.AsIs(float(v)))
-psycopg2_extensions.register_adapter(np.float32, lambda v: psycopg2_extensions.AsIs(float(v)))
 from multiprocess import Pool, cpu_count
 from sklearn.metrics import pairwise_distances
 from topologic import year_normalizer
@@ -24,11 +25,52 @@ from tqdm import tqdm, trange
 
 VALID_IDENTIFIER_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 
+# Columns stored as JSON — we json.loads them when wrapping rows as dicts.
+_JSON_COLUMNS = {
+    "docs",
+    "topic_evolution",
+    "topic_distribution",
+    "topic_similarity",
+    "vector_similarity",
+    "word_list",
+    "word_distribution",
+    "distribution_across_topics",
+    "similar_words_by_topic",
+    "similar_words_by_cooc",
+}
+
 
 def _check_identifier(name):
     """Validate that a name is safe to use as a SQL identifier."""
     if not VALID_IDENTIFIER_RE.match(name):
         raise ValueError(f"Invalid SQL identifier: {name!r}")
+
+
+def _row_to_dict(cursor, row):
+    if row is None:
+        return None
+    cols = [d[0] for d in cursor.description]
+    out = {}
+    for col, val in zip(cols, row):
+        if col in _JSON_COLUMNS and isinstance(val, str):
+            out[col] = json.loads(val)
+        else:
+            out[col] = val
+    return out
+
+
+def _rows_to_dicts(cursor, rows):
+    cols = [d[0] for d in cursor.description]
+    results = []
+    for row in rows:
+        result = {}
+        for col, val in zip(cols, row):
+            if col in _JSON_COLUMNS and isinstance(val, str):
+                result[col] = json.loads(val)
+            else:
+                result[col] = val
+        results.append(result)
+    return results
 
 
 def _smooth(series, window):
@@ -102,16 +144,17 @@ def _rebucket(evolution, interval_years):
         bucket_start = bucket_end
     return {"labels": buckets_labels, "data": buckets_data}
 
+
 OBJECT_LEVELS = {"doc": 1, "div1": 2, "div2": 3, "para": 4, "sent": 5}
 
 
 class DBHandler:
+    """Write-side connection used during training."""
 
     db = None
-    cursor = None
     model = None
     metadata = None
-    table = None
+    db_path = None
     docs_per_year = None
     field_names = None
     time_series_enabled = True
@@ -123,18 +166,17 @@ class DBHandler:
         return self
 
     def __exit__(self, exc_type, *args):
-        if exc_type is not None:
-            cls = type(self)
-            cls.db.rollback()
-        if type(self).db is not None:
-            type(self).cursor.close()
-            type(self).db.close()
+        cls = type(self)
+        if cls.db is not None:
+            if exc_type is None:
+                cls.db.commit()
+            cls.db.close()
+            cls.db = None
 
     @classmethod
     def set_class_attributes(
         cls,
-        config,
-        table,
+        db_path,
         model,
         corpus,
         min_year,
@@ -142,19 +184,18 @@ class DBHandler:
         topics_over_time_interval,
         time_series_enabled=True,
     ):
-        cls.db = psycopg2.connect(
-            user=config["database_user"],
-            password=config["database_password"],
-            database=config["database_name"],
-        )
-        cls.cursor = cls.db.cursor()
+        cls.db = duckdb.connect(db_path)
+        cls.db_path = db_path
         cls.model = model
         cls.metadata = corpus.metadata
         field_names = set()
         for doc_metadata in cls.metadata.values():
             field_names.update(doc_metadata.keys())
+        # Validate early so an invalid field name fails the training run, not
+        # some later SQL execution.
+        for f in field_names:
+            _check_identifier(f)
         cls.field_names = list(field_names)
-        cls.table = table
         cls.time_series_enabled = time_series_enabled
         if not time_series_enabled:
             cls.year_label_map = {}
@@ -178,10 +219,11 @@ class DBHandler:
 
     @classmethod
     def save_words(cls):
-        words_table = sql.Identifier(f"{cls.table}_words")
-        cls.cursor.execute(sql.SQL("DROP TABLE IF EXISTS {}").format(words_table))
-        cls.cursor.execute(
-            sql.SQL("CREATE TABLE {}(word_id INTEGER, word TEXT, distribution_across_topics JSONB, docs JSONB, similar_words_by_topic JSONB, similar_words_by_cooc JSONB)").format(words_table)
+        cls.db.execute("DROP TABLE IF EXISTS words")
+        cls.db.execute(
+            "CREATE TABLE words(word_id INTEGER, word VARCHAR, "
+            "distribution_across_topics JSON, docs JSON, "
+            "similar_words_by_topic JSON, similar_words_by_cooc JSON)"
         )
 
         # Compute word similarity based on topic distributions
@@ -231,79 +273,68 @@ class DBHandler:
             weights = []
             for i in range(len(word_distribution)):
                 topics.append(i)
-                weights.append(word_distribution[i])
+                weights.append(float(word_distribution[i]))
 
-            similar_words_topic_array = 1.0 - word_similarities_by_topic[word_id]  # convert distance to similarity
-            similar_words_by_topic = []
-            for other_word in np.argsort(similar_words_topic_array)[::-1]:
-                similar_words_by_topic.append(
-                    {
-                        "word": cls.model.corpus.feature_names[other_word],
-                        "weight": similar_words_topic_array[other_word],
-                    }
-                )
+            similar_words_topic_array = 1.0 - word_similarities_by_topic[word_id]
+            similar_words_by_topic = [
+                {"word": cls.model.corpus.feature_names[other_word],
+                 "weight": float(similar_words_topic_array[other_word])}
+                for other_word in np.argsort(similar_words_topic_array)[::-1]
+            ]
 
-            similar_words_cooc_array = 1.0 - word_similarities_by_cooc[word_id]  # convert distance to similarity
-            similar_words_by_cooc = []
-            for other_word in np.argsort(similar_words_cooc_array)[::-1]:
-                similar_words_by_cooc.append(
-                    {
-                        "word": cls.model.corpus.feature_names[other_word],
-                        "weight": similar_words_cooc_array[other_word],
-                    }
-                )
+            similar_words_cooc_array = 1.0 - word_similarities_by_cooc[word_id]
+            similar_words_by_cooc = [
+                {"word": cls.model.corpus.feature_names[other_word],
+                 "weight": float(similar_words_cooc_array[other_word])}
+                for other_word in np.argsort(similar_words_cooc_array)[::-1]
+            ]
 
-            cls.cursor.execute(
-                sql.SQL("INSERT INTO {} (word_id, word, distribution_across_topics, docs, similar_words_by_topic, similar_words_by_cooc) VALUES (%s, %s, %s, %s, %s, %s)").format(words_table),
-                (
+            cls.db.execute(
+                "INSERT INTO words (word_id, word, distribution_across_topics, docs, "
+                "similar_words_by_topic, similar_words_by_cooc) VALUES (?, ?, ?, ?, ?, ?)",
+                [
                     int(word_id),
                     word,
                     json.dumps({"labels": topics, "data": weights}),
                     json.dumps(sorted_docs),
                     json.dumps(similar_words_by_topic),
                     json.dumps(similar_words_by_cooc),
-                ),
+                ],
             )
-        cls.cursor.execute(sql.SQL("CREATE INDEX {} ON {} USING HASH(word_id)").format(
-            sql.Identifier(f"{cls.table}_word_id_index"), words_table
-        ))
-        cls.cursor.execute(sql.SQL("CREATE INDEX {} ON {} USING HASH(word)").format(
-            sql.Identifier(f"{cls.table}_word_index"), words_table
-        ))
-        cls.db.commit()
+        cls.db.execute("CREATE INDEX word_id_index ON words(word_id)")
+        cls.db.execute("CREATE INDEX word_index ON words(word)")
 
     @classmethod
     def save_docs(cls):
-        docs_table = sql.Identifier(f"{cls.table}_docs")
-        metadata_col_defs = sql.SQL(", ").join(
-            sql.SQL("{} INTEGER").format(sql.Identifier(f)) if f == "year"
-            else sql.SQL("{} TEXT").format(sql.Identifier(f))
+        metadata_col_defs = ", ".join(
+            f'"{f}" INTEGER' if f == "year" else f'"{f}" VARCHAR'
             for f in cls.field_names
         )
-        cls.cursor.execute(sql.SQL("DROP TABLE IF EXISTS {}").format(docs_table))
-        cls.cursor.execute(
-            sql.SQL("CREATE TABLE {}(doc_id INTEGER, topic_distribution JSONB, topic_similarity JSONB, vector_similarity JSONB, word_list JSONB, {})").format(
-                docs_table, metadata_col_defs
-            )
+        cls.db.execute("DROP TABLE IF EXISTS docs")
+        cls.db.execute(
+            "CREATE TABLE docs(doc_id INTEGER, topic_distribution JSON, "
+            "topic_similarity JSON, vector_similarity JSON, word_list JSON"
+            + (f", {metadata_col_defs}" if metadata_col_defs else "")
+            + ")"
         )
-        field_ids = sql.SQL(", ").join(sql.Identifier(f) for f in cls.field_names)
-        placeholders = sql.SQL(", ").join(sql.Placeholder() for _ in range(len(cls.field_names)))
-        insert_query = sql.SQL("INSERT INTO {} (doc_id, topic_distribution, topic_similarity, vector_similarity, word_list, {}) VALUES (%s, %s, %s, %s, %s, {})").format(
-            docs_table, field_ids, placeholders
+        field_ids = ", ".join(f'"{f}"' for f in cls.field_names)
+        placeholders = ", ".join("?" for _ in cls.field_names)
+        insert_query = (
+            "INSERT INTO docs (doc_id, topic_distribution, topic_similarity, "
+            "vector_similarity, word_list"
+            + (f", {field_ids}" if field_ids else "")
+            + ") VALUES (?, ?, ?, ?, ?"
+            + (f", {placeholders}" if placeholders else "")
+            + ")"
         )
         with tqdm(total=cls.model.corpus.size, leave=False, desc="Generating doc stats") as pbar:
             with Pool(cpu_count() - 1) as pool:
                 for values in pool.imap_unordered(cls.compute_doc, range(cls.model.corpus.size)):
-                    cls.cursor.execute(insert_query, values)
+                    cls.db.execute(insert_query, list(values))
                     pbar.update()
-        cls.cursor.execute(sql.SQL("CREATE INDEX {} ON {} USING HASH(doc_id)").format(
-            sql.Identifier(f"{cls.table}_doc_id_index"), docs_table
-        ))
+        cls.db.execute("CREATE INDEX doc_id_index ON docs(doc_id)")
         for field in cls.field_names:
-            cls.cursor.execute(sql.SQL("CREATE INDEX {} ON {} USING HASH({})").format(
-                sql.Identifier(f"{cls.table}_{field}_index"), docs_table, sql.Identifier(field)
-            ))
-        cls.db.commit()
+            cls.db.execute(f'CREATE INDEX "{field}_index" ON docs("{field}")')
 
     @classmethod
     def compute_doc(cls, doc_id):
@@ -312,10 +343,9 @@ class DBHandler:
         distribution = cls.model.topic_distribution_for_document(doc_id)
         for i in range(len(distribution)):
             topics.append(i)
-            weights.append(distribution[i])
+            weights.append(float(distribution[i]))
         topic_distribution = json.dumps({"labels": topics, "data": weights})
 
-        # Get similar docs
         topic_similarity = json.dumps(
             [
                 (int(another_doc), round(float(score), 3))
@@ -329,7 +359,6 @@ class DBHandler:
             ]
         )
 
-        # Get word_list
         vector = cls.model.corpus.sklearn_vector_space[doc_id].toarray()[0]
         non_zero = vector != 0
         word_list = json.dumps(
@@ -343,14 +372,13 @@ class DBHandler:
             ]
         )
 
-        # Get metadata values
         field_values = []
         for field in cls.field_names:
             try:
                 field_values.append(cls.metadata[doc_id][field])
             except KeyError:
                 field_values.append("")
-            if field == "year" and not field_values[-1]:  # in case the doc has no year
+            if field == "year" and not field_values[-1]:
                 field_values.pop()
                 field_values.append(0)
         values = tuple([doc_id, topic_distribution, topic_similarity, vector_similarity, word_list] + field_values)
@@ -359,10 +387,10 @@ class DBHandler:
     @classmethod
     def save_topics(cls, topic_words_path, start_date, end_date, year_interval, topic_labeling=None):
         topic_words = []
-        topics_table = sql.Identifier(f"{cls.table}_topics")
-        cls.cursor.execute(sql.SQL("DROP TABLE IF EXISTS {}").format(topics_table))
-        cls.cursor.execute(
-            sql.SQL("CREATE TABLE {}(topic_id INTEGER, word_distribution JSONB, topic_evolution JSONB, frequency FLOAT, docs JSONB)").format(topics_table)
+        cls.db.execute("DROP TABLE IF EXISTS topics")
+        cls.db.execute(
+            "CREATE TABLE topics(topic_id INTEGER, word_distribution JSON, "
+            "topic_evolution JSON, frequency DOUBLE, docs JSON)"
         )
         with tqdm(total=cls.model.nb_topics, leave=False, desc="Generating topic stats") as pbar:
             with Pool(cpu_count() - 1) as pool:
@@ -383,9 +411,10 @@ class DBHandler:
                         repeat(year_interval),
                     ),
                 ):
-                    cls.cursor.execute(
-                        sql.SQL("INSERT INTO {} (topic_id, word_distribution, topic_evolution, frequency, docs) VALUES (%s, %s, %s, %s, %s)").format(topics_table),
-                        (topic_id, word_distribution, topic_evolution, frequency, docs),
+                    cls.db.execute(
+                        "INSERT INTO topics (topic_id, word_distribution, topic_evolution, "
+                        "frequency, docs) VALUES (?, ?, ?, ?, ?)",
+                        [int(topic_id), word_distribution, topic_evolution, float(frequency), docs],
                     )
                     topic_words.append(
                         {
@@ -421,19 +450,14 @@ class DBHandler:
                     flush=True,
                 )
 
-        cls.cursor.execute(sql.SQL("CREATE INDEX {} ON {} USING HASH(topic_id)").format(
-            sql.Identifier(f"{cls.table}_topic_id_index"), topics_table
-        ))
-        cls.db.commit()
+        cls.db.execute("CREATE INDEX topic_id_index ON topics(topic_id)")
 
     @classmethod
     def compute_topic(cls, topic):
         topic_id, start_date, end_date, year_interval = topic
-        # Get word distributions
         words, weights = zip(*cls.model.top_words(topic_id, 50))
-        word_distribution = json.dumps({"labels": words, "data": weights})
+        word_distribution = json.dumps({"labels": list(words), "data": [float(w) for w in weights]})
 
-        # Compute topic evolution
         if start_date is None or end_date is None:
             topic_evolution = json.dumps({"labels": [], "data": []})
         else:
@@ -444,16 +468,13 @@ class DBHandler:
                     years[year] += (
                         float(cls.model.topic_distribution_for_document(doc_id)[topic_id]) / cls.docs_per_year[year]
                     )
-                except (KeyError, ValueError):  # account for various issues with year field
+                except (KeyError, ValueError):
                     pass
 
             dates, frequencies = zip(*list(years.items()))
-            # Round to kill float-accumulation artifacts like 0.6999999999999996
-            # that leak into chart axis labels.
             frequencies = [round(float(f), 2) for f in frequencies]
-            topic_evolution = json.dumps({"labels": dates, "data": frequencies})
+            topic_evolution = json.dumps({"labels": list(dates), "data": frequencies})
 
-        # Get top documents per topic
         ids = cls.model.top_documents(topic_id)
         documents = []
         for document_id, weight in ids:
@@ -465,7 +486,6 @@ class DBHandler:
         description = []
         for weighted_word in cls.model.top_words(topic_id, 10):
             description.append(weighted_word[0])
-        # Richer top-20-with-weights payload, used by the LLM labeler.
         top_words = [[w, float(weight)] for w, weight in cls.model.top_words(topic_id, 20)]
         return (
             topic_id,
@@ -479,96 +499,93 @@ class DBHandler:
 
 
 class DBSearch:
-    def __init__(self, config, table, object_level):
-        _check_identifier(table)
-        self.db = psycopg2.connect(
-            user=config["database_user"],
-            password=config["database_password"],
-            database=config["database_name"],
-        )
-        self.cursor = self.db.cursor(cursor_factory=RealDictCursor)
-        self.table = table
+    """Read-side connection used by the API."""
+
+    def __init__(self, db_path, object_level):
+        # read_only=True allows multiple API workers to open the same file
+        # concurrently without write-lock contention.
+        self.db = duckdb.connect(db_path, read_only=True)
         self.object_level = object_level
-        self._words_table = sql.Identifier(f"{table}_words")
-        self._docs_table = sql.Identifier(f"{table}_docs")
-        self._topics_table = sql.Identifier(f"{table}_topics")
 
     def __enter__(self):
         return self
 
     def __exit__(self, *args):
-        self.cursor.close()
         self.db.close()
 
     @staticmethod
     def _validate_field(field):
-        """Validate field name is a safe SQL identifier."""
         _check_identifier(field)
 
+    def _exec_one(self, query, params=None):
+        cur = self.db.execute(query, params or [])
+        row = cur.fetchone()
+        return _row_to_dict(cur, row)
+
+    def _exec_all(self, query, params=None):
+        cur = self.db.execute(query, params or [])
+        rows = cur.fetchall()
+        return _rows_to_dicts(cur, rows)
+
     def get_vocabulary(self):
-        self.cursor.execute(sql.SQL("SELECT word FROM {}").format(self._words_table))
-        return sorted([result["word"] for result in self.cursor])
+        rows = self.db.execute("SELECT word FROM words").fetchall()
+        return sorted(row[0] for row in rows)
 
     def get_all_metadata_values(self, field, frequency_filter=1):
         self._validate_field(field)
-        field_id = sql.Identifier(field)
         if frequency_filter == 1:
-            self.cursor.execute(sql.SQL("SELECT DISTINCT {} FROM {}").format(field_id, self._docs_table))
-            return sorted([row[field] for row in self.cursor if row[field]])
-        self.cursor.execute(sql.SQL("SELECT {}, COUNT(*) AS field_count FROM {} GROUP BY {}").format(
-            field_id, self._docs_table, field_id
-        ))
-        return sorted([row[field] for row in self.cursor if row[field] and row["field_count"] >= frequency_filter])
+            rows = self.db.execute(f'SELECT DISTINCT "{field}" FROM docs').fetchall()
+            return sorted(r[0] for r in rows if r[0])
+        rows = self.db.execute(
+            f'SELECT "{field}", COUNT(*) AS field_count FROM docs GROUP BY "{field}"'
+        ).fetchall()
+        return sorted(r[0] for r in rows if r[0] and r[1] >= frequency_filter)
 
     def get_doc_data(self, philo_id, philo_db):
         _check_identifier(self.object_level)
         philo_id = " ".join(philo_id.split()[: OBJECT_LEVELS[self.object_level]])
-        self.cursor.execute(
-            sql.SQL("SELECT * FROM {} WHERE {} = %s AND philo_db = %s").format(
-                self._docs_table, sql.Identifier(f"philo_{self.object_level}_id")
-            ),
-            (philo_id, philo_db),
+        col = f"philo_{self.object_level}_id"
+        self._validate_field(col)
+        return self._exec_one(
+            f'SELECT * FROM docs WHERE "{col}" = ? AND philo_db = ?',
+            [philo_id, philo_db],
         )
-        return self.cursor.fetchone()
 
     def get_metadata(self, doc_id, metadata_fields):
         for f in metadata_fields:
             self._validate_field(f)
-        fields = sql.SQL(", ").join(sql.Identifier(f) for f in metadata_fields)
-        self.cursor.execute(
-            sql.SQL("SELECT {} FROM {} WHERE doc_id = %s").format(fields, self._docs_table),
-            (doc_id,),
+        field_list = ", ".join(f'"{f}"' for f in metadata_fields)
+        return self._exec_one(
+            f"SELECT {field_list} FROM docs WHERE doc_id = ?",
+            [doc_id],
         )
-        return self.cursor.fetchone()
 
     def get_metadata_batch(self, doc_ids, metadata_fields):
         if not doc_ids:
             return {}
         for f in metadata_fields:
             self._validate_field(f)
-        fields = sql.SQL(", ").join(sql.Identifier(f) for f in ["doc_id", *metadata_fields])
-        self.cursor.execute(
-            sql.SQL("SELECT {} FROM {} WHERE doc_id = ANY(%s)").format(fields, self._docs_table),
-            (list(doc_ids),),
+        fields = ["doc_id", *metadata_fields]
+        field_list = ", ".join(f'"{f}"' for f in fields)
+        placeholders = ", ".join("?" for _ in doc_ids)
+        rows = self._exec_all(
+            f"SELECT {field_list} FROM docs WHERE doc_id IN ({placeholders})",
+            list(doc_ids),
         )
-        return {row["doc_id"]: row for row in self.cursor.fetchall()}
+        return {row["doc_id"]: row for row in rows}
 
     def get_doc_ids_by_metadata(self, field, value, end_value=None):
         self._validate_field(field)
-        field_id = sql.Identifier(field)
         if end_value is None:
-            self.cursor.execute(
-                sql.SQL("SELECT DISTINCT doc_id FROM {} WHERE {} = %s").format(self._docs_table, field_id),
-                (value,),
-            )
+            rows = self.db.execute(
+                f'SELECT DISTINCT doc_id FROM docs WHERE "{field}" = ?', [value]
+            ).fetchall()
         else:
-            self.cursor.execute(
-                sql.SQL("SELECT DISTINCT doc_id, year FROM {} WHERE {} >= %s AND {} < %s").format(
-                    self._docs_table, field_id, field_id
-                ),
-                (value, end_value),
-            )
-        return set(row["doc_id"] for row in self.cursor)
+            rows = self.db.execute(
+                f'SELECT DISTINCT doc_id, year FROM docs WHERE "{field}" >= ? AND "{field}" < ?',
+                [value, end_value],
+            ).fetchall()
+        return set(r[0] for r in rows)
 
     def get_topic_data(
         self,
@@ -577,23 +594,15 @@ class DBSearch:
         correlation_interval=1,
         direction="positive",
     ):
-        self.cursor.execute(sql.SQL("SELECT * FROM {} WHERE topic_id = %s").format(self._topics_table), (topic_id,))
-        topic_data = self.cursor.fetchone()
+        topic_data = self._exec_one(
+            "SELECT * FROM topics WHERE topic_id = ?", [topic_id]
+        )
         documents = []
         for document_id, weight in topic_data["docs"][:50]:
             metadata = self.get_metadata(document_id, metadata_fields)
             documents.append({"doc_id": document_id, "metadata": metadata, "score": weight})
-        # Bar chart uses the raw per-year series (client rebuckets for display).
         current_topic_evolution = topic_data["topic_evolution"]
         similar_topics = []
-        # For the correlation panel: re-bucket, smooth once, and compute Pearson on
-        # the same smoothed series that the chart will display. This keeps the
-        # chart and the correlation metric in sync — what the user sees IS what
-        # the score is computed from.
-        #
-        # Smoothing window grows sub-linearly with the interval (see _smoothing_window
-        # for the exact rule). Keeps year-level views honest while damping
-        # bucket-to-bucket jumps at coarser intervals.
         window = _smoothing_window(correlation_interval)
         rebucketed_current = _rebucket(current_topic_evolution, correlation_interval)
         smoothed_current_for_display = None
@@ -619,9 +628,6 @@ class DBSearch:
                     }
                 )
 
-            # "positive": rise and fall together (highest r first).
-            # "negative": one rises when the other falls (most-negative r first).
-            # "both": sort by magnitude so strong correlations of either sign surface.
             if direction == "negative":
                 similar_topics.sort(key=lambda x: x["score"])
             elif direction == "both":
@@ -635,10 +641,7 @@ class DBSearch:
                 word_distribution["labels"].append(word)
         return {
             "word_distribution": word_distribution,
-            # Raw per-year series for the bar chart (client rebuckets freely).
             "topic_evolution": current_topic_evolution,
-            # Rebucketed + smoothed current topic for overlay on the correlation
-            # chart, matching what the similar-topics series have been through.
             "current_smoothed_evolution": smoothed_current_for_display,
             "documents": documents,
             "frequency": topic_data["frequency"],
@@ -646,8 +649,9 @@ class DBSearch:
         }
 
     def get_topic_data_by_year(self, topic_id, year, interval, metadata_fields, limit):
-        self.cursor.execute(sql.SQL("SELECT * FROM {} WHERE topic_id = %s").format(self._topics_table), (topic_id,))
-        topic_data = self.cursor.fetchone()
+        topic_data = self._exec_one(
+            "SELECT * FROM topics WHERE topic_id = ?", [topic_id]
+        )
         if interval == 1:
             doc_ids = self.get_doc_ids_by_metadata("year", year)
         else:
@@ -664,32 +668,32 @@ class DBSearch:
         return documents
 
     def get_topic_evolutions(self, topic_id):
-        self.cursor.execute(
-            sql.SQL("SELECT topic_id, topic_evolution FROM {} WHERE topic_id != %s").format(self._topics_table),
-            (topic_id,),
+        rows = self._exec_all(
+            "SELECT topic_id, topic_evolution FROM topics WHERE topic_id != ?",
+            [topic_id],
         )
-        return [(row["topic_id"], row["topic_evolution"]) for row in self.cursor]
+        return [(r["topic_id"], r["topic_evolution"]) for r in rows]
 
     def get_word_data(self, word):
-        self.cursor.execute(sql.SQL("SELECT * FROM {} WHERE word = %s").format(self._words_table), (word,))
-        return self.cursor.fetchone()
+        return self._exec_one("SELECT * FROM words WHERE word = ?", [word])
 
     def get_word_from_id(self, word_id):
-        self.cursor.execute(sql.SQL("SELECT word FROM {} WHERE word_id = %s").format(self._words_table), (word_id,))
-        row = self.cursor.fetchone()
-        return row["word"] if row else None
+        row = self.db.execute(
+            "SELECT word FROM words WHERE word_id = ?", [word_id]
+        ).fetchone()
+        return row[0] if row else None
 
     def get_topic_distribution_by_metadata(self, field, field_value):
         self._validate_field(field)
-        topic_distribution = []
-        self.cursor.execute(
-            sql.SQL("SELECT * FROM {} WHERE {} = %s").format(self._docs_table, sql.Identifier(field)),
-            (field_value,),
+        rows = self._exec_all(
+            f'SELECT * FROM docs WHERE "{field}" = ?', [field_value]
         )
-        for row in self.cursor:
+        topic_distribution = []
+        for row in rows:
             if not topic_distribution:
                 topic_distribution = [
-                    {"name": pos, "frequency": weight} for pos, weight in enumerate(row["topic_distribution"]["data"])
+                    {"name": pos, "frequency": weight}
+                    for pos, weight in enumerate(row["topic_distribution"]["data"])
                 ]
             else:
                 for pos, weight in enumerate(row["topic_distribution"]["data"]):
@@ -699,13 +703,16 @@ class DBSearch:
             return topic_distribution
         coeff = 1.0 / total
         topic_distribution = [
-            {"name": pos, "frequency": topic["frequency"] * coeff} for pos, topic in enumerate(topic_distribution)
+            {"name": pos, "frequency": topic["frequency"] * coeff}
+            for pos, topic in enumerate(topic_distribution)
         ]
         return topic_distribution
 
     def get_topic_distributions_over_time(self):
-        distributions_over_time = []
-        self.cursor.execute(sql.SQL("SELECT topic_id, topic_evolution FROM {} ORDER BY topic_id ASC").format(self._topics_table))
-        for row in self.cursor:
-            distributions_over_time.append({"topic": row["topic_id"], "topic_evolution": row["topic_evolution"]})
-        return distributions_over_time
+        rows = self._exec_all(
+            "SELECT topic_id, topic_evolution FROM topics ORDER BY topic_id ASC"
+        )
+        return [
+            {"topic": r["topic_id"], "topic_evolution": r["topic_evolution"]}
+            for r in rows
+        ]

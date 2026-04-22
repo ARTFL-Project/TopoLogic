@@ -6,7 +6,7 @@ RUN apt remove -y nodejs libnode72 libnode-dev && apt install curl
 
 RUN curl -sL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 
-RUN apt update && apt install -y postgresql postgresql-contrib postgresql-server-dev-14 locales git g++ nodejs
+RUN apt update && apt install -y locales git g++ nodejs
 
 RUN apt-get clean && rm -rf /var/lib/apt
 
@@ -33,15 +33,5 @@ RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
-
-RUN perl -pi -e 's/^(local.*)peer$/$1md5/;' /etc/postgresql/14/main/pg_hba.conf
-RUN echo "local all all trust" > /etc/postgresql/14/main/pg_hba.conf && \
-    echo "host all all 127.0.0.1/32 trust" >> /etc/postgresql/14/main/pg_hba.conf && \
-    echo "host all all ::1/128 trust" >> /etc/postgresql/14/main/pg_hba.conf
-RUN service postgresql start && \
-    su postgres -c "psql -c \"CREATE DATABASE topologic ENCODING = 'UTF8' LC_COLLATE = 'en_US.UTF-8' LC_CTYPE = 'en_US.UTF-8' TEMPLATE template0;\"" && \
-    su postgres -c 'psql -c "create role topologic with login password '\''topologic'\'';"' && \
-    su postgres -c 'psql -c "GRANT ALL PRIVILEGES ON database topologic to topologic;"'
-RUN service postgresql restart
 
 CMD ["/usr/local/bin/init_topologic"]

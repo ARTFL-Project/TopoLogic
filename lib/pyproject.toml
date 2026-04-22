@@ -20,7 +20,7 @@ dependencies = [
     "uvloop",
     "httptools",
     "annoy",
-    "psycopg2",
+    "duckdb>=1.1",
     "multiprocess",
     "text_preprocessing",
     "philologic>=4.7.4.4",

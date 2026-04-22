@@ -47,7 +47,7 @@ if [ ! -f /etc/topologic/global_settings.ini ]
     then
         sudo mkdir -p /etc/topologic/
         sudo cp config/global_settings.ini /etc/topologic/
-        echo "Make sure you create a PostgreSQL database with a user with read/write access to that database and configure /etc/topologic/global_settings.ini accordingly."
+        echo "Storage is DuckDB — no database server setup required. Each trained model gets its own model.duckdb file inside its webapp directory."
 else
     echo "/etc/topologic/global_settings.ini already exists, not modifying..."
 fi
