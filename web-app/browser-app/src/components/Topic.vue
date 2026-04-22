@@ -1,8 +1,12 @@
 <template>
     <div class="container-fluid">
         <h5 class="mb-4" style="text-align: center">
-            Representation of topic
-            <b>{{ topic }}</b>
+            <template v-if="topicData[parseInt(topic)] && topicData[parseInt(topic)].label">
+                <b>{{ topicData[parseInt(topic)].label }}</b> topic
+            </template>
+            <template v-else>
+                Topic <b>{{ topic }}</b>
+            </template>
             across corpus (overall frequency of {{ frequency }}%)
         </h5>
         <div v-if="loading" class="text-center" style="position: absolute; left: 0; right: 0; z-index: 10">
@@ -31,7 +35,16 @@
                 <div class="row">
                     <div class="col-12" v-if="timeSeriesEnabled">
                         <div class="card shadow-sm">
-                            <div class="card-header">Distribution of topic weight over time</div>
+                            <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                <span>Distribution of topic weight over time</span>
+                                <div class="d-flex align-items-center gap-2 correlation-controls">
+                                    <label class="small mb-0">Interval (yrs):</label>
+                                    <select class="form-select form-select-sm smoothing-input"
+                                        v-model.number="evolutionInterval">
+                                        <option v-for="opt in intervalOptions" :key="opt" :value="opt">{{ opt }}</option>
+                                    </select>
+                                </div>
+                            </div>
                             <div class="ps-2 pe-2 pt-2">
                                 <apexchart width="100%" height="300px" type="bar" :options="topicEvolutionChartOptions"
                                     :series="topicEvolutionSeries"></apexchart>
@@ -40,17 +53,41 @@
                     </div>
                     <div class="col-6" v-if="timeSeriesEnabled">
                         <div class="card mt-4 shadow-sm">
-                            <div class="card-header">5 most correlated topics over time</div>
+                            <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                <span>5 most correlated topics over time</span>
+                                <div class="d-flex align-items-center gap-2 correlation-controls">
+                                    <label class="small mb-0">Interval (yrs):</label>
+                                    <select class="form-select form-select-sm smoothing-input"
+                                        v-model.number="correlationInterval">
+                                        <option v-for="opt in intervalOptions" :key="opt" :value="opt">{{ opt }}</option>
+                                    </select>
+                                    <span class="small mb-0 ms-2">Trend:</span>
+                                    <div class="direction-toggle">
+                                        <button type="button" :class="['dir-btn', { active: direction === 'positive' }]"
+                                            @click="direction = 'positive'"
+                                            title="Topics that rise and fall together">Same</button>
+                                        <button type="button" :class="['dir-btn', { active: direction === 'negative' }]"
+                                            @click="direction = 'negative'"
+                                            title="Topics with opposite trends">Opposite</button>
+                                    </div>
+                                </div>
+                            </div>
                             <apexchart ref="timeChart" width="100%" height="400px" :series="similarEvolutionSeries"
                                 :options="similarEvolutionOptions"></apexchart>
-                            <div v-for="(localTopic, seriesIndex) in similarEvolutionSeries" :key="localTopic.name"
-                                class="topic ps-2 pe-2 pb-1" style="font-size: 80%" @click="goToTopic(localTopic.name)">
-                                <span v-if="localTopic.name != topic">
-                                    <span :id="`topic-${localTopic.name}`" class="topic-legend"
-                                        :style="`background-color: ${similarEvolutionOptions.colors[seriesIndex]}`"></span>
-                                    Topic {{ localTopic.name }}:
-                                    {{ topicData[parseInt(localTopic.name)].label || topicData[parseInt(localTopic.name)].description }}
-                                </span>
+                            <div class="similar-legend">
+                                <div v-for="(localTopic, seriesIndex) in similarEvolutionSeries" :key="localTopic.name"
+                                    class="topic ps-2 pe-2 pb-1" style="font-size: 80%"
+                                    @click="goToTopic(localTopic.name)">
+                                    <span v-if="localTopic.name != topic">
+                                        <span :id="`topic-${localTopic.name}`" class="topic-legend"
+                                            :style="`background-color: ${similarEvolutionOptions.colors[seriesIndex]}`"></span>
+                                        <template v-if="topicData[parseInt(localTopic.name)].label">
+                                            <span class="ps-2">{{ topicData[parseInt(localTopic.name)].label
+                                            }}</span></template>
+                                        <template v-else><span class="ps-2">Topic {{ localTopic.name
+                                                }}</span></template>
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -65,8 +102,10 @@
                             </div>
                             <ul class="list-group list-group-flush">
                                 <li class="list-group-item" v-for="doc in documents" :key="doc.doc_id">
-                                    <citations :doc="doc" :id="`${doc.doc_id}`" :philo-db="`${doc.metadata.philo_db}`"></citations>
-                                    <span class="badge rounded-pill bg-secondary float-end">{{ (doc.score * 100).toFixed(2) }}</span>
+                                    <citations :doc="doc" :id="`${doc.doc_id}`" :philo-db="`${doc.metadata.philo_db}`">
+                                    </citations>
+                                    <span class="badge rounded-pill bg-secondary float-end">{{ (doc.score *
+                                        100).toFixed(2) }}</span>
                                 </li>
                             </ul>
                         </div>
@@ -97,6 +136,13 @@ export default {
             frequency: 0,
             year: 0,
             topic: this.$route.params.topic,
+            direction: "positive",
+            intervalOptions: [1, 5, 10, 25, 50, 100],
+            evolutionInterval: this.$globalConfig.timeSeriesConfig.interval || 1,
+            correlationInterval: this.$globalConfig.timeSeriesConfig.interval || 1,
+            rawTopicEvolution: null,    // per-year data, held for client-side rebucketing of the bar chart
+            currentSmoothedEvolution: null,  // server-smoothed current topic for the correlation overlay
+            refetchTimer: null,
             topicEvolutionChartOptions: {
                 chart: {
                     id: "topic-evolution",
@@ -110,6 +156,13 @@ export default {
                 dataLabels: { enabled: false },
                 xaxis: {
                     categories: [],
+                    labels: {
+                        formatter: (val) => {
+                            const interval = parseInt(this.evolutionInterval) || 1;
+                            if (interval <= 1) return String(val);
+                            return `${val}–${parseInt(val) + interval - 1}`;
+                        },
+                    },
                 },
                 grid: {
                     padding: {
@@ -122,17 +175,13 @@ export default {
                 fill: {
                     opacity: 0.9,
                 },
-                theme: { palette: "palette3" },
+                colors: ["#ad4242"],   // theme $button-color — matches buttons, badges, th underlines
                 tooltip: {
                     x: {
                         formatter: (year) => {
-                            return `${year}-${parseInt(year) +
-                                parseInt(
-                                    this.$modelConfig.TOPICS_OVER_TIME
-                                        .topics_over_time_interval
-                                ) -
-                                1
-                                }`;
+                            const interval = parseInt(this.evolutionInterval) || 1;
+                            if (interval <= 1) return String(year);
+                            return `${year}–${parseInt(year) + interval - 1}`;
                         },
                     },
                 },
@@ -152,8 +201,11 @@ export default {
                 },
                 dataLabels: { enabled: false },
                 yaxis: {
+                    decimalsInFloat: 2,
                     labels: {
-                        formatter: (val) => val.toFixed(3),
+                        formatter: function (val) {
+                            return typeof val === "number" ? val.toFixed(2) : String(val);
+                        },
                     },
                 },
                 colors: ["#33b2df", "#546E7A", "#d4526e", "#13d8aa", "#A5978B"],
@@ -215,13 +267,24 @@ export default {
     watch: {
         // call again the method if the route changes
         $route: "fetchData",
+        direction() { this.debouncedFetch(); },
+        correlationInterval() { this.debouncedFetch(); },
+        evolutionInterval() { this.rebuildBarChart(); },
     },
     methods: {
+        debouncedFetch() {
+            clearTimeout(this.refetchTimer);
+            this.refetchTimer = setTimeout(this.fetchData, 300);
+        },
         fetchData() {
             this.loading = true;
             this.$http
                 .get(
-                    `${this.$globalConfig.apiServer}/get_topic_data/${this.$globalConfig.databaseName}/${this.$route.params.topic}`
+                    `${this.$globalConfig.apiServer}/get_topic_data/${this.$globalConfig.databaseName}/${this.$route.params.topic}`,
+                    { params: {
+                        correlation_interval: this.correlationInterval,
+                        direction: this.direction,
+                    } }
                 )
                 .then((response) => {
                     this.loading = false;
@@ -244,87 +307,10 @@ export default {
                     );
 
                     if (this.timeSeriesEnabled) {
-                        let startIndex = response.data.topic_evolution.labels.indexOf(
-                            this.$globalConfig.timeSeriesConfig.startDate
-                        );
-                        let endIndex = response.data.topic_evolution.labels.length;
-                        for (
-                            let index = 0;
-                            index < response.data.topic_evolution.labels.length;
-                            index += 1
-                        ) {
-                            if (
-                                response.data.topic_evolution.labels[index] >
-                                this.$globalConfig.timeSeriesConfig.endDate
-                            ) {
-                                endIndex = index + 1;
-                                break;
-                            }
-                        }
-                        this.year = `${response.data.topic_evolution.labels[startIndex]
-                            }-${response.data.topic_evolution.labels[endIndex - 1]}`;
-                        this.buildTopicEvolution(
-                            response.data.topic_evolution,
-                            startIndex,
-                            endIndex
-                        );
-
-                        this.similarEvolutionSeries = [
-                            ...response.data.similar_topics
-                                .slice(0, 5)
-                                .map((topic) => ({
-                                    data: topic.topic_evolution.data.slice(
-                                        startIndex,
-                                        endIndex
-                                    ),
-                                    name: topic.topic.toString(),
-                                    type: "line",
-                                })),
-                            {
-                                name: this.topic,
-                                data: response.data.topic_evolution.data.slice(
-                                    startIndex,
-                                    endIndex
-                                ),
-                                type: "area",
-                            },
-                        ];
-                        this.similarEvolutionOptions = {
-                            ...this.similarEvolutionOptions,
-                            ...{
-                                xaxis: {
-                                    categories: response.data.similar_topics[0].topic_evolution.labels.slice(
-                                        startIndex,
-                                        endIndex
-                                    ),
-                                },
-                                fill: {
-                                    opacity: [
-                                        ...response.data.similar_topics,
-                                        this.topic,
-                                    ]
-                                        .slice(startIndex, endIndex)
-                                        .map((topic) => {
-                                            if (
-                                                topic.topic !=
-                                                this.$route.params.topic
-                                            ) {
-                                                return 1;
-                                            } else {
-                                                return 0.1;
-                                            }
-                                        }),
-                                },
-                                colors: [
-                                    "#2E93fA",
-                                    "#66DA26",
-                                    "#546E7A",
-                                    "#E91E63",
-                                    "#FF9800",
-                                    "rgba(156, 60, 60, 0.15)",
-                                ],
-                            },
-                        };
+                        this.rawTopicEvolution = response.data.topic_evolution;
+                        this.currentSmoothedEvolution = response.data.current_smoothed_evolution;
+                        this.rebuildBarChart();
+                        this.rebuildCorrelationChart(response.data.similar_topics);
                         this.$nextTick(function () {
                             let selectedYear = document.querySelector(
                                 "path[selected='true']"
@@ -335,6 +321,104 @@ export default {
                         });
                     }
                 });
+        },
+        rebucket(evolution, interval) {
+            // Align bucket starts to multiples of `interval` (e.g. interval=10 →
+            // buckets 1770, 1780, 1790, not 1774, 1784). Mirror of the server-side
+            // _rebucket in DB.py.
+            if (!evolution || !evolution.labels || interval <= 1) return evolution;
+            const byYear = new Map();
+            for (let i = 0; i < evolution.labels.length; i += 1) {
+                byYear.set(evolution.labels[i], evolution.data[i]);
+            }
+            const first = evolution.labels[0];
+            const last = evolution.labels[evolution.labels.length - 1];
+            const labels = [];
+            const data = [];
+            let bucketStart = Math.floor(first / interval) * interval;
+            while (bucketStart <= last) {
+                const bucketEnd = bucketStart + interval; // exclusive
+                const vals = [];
+                for (let y = bucketStart; y < bucketEnd; y += 1) {
+                    if (byYear.has(y)) vals.push(byYear.get(y));
+                }
+                if (vals.length > 0) {
+                    labels.push(bucketStart);
+                    const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+                    data.push(Math.round(mean * 100) / 100);
+                }
+                bucketStart = bucketEnd;
+            }
+            return { labels, data };
+        },
+        sliceByConfig(evolution) {
+            // Respect the per-deployment date window in appConfig.
+            const startDate = this.$globalConfig.timeSeriesConfig.startDate;
+            const endDate = this.$globalConfig.timeSeriesConfig.endDate;
+            let start = 0;
+            let end = evolution.labels.length;
+            // Snap to the bucket that contains startDate (closest label ≤ startDate).
+            if (startDate != null) {
+                for (let i = 0; i < evolution.labels.length; i += 1) {
+                    if (evolution.labels[i] <= startDate) start = i;
+                    else break;
+                }
+            }
+            if (endDate != null) {
+                for (let i = 0; i < evolution.labels.length; i += 1) {
+                    if (evolution.labels[i] > endDate) { end = i + 1; break; }
+                }
+            }
+            return { start, end };
+        },
+        rebuildBarChart() {
+            if (!this.rawTopicEvolution) return;
+            const bucketed = this.rebucket(this.rawTopicEvolution, this.evolutionInterval);
+            const { start, end } = this.sliceByConfig(bucketed);
+            this.year = `${bucketed.labels[start]}-${bucketed.labels[end - 1]}`;
+            this.buildTopicEvolution(bucketed, start, end);
+        },
+        rebuildCorrelationChart(similarTopics) {
+            if (!similarTopics || !similarTopics.length) return;
+            // Server returns similar topics' evolutions already rebucketed AND
+            // smoothed at correlationInterval. Use as-is — the correlation
+            // metric was computed from the same series shown here.
+            const { start, end } = this.sliceByConfig(similarTopics[0].topic_evolution);
+            const roundSeries = (arr) => arr.map((v) => Math.round(v * 100) / 100);
+            const currentSeries = this.currentSmoothedEvolution
+                ? this.currentSmoothedEvolution.data
+                : [];
+            this.similarEvolutionSeries = [
+                ...similarTopics.slice(0, 5).map((topic) => ({
+                    data: roundSeries(topic.topic_evolution.data.slice(start, end)),
+                    name: topic.topic.toString(),
+                    type: "line",
+                })),
+                {
+                    name: this.topic,
+                    data: roundSeries(currentSeries.slice(start, end)),
+                    type: "area",
+                },
+            ];
+            this.similarEvolutionOptions = {
+                ...this.similarEvolutionOptions,
+                xaxis: {
+                    categories: similarTopics[0].topic_evolution.labels.slice(start, end),
+                },
+                fill: {
+                    opacity: [...similarTopics, this.topic]
+                        .slice(start, end)
+                        .map((topic) => (topic.topic != this.$route.params.topic ? 1 : 0.1)),
+                },
+                colors: [
+                    "#2E93fA",
+                    "#66DA26",
+                    "#546E7A",
+                    "#E91E63",
+                    "#FF9800",
+                    "rgba(156, 60, 60, 0.15)",
+                ],
+            };
         },
         scaleWordWeights(wordWeights) {
             // We want to scale the word weights so that the largest weight is 100
@@ -374,10 +458,9 @@ export default {
 
             this.topicEvolutionChartOptions = {
                 ...this.topicEvolutionChartOptions,
-                ...{
-                    xaxis: {
-                        categories: topicEvolution.labels,
-                    },
+                xaxis: {
+                    ...this.topicEvolutionChartOptions.xaxis,
+                    categories: topicEvolution.labels,
                 },
             };
         },
@@ -392,11 +475,15 @@ export default {
             this.yearLoading = true;
             this.$http
                 .get(
-                    `${this.$globalConfig.apiServer}/get_docs_in_topic_by_year/${this.$globalConfig.databaseName}/${this.$route.params.topic}/${year}`
+                    `${this.$globalConfig.apiServer}/get_docs_in_topic_by_year/${this.$globalConfig.databaseName}/${this.$route.params.topic}/${year}`,
+                    { params: { interval: this.evolutionInterval } }
                 )
                 .then((response) => {
                     this.documents = response.data;
-                    this.year = year;
+                    const interval = parseInt(this.evolutionInterval) || 1;
+                    this.year = interval <= 1
+                        ? String(year)
+                        : `${year}–${parseInt(year) + interval - 1}`;
                     this.yearLoading = false;
                 });
         },
@@ -411,6 +498,48 @@ export default {
 
 :deep(path[selected="true"]) {
     fill: rgba(theme.$passage-color, 0.9);
+}
+
+// Smoothing + direction controls embedded in the red card-header.
+.correlation-controls {
+    font-weight: normal;
+    font-size: 0.85rem;
+
+    .smoothing-input {
+        width: auto;
+        min-width: 4.5rem;
+    }
+}
+
+.direction-toggle {
+    display: inline-flex;
+    border: 1px solid #fff;
+    border-radius: 0.25rem;
+    overflow: hidden;
+
+    .dir-btn {
+        background: transparent;
+        color: #fff;
+        border: 0;
+        padding: 0.15rem 0.55rem;
+        font-size: 0.9rem;
+        line-height: 1;
+        font-weight: 600;
+        cursor: pointer;
+
+        &+.dir-btn {
+            border-left: 1px solid rgba(255, 255, 255, 0.4);
+        }
+
+        &.active {
+            background: #fff;
+            color: theme.$card-header-color;
+        }
+
+        &:not(.active):hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+    }
 }
 
 .topic {
@@ -451,6 +580,10 @@ export default {
     top: 0;
     height: 100%;
     background-color: rgba(theme.$link-color, 0.35);
+}
+
+.similar-legend {
+    margin-top: -1rem;
 }
 
 .row:hover>.frequency-bar {

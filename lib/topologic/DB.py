@@ -19,7 +19,6 @@ psycopg2_extensions.register_adapter(np.float64, lambda v: psycopg2_extensions.A
 psycopg2_extensions.register_adapter(np.float32, lambda v: psycopg2_extensions.AsIs(float(v)))
 from multiprocess import Pool, cpu_count
 from sklearn.metrics import pairwise_distances
-from sklearn.metrics.pairwise import cosine_similarity
 from topologic import year_normalizer
 from tqdm import tqdm, trange
 
@@ -30,6 +29,78 @@ def _check_identifier(name):
     """Validate that a name is safe to use as a SQL identifier."""
     if not VALID_IDENTIFIER_RE.match(name):
         raise ValueError(f"Invalid SQL identifier: {name!r}")
+
+
+def _smooth(series, window):
+    """Centered moving average. Returns a list of the same length as the input."""
+    if window <= 1 or len(series) <= 1:
+        return list(series)
+    arr = np.asarray(series, dtype=float)
+    kernel = np.ones(window) / window
+    return np.convolve(arr, kernel, mode="same").tolist()
+
+
+def _pearson(a, b):
+    """Pearson correlation coefficient; returns 0.0 when either series is constant."""
+    a = np.asarray(a, dtype=float)
+    b = np.asarray(b, dtype=float)
+    a_std = a.std()
+    b_std = b.std()
+    if a_std == 0 or b_std == 0:
+        return 0.0
+    return float(((a - a.mean()) * (b - b.mean())).mean() / (a_std * b_std))
+
+
+def _smoothing_window(interval):
+    """Number of buckets to use for the centered rolling mean, given the
+    display interval. Derived from the user-visible rule:
+
+        side_years = interval / divisor,    divisor = 2 + floor(log10(interval))
+        total_span = 2 * side_years + interval    (one center bucket + both sides)
+
+    interval=1 is a special case with side_years=1 (divisor would be 2 → side=0).
+    side_years is capped at 20 to stop very coarse intervals from smoothing
+    away all signal.
+    """
+    import math
+    if interval <= 1:
+        return 3
+    divisor = 2 + int(math.log10(interval))
+    side_years = min(20, interval // divisor)
+    total_span = 2 * side_years + interval
+    return max(1, round(total_span / interval))
+
+
+def _rebucket(evolution, interval_years):
+    """Aggregate a per-year evolution series into `interval_years`-wide buckets,
+    aligned to multiples of `interval_years` (e.g., interval=10 → buckets start
+    at 1770, 1780, 1790, not 1774, 1784).
+
+    `evolution` is the stored dict {"labels": [years...], "data": [vals...]}.
+    Returns a new dict with the same shape, downsampled by averaging.
+    `interval_years=1` is a no-op.
+    """
+    if interval_years <= 1:
+        return evolution
+    labels = evolution.get("labels") or []
+    data = evolution.get("data") or []
+    if not labels:
+        return evolution
+    first = labels[0]
+    last = labels[-1]
+    # Index labels by year for fast lookup.
+    by_year = dict(zip(labels, data))
+    buckets_labels = []
+    buckets_data = []
+    bucket_start = (first // interval_years) * interval_years
+    while bucket_start <= last:
+        bucket_end = bucket_start + interval_years  # exclusive
+        vals = [by_year[y] for y in range(bucket_start, bucket_end) if y in by_year]
+        if vals:
+            buckets_labels.append(bucket_start)
+            buckets_data.append(round(sum(vals) / len(vals), 4))
+        bucket_start = bucket_end
+    return {"labels": buckets_labels, "data": buckets_data}
 
 OBJECT_LEVELS = {"doc": 1, "div1": 2, "div2": 3, "para": 4, "sent": 5}
 
@@ -377,6 +448,9 @@ class DBHandler:
                     pass
 
             dates, frequencies = zip(*list(years.items()))
+            # Round to kill float-accumulation artifacts like 0.6999999999999996
+            # that leak into chart axis labels.
+            frequencies = [round(float(f), 2) for f in frequencies]
             topic_evolution = json.dumps({"labels": dates, "data": frequencies})
 
         # Get top documents per topic
@@ -496,29 +570,64 @@ class DBSearch:
             )
         return set(row["doc_id"] for row in self.cursor)
 
-    def get_topic_data(self, topic_id, metadata_fields):
+    def get_topic_data(
+        self,
+        topic_id,
+        metadata_fields,
+        correlation_interval=1,
+        direction="positive",
+    ):
         self.cursor.execute(sql.SQL("SELECT * FROM {} WHERE topic_id = %s").format(self._topics_table), (topic_id,))
         topic_data = self.cursor.fetchone()
         documents = []
         for document_id, weight in topic_data["docs"][:50]:
             metadata = self.get_metadata(document_id, metadata_fields)
             documents.append({"doc_id": document_id, "metadata": metadata, "score": weight})
+        # Bar chart uses the raw per-year series (client rebuckets for display).
         current_topic_evolution = topic_data["topic_evolution"]
         similar_topics = []
-        if current_topic_evolution["data"]:
-            current_topic_evolution_array = np.array([current_topic_evolution["data"]])
+        # For the correlation panel: re-bucket, smooth once, and compute Pearson on
+        # the same smoothed series that the chart will display. This keeps the
+        # chart and the correlation metric in sync — what the user sees IS what
+        # the score is computed from.
+        #
+        # Smoothing window grows sub-linearly with the interval (see _smoothing_window
+        # for the exact rule). Keeps year-level views honest while damping
+        # bucket-to-bucket jumps at coarser intervals.
+        window = _smoothing_window(correlation_interval)
+        rebucketed_current = _rebucket(current_topic_evolution, correlation_interval)
+        smoothed_current_for_display = None
+        if rebucketed_current["data"]:
+            current_smoothed = _smooth(rebucketed_current["data"], window)
+            smoothed_current_for_display = {
+                "labels": rebucketed_current["labels"],
+                "data": [round(v, 4) for v in current_smoothed],
+            }
+
             for topic, topic_evolution in self.get_topic_evolutions(int(topic_id)):
-                similarity = float(
-                    cosine_similarity(current_topic_evolution_array, np.array([topic_evolution["data"]]))[0, 0]
-                )
+                rebucketed_other = _rebucket(topic_evolution, correlation_interval)
+                other_smoothed = _smooth(rebucketed_other["data"], window)
+                r = _pearson(current_smoothed, other_smoothed)
                 similar_topics.append(
                     {
                         "topic": topic,
-                        "topic_evolution": topic_evolution,
-                        "score": similarity,
+                        "topic_evolution": {
+                            "labels": rebucketed_other["labels"],
+                            "data": [round(v, 4) for v in other_smoothed],
+                        },
+                        "score": float(r),
                     }
                 )
-            similar_topics.sort(key=lambda x: x["score"], reverse=True)
+
+            # "positive": rise and fall together (highest r first).
+            # "negative": one rises when the other falls (most-negative r first).
+            # "both": sort by magnitude so strong correlations of either sign surface.
+            if direction == "negative":
+                similar_topics.sort(key=lambda x: x["score"])
+            elif direction == "both":
+                similar_topics.sort(key=lambda x: abs(x["score"]), reverse=True)
+            else:
+                similar_topics.sort(key=lambda x: x["score"], reverse=True)
         word_distribution = {"data": [], "labels": []}
         for weight, word in zip(topic_data["word_distribution"]["data"], topic_data["word_distribution"]["labels"]):
             if len(word_distribution["data"]) < 50:
@@ -526,7 +635,11 @@ class DBSearch:
                 word_distribution["labels"].append(word)
         return {
             "word_distribution": word_distribution,
+            # Raw per-year series for the bar chart (client rebuckets freely).
             "topic_evolution": current_topic_evolution,
+            # Rebucketed + smoothed current topic for overlay on the correlation
+            # chart, matching what the similar-topics series have been through.
+            "current_smoothed_evolution": smoothed_current_for_display,
             "documents": documents,
             "frequency": topic_data["frequency"],
             "similar_topics": similar_topics,

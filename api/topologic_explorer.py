@@ -154,19 +154,29 @@ def get_topic_ids(table: str):
 
 
 @app.get("/get_topic_data/{table}/{topic_id}")
-def get_topic_data(table, topic_id):
+def get_topic_data(
+    table: str,
+    topic_id: int,
+    correlation_interval: int = 1,
+    direction: str = "positive",
+):
     config = read_model_config(table)
     with DBSearch(DATABASE, table, config["object_level"]) as db:
-        topic_data = db.get_topic_data(int(topic_id), config["metadata_fields"])
+        topic_data = db.get_topic_data(
+            int(topic_id),
+            config["metadata_fields"],
+            correlation_interval=correlation_interval,
+            direction=direction,
+        )
         return topic_data
 
 
 @app.get("/get_docs_in_topic_by_year/{table}/{topic_id}/{year}")
-def get_docs_in_topic_by_year(table, topic_id, year):
+def get_docs_in_topic_by_year(table, topic_id, year, interval: int = 1):
     config = read_model_config(table)
     with DBSearch(DATABASE, table, config["object_level"]) as db:
         documents = db.get_topic_data_by_year(
-            int(topic_id), year, config["topic_over_time_interval"], config["metadata_fields"], 50,
+            int(topic_id), year, interval, config["metadata_fields"], 50,
         )
         return documents
 

@@ -462,9 +462,8 @@ def build_web_app(
     if time_series_enabled:
         min_year = configured_start if configured_start is not None else min(years)
         max_year = configured_end if configured_end is not None else max(years)
-        if topics_over_time["topics_over_time_interval"] != 1:
-            min_year = year_normalizer(min_year, topics_over_time["topics_over_time_interval"])
-            max_year = max_year_normalizer(max_year, topics_over_time["topics_over_time_interval"])
+        # Storage is always per-year. The display bucket size is chosen at query
+        # time from the UI; no need to normalize the bounds to it.
     else:
         print(
             "No parseable 'year' metadata found in corpus; disabling time-series features.",
@@ -482,6 +481,9 @@ def build_web_app(
     with open(os.path.join(db_path, "model_config.ini"), "w", encoding="utf8") as configfile:
         config.write(configfile)
 
+    # Storage is always 1-year buckets; re-bucketing to any display interval
+    # happens at query time so the UI can toggle it live.
+    storage_interval = 1
     with DBHandler.set_class_attributes(
         GLOBAL_CONFIG["DATABASE"],
         database_name,
@@ -489,7 +491,7 @@ def build_web_app(
         full_corpus,
         min_year,
         max_year,
-        topics_over_time["topics_over_time_interval"],
+        storage_interval,
         time_series_enabled,
     ) as db:
         print("Saving words...", flush=True)
@@ -503,7 +505,7 @@ def build_web_app(
             f"{db_path}/topic_words.json",
             min_year,
             max_year,
-            topics_over_time["topics_over_time_interval"],
+            storage_interval,
             topic_labeling=topic_labeling,
         )
 
