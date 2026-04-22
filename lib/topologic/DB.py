@@ -685,28 +685,57 @@ class DBSearch:
 
     def get_topic_distribution_by_metadata(self, field, field_value):
         self._validate_field(field)
-        rows = self._exec_all(
-            f'SELECT * FROM docs WHERE "{field}" = ?', [field_value]
-        )
-        topic_distribution = []
-        for row in rows:
-            if not topic_distribution:
-                topic_distribution = [
-                    {"name": pos, "frequency": weight}
-                    for pos, weight in enumerate(row["topic_distribution"]["data"])
-                ]
-            else:
-                for pos, weight in enumerate(row["topic_distribution"]["data"]):
-                    topic_distribution[pos]["frequency"] += weight
-        total = sum(topic["frequency"] for topic in topic_distribution)
+        # Push the per-topic summation into SQL — UNNEST the topic-weight array
+        # from each matching doc, SUM by ordinal position. Avoids pulling every
+        # row into Python and iterating dicts.
+        rows = self.db.execute(
+            "SELECT (ord - 1) AS topic_id, SUM(w) AS weight "
+            "FROM docs, UNNEST(CAST(json_extract(topic_distribution, '$.data') AS DOUBLE[])) "
+            f'WITH ORDINALITY AS t(w, ord) WHERE "{field}" = ? '
+            "GROUP BY ord ORDER BY ord",
+            [field_value],
+        ).fetchall()
+        if not rows:
+            return []
+        total = sum(r[1] for r in rows)
         if total == 0:
-            return topic_distribution
+            return [{"name": r[0], "frequency": 0.0} for r in rows]
         coeff = 1.0 / total
-        topic_distribution = [
-            {"name": pos, "frequency": topic["frequency"] * coeff}
-            for pos, topic in enumerate(topic_distribution)
-        ]
-        return topic_distribution
+        return [{"name": r[0], "frequency": r[1] * coeff} for r in rows]
+
+    def get_corpus_overview(self, metadata_fields):
+        """Corpus-level metadata histograms for the home-page overview.
+
+        - Year histogram (if the `year` column exists): all years with a
+          positive count, ordered chronologically.
+        - Per-field top-20 (or fewer) by document count, for each string
+          metadata field requested.
+        """
+        overview = {"year_distribution": [], "field_distributions": {}}
+        has_year = self.db.execute(
+            "SELECT 1 FROM information_schema.columns "
+            "WHERE table_name = 'docs' AND column_name = 'year' LIMIT 1"
+        ).fetchone() is not None
+        if has_year:
+            rows = self.db.execute(
+                "SELECT year, COUNT(*) FROM docs "
+                "WHERE year IS NOT NULL AND year > 0 "
+                "GROUP BY year ORDER BY year"
+            ).fetchall()
+            overview["year_distribution"] = [
+                {"year": int(r[0]), "count": int(r[1])} for r in rows
+            ]
+        for field in metadata_fields:
+            self._validate_field(field)
+            rows = self.db.execute(
+                f'SELECT "{field}" AS v, COUNT(*) AS c FROM docs '
+                f'WHERE "{field}" IS NOT NULL AND "{field}" != \'\' '
+                f'GROUP BY "{field}" ORDER BY c DESC LIMIT 10'
+            ).fetchall()
+            overview["field_distributions"][field] = [
+                {"value": r[0], "count": int(r[1])} for r in rows
+            ]
+        return overview
 
     def get_topic_distributions_over_time(self):
         rows = self._exec_all(

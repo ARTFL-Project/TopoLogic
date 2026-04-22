@@ -3,7 +3,7 @@
         <div class="card shadow-sm">
             <div class="card-header">
                 <a id="show-stats" v-if="!showStats" @click="toggleStatistics">Show</a>
-                Corpus Statistics
+                Model configuration
                 <span v-if="showStats">
                     :
                     {{ config.corpus_size }} documents with
@@ -12,29 +12,23 @@
             </div>
             <div class="row p-4" v-if="showStats">
                 <div class="col-6">
-                    <div class="card shadow-sm p-4">
+                    <div class="card shadow-sm p-2">
                         <h6>Vectorization parameters:</h6>
                         <ul>
-                            <li
-                                style="padding: 5px"
-                            >Corpus using {{ config.vectorization }} weighting.</li>
+                            <li style="padding: 5px">Corpus using {{ config.vectorization }} weighting.</li>
                             <li style="padding: 5px">Tokens include unigrams and bigrams</li>
-                            <li
-                                style="padding: 5px"
-                            >Tokens occurring in more than {{ 100 - config.maxTf * 100 }}% and less than {{ config.minTf*100 }}% of documents were filtered out.</li>
+                            <li style="padding: 5px">Tokens occurring in more than {{ 100 - config.maxTf * 100 }}% and
+                                less than {{ config.minTf * 100 }}% of documents were filtered out.</li>
                         </ul>
                     </div>
                 </div>
                 <div class="col-6">
-                    <div class="card shadow-sm p-4">
+                    <div class="card shadow-sm p-2">
                         <h6 class="mt-4">Topic Modeling parameters:</h6>
                         <ul>
-                            <li
-                                style="padding: 5px"
-                            >The {{ config.method }} algorithm was used to generate the topic model.</li>
-                            <li
-                                style="padding: 5px"
-                            >The topic model contains {{config.topics}} topics</li>
+                            <li style="padding: 5px">The {{ config.method }} algorithm was used to generate the topic
+                                model.</li>
+                            <li style="padding: 5px">The topic model contains {{ config.topics }} topics</li>
                         </ul>
                     </div>
                 </div>

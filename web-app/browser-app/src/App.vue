@@ -59,6 +59,7 @@
             </div>
         </nav>
         <model-statistics v-if="$route.name == 'home'"></model-statistics>
+        <corpus-overview v-if="$route.name == 'home'"></corpus-overview>
         <topic-distributions v-if="$route.name == 'home'"></topic-distributions>
         <router-view></router-view>
     </div>
@@ -67,11 +68,12 @@
 <script>
 import topics from "../topic_words.json";
 import ModelStatistics from "./components/ModelStatistics.vue";
+import CorpusOverview from "./components/CorpusOverview.vue";
 import TopicDistributions from "./components/TopicDistributions.vue";
 
 export default {
     name: "app",
-    components: { ModelStatistics, TopicDistributions },
+    components: { ModelStatistics, CorpusOverview, TopicDistributions },
     data() {
         return {
             topicData: topics,

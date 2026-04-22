@@ -143,6 +143,15 @@ def get_config(table, full_config: bool = False):
     return read_model_config(table)
 
 
+@app.get("/get_corpus_overview/{table}")
+def get_corpus_overview(table: str, fields: str = ""):
+    """Per-corpus year histogram + top values for each requested metadata field."""
+    config = read_model_config(table)
+    field_list = [f.strip() for f in fields.split(",") if f.strip()]
+    with DBSearch(_db_path(table), config["object_level"]) as db:
+        return db.get_corpus_overview(field_list)
+
+
 @app.get("/get_topic_words/{table_name}")
 def get_topic_words(table_name: str):
     path = _safe_path(table_name, "topic_words.json")
