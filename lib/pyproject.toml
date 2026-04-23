@@ -8,7 +8,7 @@ authors = [
 requires-python = ">=3.11"
 dependencies = [
     "scikit-learn",
-    "pandas",
+    "pandas>=2.3,<3",
     "scipy",
     "numpy",
     "tqdm",
@@ -23,7 +23,7 @@ dependencies = [
     "duckdb>=1.1",
     "multiprocess",
     "text_preprocessing",
-    "philologic>=4.7.4.4",
+    "philologic>=5.2.2.1",
     "torch",
     "spacy-transformers",
     "cupy-cuda12x",

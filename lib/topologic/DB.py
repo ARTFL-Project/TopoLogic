@@ -360,15 +360,16 @@ class DBHandler:
         )
 
         vector = cls.model.corpus.sklearn_vector_space[doc_id].toarray()[0]
-        non_zero = vector != 0
+        nz_ids = np.flatnonzero(vector)
+        ordered = nz_ids[np.argsort(vector[nz_ids])[::-1]]
         word_list = json.dumps(
             [
                 (
-                    cls.model.corpus.feature_names[word_id],
-                    float(vector[word_id]),
-                    int(word_id),
+                    cls.model.corpus.feature_names[i],
+                    float(vector[i]),
+                    int(i),
                 )
-                for word_id in np.where(non_zero, vector, np.nan).argsort()[: non_zero.sum()][::-1]
+                for i in ordered
             ]
         )
 
@@ -461,7 +462,7 @@ class DBHandler:
         if start_date is None or end_date is None:
             topic_evolution = json.dumps({"labels": [], "data": []})
         else:
-            years = {year: 0.0 for year in range(start_date, end_date, year_interval)}
+            years = {year: 0.0 for year in range(start_date, end_date + 1, year_interval)}
             for doc_id in range(cls.model.corpus.size):
                 try:
                     year = cls.year_label_map[int(cls.metadata[doc_id]["year"])]
@@ -472,7 +473,7 @@ class DBHandler:
                     pass
 
             dates, frequencies = zip(*list(years.items()))
-            frequencies = [round(float(f), 2) for f in frequencies]
+            frequencies = [round(float(f), 4) for f in frequencies]
             topic_evolution = json.dumps({"labels": list(dates), "data": frequencies})
 
         ids = cls.model.top_documents(topic_id)
