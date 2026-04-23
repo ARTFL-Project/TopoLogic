@@ -201,10 +201,11 @@ class DBHandler:
             cls.year_label_map = {}
             cls.docs_per_year = Counter()
             return cls()
-        label_map = {}
         if topics_over_time_interval != 1:
-            for year in range(min_year, max_year + 1):
-                label_map[year] = year_normalizer(year, topics_over_time_interval)
+            label_map = {
+                year: year_normalizer(year, topics_over_time_interval)
+                for year in range(min_year, max_year + 1)
+            }
         else:
             label_map = {year: year for year in range(min_year, max_year + 1)}
         cls.year_label_map = label_map
@@ -213,7 +214,7 @@ class DBHandler:
             try:
                 docs_per_year[label_map[int(cls.metadata[doc]["year"])]] += 1
             except (KeyError, ValueError):
-                pass  # document has been excluded by start or end date or has not date
+                pass
         cls.docs_per_year = docs_per_year
         return cls()
 
@@ -239,94 +240,91 @@ class DBHandler:
             metric="cosine",
             n_jobs=-1,
         )
-        # Get word weights across docs
-        word_weights = {}
-        for doc_id, doc_vector in tqdm(
-            enumerate(cls.model.corpus.sklearn_vector_space),
-            leave=False,
-            total=cls.model.corpus.size,
-            desc="Getting all token weights across docs",
-        ):
-            doc_vector = doc_vector.toarray()[0]
-            for word_id in np.argsort(doc_vector)[::-1]:
-                weight = doc_vector[word_id]
-                if weight <= 0.0:
-                    break
-                if word_id not in word_weights:
-                    word_weights[word_id] = []
-                word_weights[word_id].append((doc_id, weight))
+        feature_names = cls.model.corpus.feature_names
+        N = cls.model.corpus.size
 
-        for word_id, docs in tqdm(
-            word_weights.items(),
+        def _rank_similar(sim_array):
+            order = np.argsort(sim_array)[::-1]
+            return [{"word": feature_names[i], "weight": float(sim_array[i])} for i in order]
+
+        # Column-oriented view: each column is one word's (doc_id, weight) list
+        # already in sparse form. Avoids densifying row by row.
+        csc = cls.model.corpus.sklearn_vector_space.tocsc()
+        topic_word_dense = cls.model.topic_word_matrix.toarray()  # topics × words, one densify
+        topic_ids = list(range(topic_word_dense.shape[0]))
+
+        batch = []
+        for word_id in tqdm(
+            range(csc.shape[1]),
             leave=False,
             desc="Generating TF-IDF scores for all tokens",
         ):
-            word = cls.model.corpus.feature_names[word_id]
-            idf = log(cls.model.corpus.size / len(docs))
-            sorted_docs = sorted(
-                [(doc_id, float(weight * idf)) for doc_id, weight in docs],
-                key=lambda x: x[1],
-                reverse=True,
-            )
-            word_distribution = cls.model.topic_distribution_for_word(word_id)
-            topics = []
-            weights = []
-            for i in range(len(word_distribution)):
-                topics.append(i)
-                weights.append(float(word_distribution[i]))
+            start, end = csc.indptr[word_id], csc.indptr[word_id + 1]
+            doc_ids = csc.indices[start:end]
+            weights = csc.data[start:end]
+            mask = weights > 0
+            if not mask.any():
+                continue
+            doc_ids = doc_ids[mask]
+            weights = weights[mask]
 
-            similar_words_topic_array = 1.0 - word_similarities_by_topic[word_id]
-            similar_words_by_topic = [
-                {"word": cls.model.corpus.feature_names[other_word],
-                 "weight": float(similar_words_topic_array[other_word])}
-                for other_word in np.argsort(similar_words_topic_array)[::-1]
+            idf = log(N / len(doc_ids))
+            # Sublinear TF: 1 + log(tf). Dampens the effect of high raw counts
+            # so that a word appearing 100× doesn't dominate one appearing 10×.
+            scores = (1.0 + np.log(weights)) * idf
+            order = np.argsort(-scores, kind="stable")
+            sorted_docs = [
+                (int(doc_ids[i]), float(scores[i])) for i in order
             ]
 
-            similar_words_cooc_array = 1.0 - word_similarities_by_cooc[word_id]
-            similar_words_by_cooc = [
-                {"word": cls.model.corpus.feature_names[other_word],
-                 "weight": float(similar_words_cooc_array[other_word])}
-                for other_word in np.argsort(similar_words_cooc_array)[::-1]
-            ]
+            topic_weights = [float(w) for w in topic_word_dense[:, word_id]]
 
-            cls.db.execute(
+            batch.append([
+                int(word_id),
+                feature_names[word_id],
+                json.dumps({"labels": topic_ids, "data": topic_weights}),
+                json.dumps(sorted_docs),
+                json.dumps(_rank_similar(1.0 - word_similarities_by_topic[word_id])),
+                json.dumps(_rank_similar(1.0 - word_similarities_by_cooc[word_id])),
+            ])
+            if len(batch) >= 1000:
+                cls.db.executemany(
+                    "INSERT INTO words (word_id, word, distribution_across_topics, docs, "
+                    "similar_words_by_topic, similar_words_by_cooc) VALUES (?, ?, ?, ?, ?, ?)",
+                    batch,
+                )
+                batch = []
+        if batch:
+            cls.db.executemany(
                 "INSERT INTO words (word_id, word, distribution_across_topics, docs, "
                 "similar_words_by_topic, similar_words_by_cooc) VALUES (?, ?, ?, ?, ?, ?)",
-                [
-                    int(word_id),
-                    word,
-                    json.dumps({"labels": topics, "data": weights}),
-                    json.dumps(sorted_docs),
-                    json.dumps(similar_words_by_topic),
-                    json.dumps(similar_words_by_cooc),
-                ],
+                batch,
             )
         cls.db.execute("CREATE INDEX word_id_index ON words(word_id)")
         cls.db.execute("CREATE INDEX word_index ON words(word)")
 
     @classmethod
     def save_docs(cls):
-        metadata_col_defs = ", ".join(
+        fixed_col_defs = (
+            "doc_id INTEGER",
+            "topic_distribution JSON",
+            "topic_similarity JSON",
+            "vector_similarity JSON",
+            "word_list JSON",
+        )
+        metadata_col_defs = tuple(
             f'"{f}" INTEGER' if f == "year" else f'"{f}" VARCHAR'
             for f in cls.field_names
         )
+        all_cols = ("doc_id", "topic_distribution", "topic_similarity",
+                    "vector_similarity", "word_list", *cls.field_names)
         cls.db.execute("DROP TABLE IF EXISTS docs")
         cls.db.execute(
-            "CREATE TABLE docs(doc_id INTEGER, topic_distribution JSON, "
-            "topic_similarity JSON, vector_similarity JSON, word_list JSON"
-            + (f", {metadata_col_defs}" if metadata_col_defs else "")
-            + ")"
+            f"CREATE TABLE docs({', '.join(fixed_col_defs + metadata_col_defs)})"
         )
-        field_ids = ", ".join(f'"{f}"' for f in cls.field_names)
-        placeholders = ", ".join("?" for _ in cls.field_names)
-        insert_query = (
-            "INSERT INTO docs (doc_id, topic_distribution, topic_similarity, "
-            "vector_similarity, word_list"
-            + (f", {field_ids}" if field_ids else "")
-            + ") VALUES (?, ?, ?, ?, ?"
-            + (f", {placeholders}" if placeholders else "")
-            + ")"
-        )
+        col_list = ", ".join(f'"{c}"' for c in all_cols)
+        placeholders = ", ".join("?" for _ in all_cols)
+        insert_query = f"INSERT INTO docs ({col_list}) VALUES ({placeholders})"
         with tqdm(total=cls.model.corpus.size, leave=False, desc="Generating doc stats") as pbar:
             with Pool(cpu_count() - 1) as pool:
                 for values in pool.imap_unordered(cls.compute_doc, range(cls.model.corpus.size)):
@@ -338,52 +336,37 @@ class DBHandler:
 
     @classmethod
     def compute_doc(cls, doc_id):
-        topics = []
-        weights = []
         distribution = cls.model.topic_distribution_for_document(doc_id)
-        for i in range(len(distribution)):
-            topics.append(i)
-            weights.append(float(distribution[i]))
-        topic_distribution = json.dumps({"labels": topics, "data": weights})
+        topic_distribution = json.dumps({
+            "labels": list(range(len(distribution))),
+            "data": [float(w) for w in distribution],
+        })
 
-        topic_similarity = json.dumps(
-            [
-                (int(another_doc), round(float(score), 3))
-                for another_doc, score in cls.model.corpus.similar_docs_by_topic_distribution(doc_id, 20, cls.model)
-            ]
-        )
-        vector_similarity = json.dumps(
-            [
-                (int(another_doc), round(float(score), 3))
-                for another_doc, score in cls.model.corpus.similar_docs_by_vector(doc_id, 20)
-            ]
-        )
+        topic_similarity = json.dumps([
+            (int(other), round(float(score), 3))
+            for other, score in cls.model.corpus.similar_docs_by_topic_distribution(doc_id, 20, cls.model)
+        ])
+        vector_similarity = json.dumps([
+            (int(other), round(float(score), 3))
+            for other, score in cls.model.corpus.similar_docs_by_vector(doc_id, 20)
+        ])
 
         vector = cls.model.corpus.sklearn_vector_space[doc_id].toarray()[0]
         nz_ids = np.flatnonzero(vector)
         ordered = nz_ids[np.argsort(vector[nz_ids])[::-1]]
-        word_list = json.dumps(
-            [
-                (
-                    cls.model.corpus.feature_names[i],
-                    float(vector[i]),
-                    int(i),
-                )
-                for i in ordered
-            ]
-        )
+        word_list = json.dumps([
+            (cls.model.corpus.feature_names[i], float(vector[i]), int(i))
+            for i in ordered
+        ])
 
+        doc_metadata = cls.metadata[doc_id]
         field_values = []
         for field in cls.field_names:
-            try:
-                field_values.append(cls.metadata[doc_id][field])
-            except KeyError:
-                field_values.append("")
-            if field == "year" and not field_values[-1]:
-                field_values.pop()
-                field_values.append(0)
-        values = tuple([doc_id, topic_distribution, topic_similarity, vector_similarity, word_list] + field_values)
-        return values
+            val = doc_metadata.get(field, "")
+            if field == "year" and not val:
+                val = 0
+            field_values.append(val)
+        return (doc_id, topic_distribution, topic_similarity, vector_similarity, word_list, *field_values)
 
     @classmethod
     def save_topics(cls, topic_words_path, start_date, end_date, year_interval, topic_labeling=None):
@@ -456,8 +439,11 @@ class DBHandler:
     @classmethod
     def compute_topic(cls, topic):
         topic_id, start_date, end_date, year_interval = topic
-        words, weights = zip(*cls.model.top_words(topic_id, 50))
-        word_distribution = json.dumps({"labels": list(words), "data": [float(w) for w in weights]})
+        top50 = cls.model.top_words(topic_id, 50)
+        word_distribution = json.dumps({
+            "labels": [w for w, _ in top50],
+            "data": [float(wt) for _, wt in top50],
+        })
 
         if start_date is None or end_date is None:
             topic_evolution = json.dumps({"labels": [], "data": []})
@@ -471,29 +457,27 @@ class DBHandler:
                     )
                 except (KeyError, ValueError):
                     pass
+            topic_evolution = json.dumps({
+                "labels": list(years.keys()),
+                "data": [round(float(f), 4) for f in years.values()],
+            })
 
-            dates, frequencies = zip(*list(years.items()))
-            frequencies = [round(float(f), 4) for f in frequencies]
-            topic_evolution = json.dumps({"labels": list(dates), "data": frequencies})
+        documents = [
+            (int(doc_id), float(weight))
+            for doc_id, weight in cls.model.top_documents(topic_id)
+            if cls.model.corpus.sklearn_vector_space[doc_id].max() > 0
+        ]
 
-        ids = cls.model.top_documents(topic_id)
-        documents = []
-        for document_id, weight in ids:
-            document_array = cls.model.corpus.sklearn_vector_space[document_id]
-            if np.max(document_array.todense()) > 0:
-                documents.append((int(document_id), float(weight)))
-        frequency = cls.model.get_topic_frequency(topic_id)
-        docs = json.dumps(documents)
-        description = []
-        for weighted_word in cls.model.top_words(topic_id, 10):
-            description.append(weighted_word[0])
-        top_words = [[w, float(weight)] for w, weight in cls.model.top_words(topic_id, 20)]
+        top20 = cls.model.top_words(topic_id, 20)
+        description = [w for w, _ in top20[:10]]
+        top_words = [[w, float(wt)] for w, wt in top20]
+
         return (
             topic_id,
             word_distribution,
             topic_evolution,
-            frequency,
-            docs,
+            cls.model.get_topic_frequency(topic_id),
+            json.dumps(documents),
             description,
             top_words,
         )

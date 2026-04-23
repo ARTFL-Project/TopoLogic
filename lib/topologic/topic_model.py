@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 
-import itertools
 from abc import ABCMeta, abstractmethod
 
 import numpy as np
 from annoy import AnnoyIndex
 from multiprocess import cpu_count
-from scipy.sparse import coo_matrix
+from scipy.sparse import csr_matrix
 from sklearn.decomposition import NMF
 from sklearn.decomposition import LatentDirichletAllocation as LDA
 from sklearn.metrics import pairwise_distances
@@ -24,44 +23,27 @@ class TopicModel(object):
         self.model = None
         self.max_iter = max_iter
         self.annoy_index = None
+        self.topic_frequencies = None
 
     @abstractmethod
     def infer_topics(self, num_topics=10, **kwargs):
         pass
 
+    def _store_matrices(self, topic_document):
+        """Pack the fitted estimator's outputs into sparse CSR matrices."""
+        self.topic_word_matrix = csr_matrix(self.model.components_)
+        self.document_topic_matrix = csr_matrix(np.asarray(topic_document))
+
     def infer_and_replace(self, corpus):
-        """Replace resulting matrices from training with full corpus"""
+        """Replace resulting matrices from training with full corpus."""
         self.corpus = corpus
         topic_document = self.model.transform(corpus.sklearn_vector_space)
-        self.topic_word_matrix = []
-        self.document_topic_matrix = []
-        vocabulary_size = len(self.corpus.vectorizer.vocabulary_)
-        row = []
-        col = []
-        data = []
-        for topic_idx, topic in enumerate(self.model.components_):
-            for i in range(vocabulary_size):
-                row.append(topic_idx)
-                col.append(i)
-                data.append(topic[i])
-        self.topic_word_matrix = coo_matrix(
-            (data, (row, col)), shape=(self.nb_topics, len(self.corpus.vectorizer.vocabulary_))
-        ).tocsr()
-        row = []
-        col = []
-        data = []
-        doc_count = 0
-        for doc in topic_document:
-            topic_count = 0
-            for topic_weight in doc:
-                row.append(doc_count)
-                col.append(topic_count)
-                data.append(topic_weight)
-                topic_count += 1
-            doc_count += 1
-        self.document_topic_matrix = coo_matrix((data, (row, col)), shape=(self.corpus.size, self.nb_topics)).tocsr()
-        topic_frequencies = np.sum(self.document_topic_matrix.transpose(), axis=1)
-        self.topic_frequencies = topic_frequencies / np.sum(topic_frequencies)
+        self._store_matrices(topic_document)
+
+        topic_sums = np.asarray(self.document_topic_matrix.sum(axis=0)).ravel()
+        total = topic_sums.sum()
+        self.topic_frequencies = topic_sums / total if total else topic_sums
+
         self.annoy_index = AnnoyIndex(self.document_topic_matrix.shape[1], "angular")
         for i, doc_vector in tqdm(
             enumerate(self.document_topic_matrix),
@@ -69,60 +51,47 @@ class TopicModel(object):
             desc="Building Annoy index of document-topic vectors",
             leave=False,
         ):
-            self.annoy_index.add_item(i, doc_vector[0].toarray()[0])
+            self.annoy_index.add_item(i, doc_vector.toarray()[0])
         self.annoy_index.build(1000, n_jobs=cpu_count() - 1)
 
     def most_similar_topic_by_doc_distribution(self):
         return pairwise_distances(self.document_topic_matrix.transpose())
 
     def top_words(self, topic_id, num_words):
-        vector = self.topic_word_matrix[topic_id]
-        cx = vector.tocoo()
-        weighted_words = [()] * len(self.corpus.vectorizer.vocabulary_)
-        for word_id, weight in itertools.zip_longest(cx.col, cx.data):
-            weighted_words[word_id] = (self.corpus.feature_names[word_id], weight)
-        weighted_words.sort(key=lambda x: x[1], reverse=True)
-        return weighted_words[:num_words]
+        row = self.topic_word_matrix[topic_id].toarray()[0]
+        order = np.argsort(row, kind="stable")[::-1][:num_words]
+        return [(self.corpus.feature_names[i], float(row[i])) for i in order]
 
     def top_documents(self, topic_id, num_docs=None):
-        vector = self.document_topic_matrix[:, topic_id]
-        cx = vector.tocoo()
-        weighted_docs = [()] * self.corpus.size
-        for doc_id, topic_id, weight in itertools.zip_longest(cx.row, cx.col, cx.data):
-            weighted_docs[doc_id] = (doc_id, weight)
-        weighted_docs.sort(key=lambda x: x[1], reverse=True)
+        col = self.document_topic_matrix[:, topic_id].toarray().ravel()
+        order = np.argsort(col, kind="stable")[::-1]
         if num_docs is not None:
-            return weighted_docs[:num_docs]
+            order = order[:num_docs]
         else:
-            return [d for d in weighted_docs if d[1] > 0]
+            order = order[col[order] > 0]
+        return [(int(i), float(col[i])) for i in order]
 
     def word_distribution_for_topic(self, topic_id):
-        vector = self.topic_word_matrix[topic_id].toarray()
-        return vector[0]
+        return self.topic_word_matrix[topic_id].toarray()[0]
 
     def topic_distribution_for_document(self, doc_id):
-        vector = self.document_topic_matrix[doc_id].toarray()
-        return vector[0]
+        return self.document_topic_matrix[doc_id].toarray()[0]
 
     def topic_distribution_for_word(self, word_id):
-        vector = self.topic_word_matrix[:, word_id].toarray()
-        return vector.T[0]
+        return self.topic_word_matrix[:, word_id].toarray().ravel()
 
     def get_topic_frequency(self, topic_id):
-        return self.topic_frequencies[topic_id, 0]
+        return self.topic_frequencies[topic_id]
 
     def most_likely_topics_for_document(self, doc_id):
         topic_vector = self.topic_distribution_for_document(doc_id)
         topics = np.argsort(topic_vector)
-        weights = zip(topics, (topic_vector[topic] for topic in topics))
-        return weights
+        return zip(topics, (topic_vector[t] for t in topics))
 
 
 class LatentDirichletAllocation(TopicModel):
     def infer_topics(self, num_topics=10, algorithm="variational", **kwargs):
         self.nb_topics = num_topics
-        lda_model = None
-        topic_document = None
         self.model = LDA(
             n_components=num_topics,
             learning_method="batch",
@@ -133,33 +102,7 @@ class LatentDirichletAllocation(TopicModel):
             topic_word_prior=0.01 / num_topics,
         )
         topic_document = self.model.fit_transform(self.corpus.sklearn_vector_space)
-        self.topic_word_matrix = []
-        self.document_topic_matrix = []
-        vocabulary_size = len(self.corpus.vectorizer.vocabulary_)
-        row = []
-        col = []
-        data = []
-        for topic_idx, topic in enumerate(self.model.components_):
-            for i in range(vocabulary_size):
-                row.append(topic_idx)
-                col.append(i)
-                data.append(topic[i])
-        self.topic_word_matrix = coo_matrix(
-            (data, (row, col)), shape=(self.nb_topics, len(self.corpus.vectorizer.vocabulary_))
-        ).tocsr()
-        row = []
-        col = []
-        data = []
-        doc_count = 0
-        for doc in topic_document:
-            topic_count = 0
-            for topic_weight in doc:
-                row.append(doc_count)
-                col.append(topic_count)
-                data.append(topic_weight)
-                topic_count += 1
-            doc_count += 1
-        self.document_topic_matrix = coo_matrix((data, (row, col)), shape=(self.corpus.size, self.nb_topics)).tocsr()
+        self._store_matrices(topic_document)
 
 
 class NonNegativeMatrixFactorization(TopicModel):
@@ -170,35 +113,10 @@ class NonNegativeMatrixFactorization(TopicModel):
             init="nndsvda",
             solver="mu",
             beta_loss="kullback-leibler",
-            alpha_H=0.00025 * num_topics,  # a nice sweet spot for making sure the top word doesn't dominate
+            alpha_H=0.00025 * num_topics,  # keeps the top word from dominating
             max_iter=self.max_iter,
             random_state=0,
             verbose=True,
         )
         topic_document = self.model.fit_transform(self.corpus.sklearn_vector_space)
-        self.topic_word_matrix = []
-        self.document_topic_matrix = []
-        vocabulary_size = len(self.corpus.vectorizer.vocabulary_)
-        row = []
-        col = []
-        data = []
-        for topic_idx, topic in enumerate(self.model.components_):
-            for i in range(vocabulary_size):
-                row.append(topic_idx)
-                col.append(i)
-                data.append(topic[i])
-        self.topic_word_matrix = coo_matrix(
-            (data, (row, col)), shape=(self.nb_topics, len(self.corpus.vectorizer.vocabulary_))
-        ).tocsr()
-        row = []
-        col = []
-        data = []
-        doc_count = 0
-        for doc in topic_document:
-            topic_count = 0
-            for topic_weight in doc:
-                row.append(doc_count)
-                col.append(topic_count)
-                data.append(topic_weight)
-                topic_count += 1
-            doc_count += 1
+        self._store_matrices(topic_document)
