@@ -2,7 +2,15 @@ import { createApp } from "vue"
 import App from "./App.vue"
 import router from "./router/index.js"
 import axios from "axios"
-import VueApexCharts from "vue3-apexcharts"
+import ECharts from "vue-echarts"
+import { use } from "echarts/core"
+import { CanvasRenderer } from "echarts/renderers"
+import { BarChart, LineChart } from "echarts/charts"
+import {
+    GridComponent,
+    TooltipComponent,
+    LegendComponent,
+} from "echarts/components"
 
 import "bootstrap/dist/css/bootstrap.css"
 import "bootstrap"
@@ -10,10 +18,19 @@ import "bootstrap"
 import globalConfig from "../appConfig.json"
 import modelConfigRaw from "../model_config.ini?raw"
 
+use([
+    CanvasRenderer,
+    BarChart,
+    LineChart,
+    GridComponent,
+    TooltipComponent,
+    LegendComponent,
+])
+
 const app = createApp(App)
 
 app.use(router)
-app.component("apexchart", VueApexCharts)
+app.component("v-chart", ECharts)
 
 app.config.globalProperties.$http = axios
 app.config.globalProperties.$globalConfig = globalConfig

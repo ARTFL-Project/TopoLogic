@@ -46,8 +46,8 @@
                                 </div>
                             </div>
                             <div class="ps-2 pe-2 pt-2">
-                                <apexchart width="100%" height="300px" type="bar" :options="topicEvolutionChartOptions"
-                                    :series="topicEvolutionSeries"></apexchart>
+                                <v-chart :option="topicEvolutionOption" :autoresize="true"
+                                    @click="goToYear" style="width: 100%; height: 300px"></v-chart>
                             </div>
                         </div>
                     </div>
@@ -72,8 +72,8 @@
                                     </div>
                                 </div>
                             </div>
-                            <apexchart ref="timeChart" width="100%" height="400px" :series="similarEvolutionSeries"
-                                :options="similarEvolutionOptions"></apexchart>
+                            <v-chart ref="timeChart" :option="similarEvolutionOption" :autoresize="true"
+                                style="width: 100%; height: 400px"></v-chart>
                             <div class="similar-legend">
                                 <div v-for="(localTopic, seriesIndex) in similarEvolutionSeries" :key="localTopic.name"
                                     class="topic ps-2 pe-2 pb-1" style="font-size: 80%"
@@ -143,102 +143,91 @@ export default {
             rawTopicEvolution: null,    // per-year data, held for client-side rebucketing of the bar chart
             currentSmoothedEvolution: null,  // server-smoothed current topic for the correlation overlay
             refetchTimer: null,
-            topicEvolutionChartOptions: {
-                chart: {
-                    id: "topic-evolution",
-                    toolbar: {
-                        show: false,
-                    },
-                    events: {
-                        click: this.goToYear,
-                    },
-                },
-                dataLabels: { enabled: false },
-                xaxis: {
-                    categories: [],
-                    labels: {
-                        formatter: (val) => {
-                            const interval = parseInt(this.evolutionInterval) || 1;
-                            if (interval <= 1) return String(val);
-                            return `${val}–${parseInt(val) + interval - 1}`;
-                        },
-                    },
-                },
-                grid: {
-                    padding: {
-                        left: 0,
-                        right: 0,
-                        top: 0,
-                        bottom: 0,
-                    },
-                },
-                fill: {
-                    opacity: 0.9,
-                },
-                colors: ["#ad4242"],   // theme $button-color — matches buttons, badges, th underlines
-                tooltip: {
-                    x: {
-                        formatter: (year) => {
-                            const interval = parseInt(this.evolutionInterval) || 1;
-                            if (interval <= 1) return String(year);
-                            return `${year}–${parseInt(year) + interval - 1}`;
-                        },
-                    },
-                },
-            },
+            topicEvolutionCategories: [],
             topicEvolutionSeries: [
                 {
                     name: "Topic Evolution",
                     data: [],
                 },
             ],
+            similarEvolutionCategories: [],
             similarEvolutionOptions: {
-                chart: {
-                    id: "similar-evolution",
-                    toolbar: {
-                        show: false,
-                    },
-                },
-                dataLabels: { enabled: false },
-                yaxis: {
-                    decimalsInFloat: 2,
-                    labels: {
-                        formatter: function (val) {
-                            return typeof val === "number" ? val.toFixed(2) : String(val);
-                        },
-                    },
-                },
+                // Retained for the in-template legend swatch lookup via `.colors[seriesIndex]`.
                 colors: ["#33b2df", "#546E7A", "#d4526e", "#13d8aa", "#A5978B"],
-                stroke: {
-                    curve: "smooth",
-                    width: 1.5,
-                },
-                grid: {
-                    padding: {
-                        left: 0,
-                        // right: 0,
-                        top: 0,
-                        bottom: 0,
-                    },
-                },
-                tooltip: {
-                    enabled: false,
-                },
-                legend: {
-                    show: false,
-                    formatter: function (seriesName) {
-                        return `Topic ${seriesName}`;
-                    },
-                },
-                plotOptions: {},
-                fill: {
-                    opacity: 0.5,
-                },
             },
             similarEvolutionSeries: [{ name: 0, data: [] }],
         };
     },
     computed: {
+        topicEvolutionOption() {
+            const interval = parseInt(this.evolutionInterval) || 1;
+            const formatBucket = (val) => {
+                if (interval <= 1) return String(val);
+                return `${val}–${parseInt(val) + interval - 1}`;
+            };
+            const td = topicData[parseInt(this.topic)];
+            const barColor = (td && td.color) || "#ad4242";
+            return {
+                animation: false,
+                grid: { left: 40, right: 10, top: 10, bottom: 30, containLabel: true },
+                xAxis: {
+                    type: "category",
+                    data: this.topicEvolutionCategories,
+                    axisLabel: { formatter: formatBucket, hideOverlap: true },
+                },
+                yAxis: { type: "value" },
+                tooltip: {
+                    trigger: "axis",
+                    axisPointer: { type: "shadow" },
+                    formatter: (params) => {
+                        const p = params[0];
+                        return `${formatBucket(p.name)}<br/>${p.value}`;
+                    },
+                },
+                series: [
+                    {
+                        name: this.topicEvolutionSeries[0].name,
+                        type: "bar",
+                        data: this.topicEvolutionSeries[0].data,
+                        barWidth: "90%",
+                        itemStyle: { color: barColor, opacity: 0.9 },
+                    },
+                ],
+            };
+        },
+        similarEvolutionOption() {
+            const currentTopic = String(this.topic);
+            return {
+                animation: false,
+                color: this.similarEvolutionOptions.colors,
+                grid: { left: 40, right: 10, top: 10, bottom: 30, containLabel: true },
+                xAxis: {
+                    type: "category",
+                    data: this.similarEvolutionCategories,
+                    boundaryGap: false,
+                },
+                yAxis: {
+                    type: "value",
+                    axisLabel: {
+                        formatter: (val) => (typeof val === "number" ? val.toFixed(2) : String(val)),
+                    },
+                },
+                tooltip: { show: false },
+                legend: { show: false },
+                series: this.similarEvolutionSeries.map((s) => {
+                    const isCurrent = String(s.name) === currentTopic;
+                    return {
+                        name: s.name,
+                        type: "line",
+                        data: s.data,
+                        smooth: true,
+                        showSymbol: false,
+                        lineStyle: { width: 1.5 },
+                        ...(isCurrent ? { areaStyle: { opacity: 0.1 } } : {}),
+                    };
+                }),
+            };
+        },
         documentsHeader: function () {
             if (this.timeSeriesEnabled && this.year) {
                 return `Top ${this.documents.length} documents by weight for this topic (${this.year})`;
@@ -400,24 +389,17 @@ export default {
                     type: "area",
                 },
             ];
+            this.similarEvolutionCategories = similarTopics[0].topic_evolution.labels.slice(start, end);
+            // One color per series entry, matched to the topic's own palette color
+            // so the swatch in the in-page legend and the line color always agree
+            // — and the same topic has the same color across TimeView, Topic, and
+            // the landscape views.
             this.similarEvolutionOptions = {
                 ...this.similarEvolutionOptions,
-                xaxis: {
-                    categories: similarTopics[0].topic_evolution.labels.slice(start, end),
-                },
-                fill: {
-                    opacity: [...similarTopics, this.topic]
-                        .slice(start, end)
-                        .map((topic) => (topic.topic != this.$route.params.topic ? 1 : 0.1)),
-                },
-                colors: [
-                    "#2E93fA",
-                    "#66DA26",
-                    "#546E7A",
-                    "#E91E63",
-                    "#FF9800",
-                    "rgba(156, 60, 60, 0.15)",
-                ],
+                colors: this.similarEvolutionSeries.map((s) => {
+                    const td = topicData[parseInt(s.name)];
+                    return td ? td.color : "#888";
+                }),
             };
         },
         scaleWordWeights(wordWeights) {
@@ -452,26 +434,23 @@ export default {
                 startIndex,
                 endIndex
             );
-            this.topicEvolutionSeries[0].data = this.formatTopicEvolution(
-                topicEvolution.data
-            );
-
-            this.topicEvolutionChartOptions = {
-                ...this.topicEvolutionChartOptions,
-                xaxis: {
-                    ...this.topicEvolutionChartOptions.xaxis,
-                    categories: topicEvolution.labels,
+            this.topicEvolutionSeries = [
+                {
+                    name: this.topicEvolutionSeries[0].name,
+                    data: this.formatTopicEvolution(topicEvolution.data),
                 },
-            };
+            ];
+            this.topicEvolutionCategories = topicEvolution.labels;
         },
         goToWord(word) {
             this.$router.push(`/word/${word}`);
         },
-        goToYear(event) {
-            let seriesIndex = parseInt(event.target.getAttribute("j"));
-            let year = this.topicEvolutionChartOptions.xaxis.categories[
-                seriesIndex
-            ];
+        goToYear(params) {
+            // ECharts click event: only react to clicks on the bar series itself
+            // (not on empty chart area).
+            if (!params || params.componentType !== "series") return;
+            const year = this.topicEvolutionCategories[params.dataIndex];
+            if (year == null) return;
             this.yearLoading = true;
             this.$http
                 .get(

@@ -35,10 +35,25 @@
                         <li class="nav-item">
                             <router-link class="nav-link" to="/view/word">Vocabulary</router-link>
                         </li>
-                        <li class="nav-item" v-for="field in metadataDistributions" :key="field.field">
-                            <router-link class="nav-link" :to="`/view/${field.field}?filter=${field.filterFrequency}`">
-                                Topics in {{ field.label }}s
-                            </router-link>
+                        <li class="nav-item dropdown" v-if="profiledFields.length">
+                            <a
+                                class="nav-link dropdown-toggle"
+                                href="#"
+                                role="button"
+                                data-bs-toggle="dropdown"
+                                aria-expanded="false"
+                            >Metadata Explorer</a>
+                            <ul class="dropdown-menu">
+                                <li v-for="field in profiledFields" :key="field.field">
+                                    <router-link
+                                        class="dropdown-item"
+                                        :to="`/explorer/${encodeURIComponent(field.field)}`"
+                                    >
+                                        {{ fieldLabel(field.field) }}
+                                        <span class="text-muted small ms-1">({{ field.value_count }})</span>
+                                    </router-link>
+                                </li>
+                            </ul>
                         </li>
                         <li class="nav-item" v-if="timeSeriesEnabled">
                             <router-link class="nav-link" to="/time">Topics across Time</router-link>
@@ -71,6 +86,22 @@ import ModelStatistics from "./components/ModelStatistics.vue";
 import CorpusOverview from "./components/CorpusOverview.vue";
 import TopicDistributions from "./components/TopicDistributions.vue";
 
+const FIELD_LABELS = {
+    author: "Author",
+    text_genre: "Genre",
+    publisher: "Publisher",
+    pub_place: "Place of publication",
+    collection: "Collection",
+    editor: "Editor",
+    keywords: "Keywords",
+    pub_date: "Publication date",
+    create_date: "Creation date",
+    title: "Title",
+    notes: "Notes",
+    text_form: "Form",
+    auth_gender: "Author gender",
+};
+
 export default {
     name: "app",
     components: { ModelStatistics, CorpusOverview, TopicDistributions },
@@ -78,15 +109,28 @@ export default {
         return {
             topicData: topics,
             topicIds: [],
-            metadataDistributions: this.$globalConfig.metadataDistributions,
             timeSeriesEnabled: this.$globalConfig.timeSeriesConfig.enabled !== false,
             wordSelected: "",
+            profiledFields: [],
         };
+    },
+    created() {
+        this.$http
+            .get(`${this.$globalConfig.apiServer}/get_profiled_fields/${this.$globalConfig.databaseName}`)
+            .then((response) => {
+                this.profiledFields = response.data.fields || [];
+            })
+            .catch(() => {
+                this.profiledFields = [];
+            });
     },
     methods: {
         searchVocab() {
             this.$router.push(`/word/${this.wordSelected}`);
             this.wordSelected = "";
+        },
+        fieldLabel(field) {
+            return FIELD_LABELS[field] || field;
         },
     },
 };

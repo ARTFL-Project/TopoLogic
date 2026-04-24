@@ -86,10 +86,17 @@ def read_json_config(path):
 @app.get("/{table_name}/document/{philo_db}/{doc}/{div1}/{div2}")
 @app.get("/{table_name}/document/{philo_db}/{doc}/{div1}/{div2}/{div3}")
 @app.get("/{table_name}/document/{philo_db}/{doc}/{div1}/{div2}/{div3}/{para}")
+@app.get("/{table_name}/reading/{philo_db}/{doc}")
+@app.get("/{table_name}/reading/{philo_db}/{doc}/{div1}")
+@app.get("/{table_name}/reading/{philo_db}/{doc}/{div1}/{div2}")
+@app.get("/{table_name}/reading/{philo_db}/{doc}/{div1}/{div2}/{div3}")
+@app.get("/{table_name}/reading/{philo_db}/{doc}/{div1}/{div2}/{div3}/{para}")
 @app.get("/{table_name}/word/{word}")
 @app.get("/{table_name}/time")
 @app.get("/{table_name}/view/{field_name}")
 @app.get("/{table_name}/metadata/{field_name}/{field_value}")
+@app.get("/{table_name}/explorer")
+@app.get("/{table_name}/explorer/{field_name}")
 def index(table_name: str):
     with open(_safe_path(table_name, "dist/index.html")) as html:
         index_html = html.read()
@@ -315,9 +322,105 @@ def get_field_distribution(table, field, value: str):
         return {"topic_distribution": topic_distribution}
 
 
+@app.get("/get_profiled_fields/{table}")
+def get_profiled_fields(table: str):
+    """List metadata fields browsable by the Metadata Explorer. Each entry
+    carries `kind`: `profile` (rich profile view) or `navigate` (direct
+    document link — used for titles and other near-identifier fields)."""
+    config = read_model_config(table)
+    with DBSearch(_db_path(table), config["object_level"]) as db:
+        return {"fields": db.get_profiled_fields()}
+
+
+@app.get("/get_field_navigation_values/{table}")
+def get_field_navigation_values(table: str, field: str):
+    """All values of a navigate-kind field + the document coordinates each
+    one points to. Frontend uses this to render direct /document/... links."""
+    config = read_model_config(table)
+    with DBSearch(_db_path(table), config["object_level"]) as db:
+        return {"values": db.get_field_navigation_values(field)}
+
+
+@app.get("/get_metadata_profile/{table}/{field}")
+def get_metadata_profile(table: str, field: str, value: str):
+    """Precomputed rich profile for a single metadata value (e.g. an author).
+
+    Built by `DBHandler.save_metadata_profiles` at training time, so this
+    endpoint is a single SELECT + a batch metadata lookup for the exemplar
+    and anomaly docs.
+    """
+    config = read_model_config(table)
+    with DBSearch(_db_path(table), config["object_level"]) as db:
+        profile = db.get_metadata_profile(field, value, config["metadata_fields"])
+        if profile is None:
+            raise HTTPException(
+                status_code=404,
+                detail=(
+                    "No precomputed profile for this value. The value may have "
+                    "too few documents, or the model DB predates the profile "
+                    "pass — rerun training or use topologic.backfill_profiles."
+                ),
+            )
+        return profile
+
+
 @app.get("/get_time_distributions/{table}/")
 def get_time_distributions(table):
     config = read_model_config(table)
     with DBSearch(_db_path(table), config["object_level"]) as db:
         distributions_over_time = db.get_topic_distributions_over_time()
         return {"distributions_over_time": distributions_over_time}
+
+
+@app.get("/get_doc_topical_reading/{table}/{philo_db}")
+def get_doc_topical_reading(table: str, philo_db: str, philo_id: str, top_k: int = 8):
+    """Return precomputed per-chunk HTML + topic distributions for the topical-
+    reading view.
+
+    Everything is built at training time (see `DBHandler.save_doc_chunks`):
+    each chunk already carries its PhiloLogic-rendered HTML and a top-K topic
+    distribution. This endpoint is a single SELECT + shape-munging.
+    """
+    config = read_model_config(table)
+    with DBSearch(_db_path(table), config["object_level"][philo_db]) as db:
+        row = db.get_doc_chunks(philo_id, philo_db)
+        if row is None:
+            raise HTTPException(status_code=404, detail="Document not found")
+        doc_id = row.get("doc_id")
+        chunks_meta = row.get("chunks") or []
+        topic_dist = row.get("topic_distribution") or {}
+        if not chunks_meta:
+            raise HTTPException(
+                status_code=404,
+                detail="No precomputed chunks for this document. Re-run topic-model ingestion to generate them.",
+            )
+        # Pull the citation metadata under the same DB handle so the tab view
+        # can render the same citation header as the Summary tab.
+        metadata = db.get_metadata(doc_id, config["metadata_fields"]) or {}
+
+    # Doc-level top-K topics — used to drive the legend and the strip chart
+    # palette. Derived from the full-doc distribution for stability.
+    doc_top_topics = []
+    if topic_dist.get("data"):
+        pairs = sorted(enumerate(topic_dist["data"]), key=lambda p: p[1], reverse=True)
+        doc_top_topics = [int(i) for i, w in pairs if w > 0][:top_k]
+
+    chunks = [
+        {
+            "html": c.get("html", ""),
+            "top_topics": c.get("top_topics", []),
+            "paragraph_philo_ids": c.get("paragraph_philo_ids", []),
+            "tokens": c.get("tokens", 0),
+        }
+        for c in chunks_meta
+    ]
+    # Strip the doc_id scalar before returning metadata; the Citations
+    # component expects only the configured metadata fields.
+    metadata.pop("doc_id", None)
+    return {
+        "chunks": chunks,
+        "doc_top_topics": doc_top_topics,
+        "metadata": metadata,
+    }
+
+

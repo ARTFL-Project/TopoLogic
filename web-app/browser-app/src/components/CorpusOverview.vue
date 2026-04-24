@@ -5,7 +5,7 @@
             <div class="row pt-3 px-3" v-if="loaded">
                 <div class="col-8" v-if="hasYearHistogram">
                     <h6 class="mb-3 text-center">Documents per year</h6>
-                    <apexchart type="bar" height="340" :options="yearChartOptions" :series="yearSeries"></apexchart>
+                    <v-chart :option="yearChartOption" :autoresize="false" style="height: 340px; width: 100%"></v-chart>
                 </div>
                 <div :class="hasYearHistogram ? 'col-4' : 'col-12'">
                     <div v-for="field in fieldsWithData" :key="field" class="mb-3">
@@ -44,47 +44,42 @@ export default {
                 (f) => this.overview.field_distributions[f] && this.overview.field_distributions[f].length > 0
             );
         },
-        yearSeries() {
-            return [
-                {
-                    name: "Documents",
-                    data: this.overview.year_distribution.map((e) => e.count),
-                },
-            ];
-        },
-        yearChartOptions() {
+        yearChartOption() {
+            const years = this.overview.year_distribution.map((e) => e.year);
+            const counts = this.overview.year_distribution.map((e) => e.count);
+            // Cap to ~10 labels on the x-axis, mirroring the prior tickAmount: 10 setting.
+            const labelInterval = Math.max(0, Math.ceil(years.length / 10) - 1);
             return {
-                chart: {
-                    id: "corpus-year-histogram",
-                    toolbar: { show: false },
-                    // Animations are the main cost for a 100+ bar histogram — turning
-                    // them off cuts render time by >5x with no loss of information.
-                    animations: { enabled: false },
-                    redrawOnParentResize: false,
-                    redrawOnWindowResize: false,
+                // Animations are the main cost for a 100+ bar histogram — turning
+                // them off cuts render time by >5x with no loss of information.
+                animation: false,
+                grid: { left: 45, right: 10, top: 10, bottom: 30, containLabel: true },
+                xAxis: {
+                    type: "category",
+                    data: years,
+                    axisLabel: { hideOverlap: true, interval: labelInterval },
                 },
-                dataLabels: { enabled: false },
-                states: {
-                    hover: { filter: { type: "none" } },
-                    active: { filter: { type: "none" } },
-                },
-                xaxis: {
-                    categories: this.overview.year_distribution.map((e) => e.year),
-                    tickAmount: 10,
-                    labels: { hideOverlappingLabels: true },
-                },
-                yaxis: {
-                    labels: {
+                yAxis: {
+                    type: "value",
+                    axisLabel: {
                         formatter: (val) => (typeof val === "number" ? String(Math.round(val)) : val),
                     },
                 },
-                fill: { opacity: 0.9 },
-                colors: ["#ad4242"],
-                grid: { padding: { left: 0, right: 0, top: 0, bottom: 0 } },
-                plotOptions: { bar: { columnWidth: "90%" } },
                 tooltip: {
-                    y: { formatter: (val) => `${val} docs` },
+                    trigger: "axis",
+                    axisPointer: { type: "shadow" },
+                    formatter: (params) => `${params[0].name}<br/>${params[0].value} docs`,
                 },
+                series: [
+                    {
+                        name: "Documents",
+                        type: "bar",
+                        data: counts,
+                        barWidth: "90%",
+                        itemStyle: { color: "#ad4242", opacity: 0.9 },
+                        emphasis: { disabled: true },
+                    },
+                ],
             };
         },
     },

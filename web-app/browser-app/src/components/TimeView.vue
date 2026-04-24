@@ -26,19 +26,18 @@
                         <span
                             :id="`topic-${topic.name}`"
                             class="topic-legend"
-                            :style="`background-color: ${options.colors[topic.name]}`"
+                            :style="`background-color: ${topic.color}`"
                         ></span>
                         Topic {{ topic.name }}: {{ topic.label || topic.description }}
                     </div>
                 </div>
                 <div class="col-8">
-                    <apexchart
+                    <v-chart
                         ref="timeChart"
-                        width="100%"
-                        height="600px"
-                        :series="series"
-                        :options="options"
-                    ></apexchart>
+                        :option="chartOption"
+                        :autoresize="true"
+                        style="width: 100%; height: 600px"
+                    ></v-chart>
                 </div>
             </div>
         </div>
@@ -56,46 +55,42 @@ export default {
             endIndex: 0,
             topicsOverTime: [],
             topicData: topicData,
+            topicColorByName: Object.fromEntries(topicData.map(t => [t.name, t.color])),
             allSeriesVisible: true,
             seriesActive: topicData.map(topic => topic.name),
-            options: {
-                chart: {
-                    id: "topic-evolution",
-                    toolbar: {
-                        show: false
-                    }
+            categories: [],
+            series: [{ name: 0, data: [] }]
+        };
+    },
+    computed: {
+        chartOption() {
+            return {
+                animation: false,
+                grid: { left: 45, right: 10, top: 10, bottom: 30, containLabel: true },
+                xAxis: {
+                    type: "category",
+                    data: this.categories,
+                    boundaryGap: false
                 },
-                dataLabels: { enabled: false },
-                yaxis: {
-                    labels: {
+                yAxis: {
+                    type: "value",
+                    axisLabel: {
                         formatter: val => val.toFixed(3)
                     }
                 },
-                xaxis: {
-                    categories: []
-                },
-                colors: this.shuffleColors(),
-                stroke: {
-                    curve: "smooth",
-                    width: 1.5
-                },
-                grid: {
-                    padding: {
-                        left: 0,
-                        // right: 0,
-                        top: 0,
-                        bottom: 0
-                    }
-                },
-                tooltip: {
-                    enabled: false
-                },
-                legend: {
-                    show: false
-                }
-            },
-            series: [{ name: 0, data: [] }]
-        };
+                tooltip: { show: false },
+                legend: { show: false },
+                series: this.series.map(s => ({
+                    name: s.name,
+                    type: "line",
+                    data: s.data,
+                    smooth: true,
+                    showSymbol: false,
+                    lineStyle: { width: 1.5, color: this.topicColorByName[s.name] },
+                    itemStyle: { color: this.topicColorByName[s.name] }
+                }))
+            };
+        }
     },
     created() {
         if (this.timeSeriesEnabled) {
@@ -157,17 +152,10 @@ export default {
                         );
                     }
 
-                    this.options = {
-                        ...this.options,
-                        ...{
-                            xaxis: {
-                                categories: this.topicsOverTime[0].topic_evolution.labels.slice(
-                                    this.startIndex,
-                                    this.endIndex
-                                )
-                            }
-                        }
-                    };
+                    this.categories = this.topicsOverTime[0].topic_evolution.labels.slice(
+                        this.startIndex,
+                        this.endIndex
+                    );
                     this.series = this.topicsOverTime.map(topic => ({
                         data: topic.topic_evolution.data.slice(
                             this.startIndex,
@@ -177,20 +165,10 @@ export default {
                     }));
                 });
         },
-        shuffleColors() {
-            let unshuffled = topicData.map(topic =>
-                this.randomizeColors(topicData.length, topic.name)
-            );
-            let shuffled = unshuffled
-                .map(a => ({ sort: Math.random(), value: a }))
-                .sort((a, b) => a.sort - b.sort)
-                .map(a => a.value);
-            return shuffled;
-        },
         clearAllSeries() {
             this.series = this.series.map(series => ({
                 name: series.name,
-                data: this.options.xaxis.categories.map(() => 0.0)
+                data: this.categories.map(() => 0.0)
             }));
             document
                 .querySelectorAll(".topic-legend")
@@ -220,62 +198,11 @@ export default {
                     }
                 ];
                 this.seriesActive.push(topic);
-                this.highlightTopic(topic, this.series.length - 1);
-                let el = document.getElementById(`topic-${topic}`);
+                const el = document.getElementById(`topic-${topic}`);
+                el.style.backgroundColor = this.topicColorByName[topic];
                 el.parentNode.style.color = "inherit";
             }
             window.scrollTo({ top: 0, behavior: "smooth" });
-        },
-        highlightTopic(topic, indexNum) {
-            document.getElementById(
-                `topic-${topic}`
-            ).style.backgroundColor = this.options.colors[indexNum];
-        },
-        randomizeColors(colors, colorNum) {
-            colorNum += 1;
-            var HSLToRGB = function(h, s, l) {
-                // Must be fractions of 1
-                s /= 100;
-                l /= 100;
-
-                let c = (1 - Math.abs(2 * l - 1)) * s,
-                    x = c * (1 - Math.abs(((h / 60) % 2) - 1)),
-                    m = l - c / 2,
-                    r = 0,
-                    g = 0,
-                    b = 0;
-                if (0 <= h && h < 60) {
-                    r = c;
-                    g = x;
-                    b = 0;
-                } else if (60 <= h && h < 120) {
-                    r = x;
-                    g = c;
-                    b = 0;
-                } else if (120 <= h && h < 180) {
-                    r = 0;
-                    g = c;
-                    b = x;
-                } else if (180 <= h && h < 240) {
-                    r = 0;
-                    g = x;
-                    b = c;
-                } else if (240 <= h && h < 300) {
-                    r = x;
-                    g = 0;
-                    b = c;
-                } else if (300 <= h && h < 360) {
-                    r = c;
-                    g = 0;
-                    b = x;
-                }
-                r = Math.round((r + m) * 255);
-                g = Math.round((g + m) * 255);
-                b = Math.round((b + m) * 255);
-
-                return "rgb(" + r + "," + g + "," + b + ")";
-            };
-            return HSLToRGB((colorNum * (360 / colors)) % 360, 100, 60);
         }
     }
 };

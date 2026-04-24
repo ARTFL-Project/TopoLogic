@@ -7,6 +7,7 @@
                 v-if="mainDoc"
             ></citations>
         </h5>
+        <doc-tabs v-if="mainDoc"></doc-tabs>
 
         <div class="row mb-4 mt-4">
             <div class="col-9">
@@ -118,6 +119,7 @@ import topicData from "../../topic_words.json";
 import Citations from "./Citations.vue";
 import WordLink from "./WordLink.vue";
 import SortableTable from "./SortableTable.vue";
+import DocTabs from "./DocTabs.vue";
 
 export default {
     name: "Document",
@@ -125,6 +127,7 @@ export default {
         Citations,
         WordLink,
         SortableTable,
+        DocTabs,
     },
     data() {
         return {

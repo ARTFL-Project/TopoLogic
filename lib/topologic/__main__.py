@@ -240,6 +240,12 @@ def prepare_data(
             continue
 
         os.makedirs(os.path.join(training_texts_path, db_name, "texts"), exist_ok=True)
+        # Also persist the full preprocessor Tokens object per doc. Each
+        # PreprocessorToken carries `ext["start_byte"]` / `ext["end_byte"]`
+        # inherited from the source, so `save_doc_chunks` can later assign
+        # each preproc token to its paragraph (byte range from lz4) and feed
+        # true vectorizer-vocabulary tokens to fold-in.
+        os.makedirs(os.path.join(training_texts_path, db_name, "tokens"), exist_ok=True)
         for text in preproc.process_texts(
             file_list,
             progress_prefix=f"Processing {file_count} files from collection {count} of {len(training_config['databases'])}...",
@@ -257,6 +263,7 @@ def prepare_data(
                     output.write(" ".join([t for t in text if t.text in dictionary]))
                 else:
                     output.write(" ".join(text))
+            text.save(os.path.join(training_texts_path, db_name, "tokens", f"{pos}.pkl"))
             if (
                 db_name in inference_config["databases"]
                 and db_config["text_object_level"] == inference_config["databases"][db_name]["text_object_level"]
@@ -317,6 +324,7 @@ def prepare_data(
             print(f"Skipping collection {count}... No files matched based on metadata filter.")
             continue
         os.makedirs(os.path.join(inference_texts_path, db_name, "texts"), exist_ok=True)
+        os.makedirs(os.path.join(inference_texts_path, db_name, "tokens"), exist_ok=True)
         for text in preproc.process_texts(
             file_list,
             progress_prefix=f"Processing {file_count} files from collection {count} of {len(inference_config['databases'])}...",
@@ -335,6 +343,7 @@ def prepare_data(
                     output.write(" ".join([t for t in text if t.text in dictionary]))
                 else:
                     output.write(" ".join(text))
+            text.save(os.path.join(inference_texts_path, db_name, "tokens", f"{pos}.pkl"))
             text.metadata["philo_db"] = db_name
             metadata[pos] = text.metadata
             pos += 1
@@ -503,6 +512,12 @@ def build_web_app(
 
         print("Saving docs...", flush=True)
         db.save_docs()
+
+        print("Building structural chunks + HTML for topical reading...", flush=True)
+        db.save_doc_chunks(inference_config["databases"])
+
+        print("Building per-metadata-value profiles...", flush=True)
+        db.save_metadata_profiles()
 
         print("Saving topics...", flush=True)
         db.save_topics(

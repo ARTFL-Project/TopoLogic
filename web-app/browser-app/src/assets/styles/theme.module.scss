@@ -124,6 +124,29 @@ a.btn-secondary {
     font-weight: 700 !important;
 }
 
+// Secondary / muted text inside a card header (e.g. the parenthetical
+// explanation next to a title) needs to read on the red background, where
+// Bootstrap's default `.text-muted` gray is nearly invisible.
+.card-header .text-muted {
+    color: rgba(255, 255, 255, 0.95) !important;
+}
+
+// Form switches / checkboxes placed inside a card header also need the
+// contrast bumped — Bootstrap's default near-white track disappears on the
+// red background. Translucent-white track when unchecked, dark track with
+// the default white thumb when checked: both states read clearly.
+.card-header .form-check-input {
+    background-color: rgba(255, 255, 255, 0.35) !important;
+    border-color: rgba(255, 255, 255, 0.85) !important;
+}
+.card-header .form-check-input:checked {
+    background-color: rgba(0, 0, 0, 0.55) !important;
+    border-color: rgba(0, 0, 0, 0.55) !important;
+}
+.card-header .form-check-input:focus {
+    box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.25) !important;
+}
+
 // Links inside a card header sit on the red background and must be readable.
 .card-header a {
     color: #fff !important;
