@@ -2,7 +2,7 @@
     <div id="app">
         <nav class="navbar navbar-expand-lg navbar-light bg-light shadow-sm mb-4">
             <div class="container-fluid">
-                <router-link class="navbar-brand" to="/">TopoLogic</router-link>
+                <router-link class="navbar-brand" to="/">{{ $globalConfig.displayName || $globalConfig.databaseName }}</router-link>
                 <button
                     class="navbar-toggler"
                     type="button"

@@ -31,13 +31,22 @@ use([
 // reload without rebuilding. Only appConfig.build.json (appPath) is baked in,
 // because vite bakes `base` into asset URLs.
 axios.get(`${import.meta.env.BASE_URL}appConfig.json`).then((response) => {
+    const globalConfig = response.data
+    // databaseName is the canonical identifier used for API routing; it maps
+    // to a directory on the server, so it isn't user-editable via the config
+    // file. Derive it from the deployment URL (the last segment of BASE_URL,
+    // e.g. "/topologic/frantext/" → "frantext") so the config file can't
+    // desync it from the path. For free-form UI text, use `displayName`.
+    const baseSegments = import.meta.env.BASE_URL.split("/").filter(Boolean)
+    globalConfig.databaseName = baseSegments[baseSegments.length - 1] || ""
+
     const app = createApp(App)
 
     app.use(router)
     app.component("v-chart", ECharts)
 
     app.config.globalProperties.$http = axios
-    app.config.globalProperties.$globalConfig = response.data
+    app.config.globalProperties.$globalConfig = globalConfig
     app.config.globalProperties.$modelConfig = parseModelConfig(modelConfigRaw)
 
     app.mount("#app")

@@ -164,7 +164,7 @@ def write_app_config(
             {
                 "apiServer": os.path.join(server_name, proxy_path, "topologic-api"),
                 "philoLogicUrls": philologic_links,
-                "databaseName": database_name,
+                "displayName": database_name,
                 "metadataFields": [
                     {"field": "author", "style": {}, "link": False},
                     {"field": "title", "style": {"font-style": "italic"}, "link": True},
