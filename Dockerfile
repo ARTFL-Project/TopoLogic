@@ -1,37 +1,46 @@
-FROM artfl/philologic:latest
+FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt remove -y nodejs libnode72 libnode-dev && apt install curl
+# Base tools needed during install + runtime.
+# - curl: uv installer, nodesource setup
+# - git, g++: wheel builds (annoy) and the text-preprocessing git source
+# - sudo: install.sh uses it to seed /var/lib/topologic
+# - locales: en_US.UTF-8 for consistent text handling
+# - ca-certificates: HTTPS for pip/uv/npm downloads
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        curl git g++ rsync ca-certificates locales sudo \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN curl -sL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
+ENV LANG=en_US.UTF-8 LANGUAGE=en_US:en LC_ALL=en_US.UTF-8
 
-RUN apt update && apt install -y locales git g++ nodejs
+# Node 18+ for per-deployment `npm run build` (the topologic CLI invokes
+# this after writing appConfig.build.json into each model's dir).
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get clean && rm -rf /var/lib/apt
-
-RUN service apache2 start && a2enmod proxy && a2enmod proxy_http && service apache2 stop
-
-RUN mkdir topologic
+RUN mkdir -p /topologic
 COPY api /topologic/api
 COPY api_server /topologic/api_server
 COPY lib /topologic/lib
+COPY labeler /topologic/labeler
 COPY web-app /topologic/web-app
 COPY config /topologic/config
-COPY init_topologic /topologic/init_topologic
 COPY topologic /topologic/topologic
 COPY install.sh /topologic/install.sh
 
-RUN cd /topologic && ./install.sh
-RUN mkdir /var/www/html/topologic
-COPY init_topologic /usr/local/bin/init_topologic
-RUN chmod +x /usr/local/bin/init_topologic
+# Default to the CUDA backend inside the image (nvidia-smi isn't available at
+# build time, so auto-detection would silently pick CPU). Override with
+# `--build-arg TOPOLOGIC_BACKEND=cpu` for a CPU-only image.
+ARG TOPOLOGIC_BACKEND=cuda
+RUN cd /topologic && ./install.sh --${TOPOLOGIC_BACKEND}
 
-# Set the locale
-RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \
-    locale-gen
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US:en
-ENV LC_ALL en_US.UTF-8
+RUN mkdir -p /var/www/html/topologic \
+    && chmod +x /topologic/api_server/docker_start.sh \
+    && cp /topologic/api_server/docker_start.sh /var/lib/topologic/api_server/docker_start.sh
 
-CMD ["/usr/local/bin/init_topologic"]
+EXPOSE 80
+
+CMD ["/var/lib/topologic/api_server/docker_start.sh"]

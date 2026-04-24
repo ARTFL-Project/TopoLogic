@@ -1,5 +1,37 @@
 #!/bin/bash
 
+set -e
+
+# Backend selection: --cpu, --cuda, or auto-detect via nvidia-smi.
+# Controls which torch wheel index is used (and whether cupy is installed
+# for GPU-accelerated spacy preprocessing).
+BACKEND=""
+for arg in "$@"; do
+    case "$arg" in
+        --cpu)  BACKEND="cpu" ;;
+        --cuda) BACKEND="cuda" ;;
+        -h|--help)
+            echo "Usage: $0 [--cpu | --cuda]"
+            echo "  --cpu   Install CPU-only torch; skip cupy."
+            echo "  --cuda  Install CUDA 12.4 torch + cupy-cuda12x for GPU spacy."
+            echo "  (default) Auto-detect: use --cuda if nvidia-smi is on PATH, else --cpu."
+            exit 0 ;;
+        *)
+            echo "Unknown argument: $arg" >&2
+            echo "Usage: $0 [--cpu | --cuda]" >&2
+            exit 1 ;;
+    esac
+done
+if [ -z "$BACKEND" ]; then
+    if command -v nvidia-smi >/dev/null 2>&1; then
+        BACKEND="cuda"
+        echo "nvidia-smi detected — installing CUDA backend. Pass --cpu to override."
+    else
+        BACKEND="cpu"
+        echo "No nvidia-smi detected — installing CPU backend. Pass --cuda to override."
+    fi
+fi
+
 # Ensure uv is installed — https://docs.astral.sh/uv/getting-started/installation/
 # uv is only needed during this install script; the runtime wrappers activate
 # the venv directly, so they don't need uv on PATH.
@@ -27,14 +59,14 @@ uv python install 3.12
 # (visible top-level path rather than a hidden `.venv` inside the project).
 rm -rf /var/lib/topologic/lib
 cp -R lib /var/lib/topologic/lib
-( cd /var/lib/topologic/lib && UV_PROJECT_ENVIRONMENT=/var/lib/topologic/topologic_env uv sync --frozen )
+( cd /var/lib/topologic/lib && UV_PROJECT_ENVIRONMENT=/var/lib/topologic/topologic_env uv sync --frozen --extra "$BACKEND" )
 
 # The labeler lives in its own package + venv because it needs a newer
 # `transformers` than spacy-transformers allows in the main env. The main
 # topologic pipeline shells out to `topologic-labeler` on demand.
 rm -rf /var/lib/topologic/labeler
 cp -R labeler /var/lib/topologic/labeler
-( cd /var/lib/topologic/labeler && UV_PROJECT_ENVIRONMENT=/var/lib/topologic/topologic_labeler_env uv sync --frozen )
+( cd /var/lib/topologic/labeler && UV_PROJECT_ENVIRONMENT=/var/lib/topologic/topologic_labeler_env uv sync --frozen --extra "$BACKEND" )
 sudo ln -sf /var/lib/topologic/topologic_labeler_env/bin/topologic-labeler /usr/local/bin/topologic-labeler
 
 # Install the topologic script

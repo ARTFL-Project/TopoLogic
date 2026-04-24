@@ -1,7 +1,7 @@
 [project]
 name = "topologic"
 version = "0.4"
-description = "Yet Another Topic Modeling Browser, tied to PhiloLogic"
+description = "Yet Another Topic Modeling Browser"
 authors = [
     { name = "The ARTFL Project", email = "clovisgladstone@gmail.com" },
 ]
@@ -24,14 +24,32 @@ dependencies = [
     "multiprocess",
     "text_preprocessing",
     "philologic>=5.2.2.1",
-    "torch",
     "spacy-transformers",
-    "cupy-cuda12x",
+]
+
+# Install-time backend choice. Exactly one of these extras must be passed to
+# `uv sync` (install.sh resolves it from the --cpu/--cuda flag). `cuda` adds
+# cupy-cuda12x, which spacy's preprocessing uses for GPU array ops.
+[project.optional-dependencies]
+cpu = ["torch"]
+cuda = ["torch", "cupy-cuda12x"]
+
+[tool.uv]
+conflicts = [
+    [{ extra = "cpu" }, { extra = "cuda" }],
 ]
 
 [tool.uv.sources]
 text_preprocessing = { git = "https://github.com/ARTFL-Project/text-preprocessing", tag = "v1.1.2" }
-torch = { index = "pytorch-cu124" }
+torch = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cu124", extra = "cuda" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 [[tool.uv.index]]
 name = "pytorch-cu124"
