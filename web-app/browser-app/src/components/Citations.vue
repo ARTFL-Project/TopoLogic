@@ -13,23 +13,18 @@
             <span v-else>{{ doc.metadata[citation.field] }}</span>
             <span class="separator" v-if="citeIndex != citations.length - 1">&#9679;</span>
         </span>
-        <!-- <doc-link :target="`${target}`" :metadata="doc.metadata"></doc-link> -->
 
         <br />
-        <a :href="goToPhilo()" target="_blank" v-if="doc.philo_type">Navigate to full text</a>
+        <router-link :to="readingLink()" v-if="doc.philo_type">Navigate to full text</router-link>
     </div>
 </template>
 <script>
-// import DocLink from "./DocLink";
-
 export default {
     name: "Citations",
-    // components: { DocLink },
     props: ["doc", "philoDb"],
     data() {
         return {
             citations: this.$globalConfig.citations[this.philoDb],
-            philoUrl: this.$globalConfig.philoLogicUrls[this.philoDb]
         };
     },
     methods: {
@@ -40,17 +35,11 @@ export default {
                 .join("/")}`;
             return url;
         },
-        goToPhilo() {
+        readingLink() {
             let philoType = `philo_${this.doc.metadata.philo_type}_id`;
-            if (this.doc.metadata.philo_type == "doc") {
-                return `${this.philoUrl}/navigate/${this.doc.metadata[philoType]}/table-of-contents/`;
-            } else {
-                let objectId = this.doc.metadata[philoType]
-                    .split(" ")
-                    .join("/");
-                return `${this.philoUrl}/navigate/${objectId}/`;
-            }
-        }
+            let objectId = this.doc.metadata[philoType].split(" ").join("/");
+            return `/reading/${this.philoDb}/${objectId}`;
+        },
     }
 };
 </script>

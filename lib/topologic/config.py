@@ -24,21 +24,14 @@ def read_config(config_path):
     training_data["min_tokens_per_doc"] = int(config["TRAINING_DATA"]["min_tokens_per_doc"])
 
     inference_paths = [i.strip() for i in config["INFERENCE_DATA"]["text_paths"].split(",") if i.strip()]
-    inference_raw_urls = [
-        i.strip().rstrip("/")
-        for i in config["INFERENCE_DATA"].get("philologic_database_urls", "").split(",")
-    ]
-    # Pad URL list so a shorter list (or empty) still aligns by position.
-    inference_urls = inference_raw_urls + [""] * max(0, len(inference_paths) - len(inference_raw_urls))
     inference_text_object_levels = [i.strip() for i in config["INFERENCE_DATA"]["text_object_level"].split(",")]
     inference_data: Dict[str, Union[int, Dict[str, Dict[str, str]]]] = {}
     inference_data["databases"] = {
         os.path.basename(os.path.normpath(path)): {
             "db_path": path,
-            "db_url": db_url,
             "text_object_level": text_object_level,
         }
-        for path, db_url, text_object_level in zip(inference_paths, inference_urls, inference_text_object_levels)
+        for path, text_object_level in zip(inference_paths, inference_text_object_levels)
     }
     inference_data["min_tokens_per_doc"] = int(config["INFERENCE_DATA"]["min_tokens_per_doc"])
 
@@ -143,7 +136,7 @@ def write_app_config(
     database_name,
     server_name,
     proxy_path,
-    philologic_links,
+    inference_db_names,
     start_date,
     end_date,
     interval,
@@ -163,7 +156,6 @@ def write_app_config(
         json.dump(
             {
                 "apiServer": os.path.join(server_name, proxy_path, "topologic-api"),
-                "philoLogicUrls": philologic_links,
                 "displayName": database_name,
                 "metadataFields": [
                     {"field": "author", "style": {}, "link": False},
@@ -184,7 +176,7 @@ def write_app_config(
                         },
                         {"field": "year", "style": {}, "link": False},
                     ]
-                    for db_name in philologic_links.keys()
+                    for db_name in inference_db_names
                 },
                 "timeSeriesConfig": {
                     "enabled": time_series_enabled,

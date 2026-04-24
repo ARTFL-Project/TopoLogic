@@ -40,6 +40,11 @@
             </div>
             <div class="card shadow-sm">
                 <div class="card-body reading-body">
+                    <div class="window-nav top" v-if="hasBefore">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" @click="pageWindow(-1)">
+                            ← Previous section
+                        </button>
+                    </div>
                     <div v-for="(chunk, offset) in visibleChunks" :key="windowStart + offset"
                         :id="`chunk-${windowStart + offset}`" class="chunk" :class="{
                             dim: isChunkDimmed(chunk),
@@ -56,7 +61,10 @@
                         </div>
                         <div class="chunk-html" v-html="chunk.html"></div>
                     </div>
-                    <div v-if="hasAfter" class="window-ellipsis" @click="pageWindow(1)" title="Show later chunks">…
+                    <div class="window-nav bottom" v-if="hasAfter">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" @click="pageWindow(1)">
+                            Next section →
+                        </button>
                     </div>
                 </div>
             </div>
@@ -343,12 +351,21 @@ export default {
             const maxStart = Math.max(0, this.chunks.length - this.windowSize);
             this.windowStart = Math.max(0, Math.min(maxStart, this.windowStart + direction * step));
             this.highlightedChunk = null;
+            // Scroll the newly-surfaced chunk to the top of the viewport so the
+            // reader lands on the start of the section they just paged to,
+            // rather than staying mid-scroll from the previous one.
+            this.$nextTick(() => {
+                const el = document.getElementById(`chunk-${this.windowStart}`);
+                if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+            });
         },
     },
 };
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+@use "../assets/styles/theme.module.scss" as theme;
+
 .legend-chip {
     display: inline-flex;
     align-items: center;
@@ -417,6 +434,417 @@ export default {
 
 .chunk :deep(p:last-child) {
     margin-bottom: 0;
+}
+
+// ---------------------------------------------------------------------------
+// Deep rules ported from text-pair's textNavigation component. These style
+// the PhiloLogic-rendered XML markup that ships inside each chunk's HTML —
+// page breaks, speaker/stage directions for drama, line groups for verse,
+// dictionary-entry formatting, notes, tables, inline images. Scoped under
+// `.chunk` so they only touch the reading body, not the strip chart or
+// legend. Rules that referenced ids not present here (book-page,
+// bibliographic-results, full-size-image) and alignment-passage classes
+// have been omitted.
+// ---------------------------------------------------------------------------
+
+.chunk :deep(.xml-pb) {
+    display: block;
+    text-align: center;
+    margin: 10px;
+}
+
+.chunk :deep(.xml-pb::before) {
+    content: "-" attr(n) "-";
+    white-space: pre;
+}
+
+.chunk :deep(.highlight) {
+    background-color: red;
+    color: #fff;
+}
+
+.chunk :deep(.xml-div1::after),
+.chunk :deep(.xml-div2::after),
+.chunk :deep(.xml-div3::after) {
+    content: "";
+    display: block;
+    clear: right;
+}
+
+/* Theater */
+.chunk :deep(.xml-castitem::after) {
+    content: "\A";
+    white-space: pre;
+}
+
+.chunk :deep(.xml-castlist > .xml-castitem:first-of-type::before) {
+    content: "\A";
+    white-space: pre;
+}
+
+.chunk :deep(.xml-castgroup::before) {
+    content: "\A";
+    white-space: pre;
+}
+
+.chunk :deep(b.headword) {
+    font-weight: 700 !important;
+    font-size: 130%;
+    font-variant: small-caps;
+    display: block;
+    margin-top: 20px;
+}
+
+.chunk :deep(b.headword::before) {
+    content: "\A";
+    white-space: pre;
+}
+
+.chunk :deep(.xml-lb),
+.chunk :deep(.xml-l) {
+    text-align: justify;
+    display: block;
+}
+
+.chunk :deep(.xml-sp .xml-lb:first-of-type) {
+    content: "";
+    white-space: normal;
+}
+
+.chunk :deep(.xml-lb[type="hyphenInWord"]) {
+    display: inline;
+}
+
+.chunk :deep(.xml-sp) {
+    display: block;
+}
+
+.chunk :deep(.xml-sp::before) {
+    content: "\A";
+    white-space: pre;
+}
+
+.chunk :deep(.xml-stage + .xml-sp:nth-of-type(n + 2)::before) {
+    content: "";
+}
+
+.chunk :deep(.xml-fw),
+.chunk :deep(.xml-join) {
+    display: none;
+}
+
+.chunk :deep(.xml-speaker + .xml-stage::before) {
+    content: "";
+    white-space: normal;
+}
+
+.chunk :deep(.xml-stage) {
+    font-style: italic;
+}
+
+.chunk :deep(.xml-stage::after) {
+    content: "\A";
+    white-space: pre;
+}
+
+.chunk :deep(div1 div2::before) {
+    content: "\A";
+    white-space: pre;
+}
+
+.chunk :deep(.xml-speaker) {
+    font-weight: 700;
+}
+
+/* Verse */
+.chunk :deep(.xml-lg) {
+    display: block;
+}
+
+.chunk :deep(.xml-lg::after) {
+    content: "\A";
+    white-space: pre;
+}
+
+.chunk :deep(.xml-lg:first-of-type::before) {
+    content: "\A";
+    white-space: pre;
+}
+
+/* Front matter / title pages */
+.chunk :deep(.xml-castList .xml-front),
+.chunk :deep(.xml-castItem),
+.chunk :deep(.xml-docTitle),
+.chunk :deep(.xml-docImprint),
+.chunk :deep(.xml-performance),
+.chunk :deep(.xml-docAuthor),
+.chunk :deep(.xml-docDate),
+.chunk :deep(.xml-premiere),
+.chunk :deep(.xml-casting),
+.chunk :deep(.xml-recette),
+.chunk :deep(.xml-nombre) {
+    display: block;
+}
+
+.chunk :deep(.xml-docTitle) {
+    font-style: italic;
+    font-weight: bold;
+}
+
+.chunk :deep(.xml-docAuthor),
+.chunk :deep(.xml-docTitle),
+.chunk :deep(.xml-docDate) {
+    text-align: center;
+}
+
+.chunk :deep(.xml-docTitle span[type="main"]) {
+    font-size: 150%;
+    display: block;
+}
+
+.chunk :deep(.xml-docTitle span[type="sub"]) {
+    font-size: 120%;
+    display: block;
+}
+
+.chunk :deep(.xml-performance),
+.chunk :deep(.xml-docImprint) {
+    margin-top: 10px;
+}
+
+.chunk :deep(.xml-set) {
+    display: block;
+    font-style: italic;
+    margin-top: 10px;
+}
+
+/* Dictionary formatting */
+.chunk {
+    counter-reset: section;
+}
+
+.chunk :deep(.xml-prononciation::before) {
+    content: "(";
+}
+
+.chunk :deep(.xml-prononciation::after) {
+    content: ")\A";
+}
+
+.chunk :deep(.xml-nature) {
+    font-style: italic;
+}
+
+.chunk :deep(.xml-indent),
+.chunk :deep(.xml-variante) {
+    display: block;
+}
+
+.chunk :deep(.xml-variante) {
+    padding-top: 10px;
+    padding-bottom: 10px;
+    text-indent: -1.3em;
+    padding-left: 1.3em;
+}
+
+.chunk :deep(.xml-variante::before) {
+    counter-increment: section;
+    content: counter(section) ")\00a0";
+    font-weight: 700;
+}
+
+.chunk :deep(:not(.xml-rubrique) + .xml-indent) {
+    padding-top: 10px;
+}
+
+.chunk :deep(.xml-indent) {
+    padding-left: 1.3em;
+}
+
+.chunk :deep(.xml-cit) {
+    padding-left: 2.3em;
+    display: block;
+    text-indent: -1.3em;
+}
+
+.chunk :deep(.xml-indent > .xml-cit) {
+    padding-left: 1em;
+}
+
+.chunk :deep(.xml-cit::before) {
+    content: "\2012\00a0\00ab\00a0";
+}
+
+.chunk :deep(.xml-cit::after) {
+    content: "\00a0\00bb\00a0(" attr(aut) "\00a0" attr(ref) ")";
+    font-variant: small-caps;
+}
+
+.chunk :deep(.xml-rubrique) {
+    display: block;
+    margin-top: 20px;
+}
+
+.chunk :deep(.xml-rubrique::before) {
+    content: attr(nom);
+    font-variant: small-caps;
+    font-weight: 700;
+}
+
+.chunk :deep(.xml-corps + .xml-rubrique) {
+    margin-top: 10px;
+}
+
+/* Methodique styling */
+.chunk :deep(div[type="article"] .headword) {
+    display: inline-block;
+    margin-bottom: 10px;
+}
+
+.chunk :deep(.headword + p) {
+    display: inline;
+}
+
+.chunk :deep(.headword + p + p) {
+    margin-top: 10px;
+}
+
+/* Notes */
+.chunk :deep(.popover-content .xml-p:not(:first-of-type)) {
+    display: block;
+    margin-top: 1em;
+    margin-bottom: 1em;
+}
+
+.chunk :deep(.note-content) {
+    display: none;
+}
+
+.chunk :deep(.note),
+.chunk :deep(.note-ref) {
+    vertical-align: 0.3em;
+    font-size: 0.7em;
+    background-color: theme.$button-color;
+    color: #fff !important;
+    padding: 0 0.2rem;
+    border-radius: 50%;
+}
+
+.chunk :deep(.note:hover),
+.chunk :deep(.note-ref:hover) {
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.chunk :deep(div[type="notes"] .xml-note) {
+    margin: 15px 0px;
+    display: block;
+}
+
+.chunk :deep(.xml-note::before) {
+    content: "note\00a0" attr(n) "\00a0:\00a0";
+    font-weight: 700;
+}
+
+/* Page images */
+.chunk :deep(.xml-pb-image) {
+    display: block;
+    text-align: center;
+    margin: 10px;
+}
+
+.chunk :deep(.page-image-link) {
+    margin-top: 10px;
+    text-align: center;
+}
+
+/* Inline images */
+.chunk :deep(.inline-img) {
+    max-width: 40%;
+    float: right;
+    height: auto;
+    padding-left: 15px;
+    padding-top: 15px;
+}
+
+.chunk :deep(.inline-img:hover) {
+    cursor: pointer;
+}
+
+.chunk :deep(.link-back) {
+    display: none;
+}
+
+.chunk :deep(.xml-add) {
+    color: #ef4500;
+}
+
+.chunk :deep(.xml-seg) {
+    display: block;
+}
+
+/* Tables */
+.chunk :deep(b.headword[rend="center"]) {
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.chunk :deep(.xml-table) {
+    display: table;
+    position: relative;
+    text-align: center;
+    border-collapse: collapse;
+}
+
+.chunk :deep(.xml-table .xml-pb-image) {
+    position: absolute;
+    width: 100%;
+    margin-top: 15px;
+}
+
+.chunk :deep(.xml-row) {
+    display: table-row;
+    font-weight: 700;
+    text-align: left;
+    min-height: 50px;
+    font-variant: small-caps;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    padding-right: 20px;
+    border-bottom: #ddd 1px solid;
+}
+
+.chunk :deep(.xml-row ~ .xml-row) {
+    font-weight: inherit;
+    text-align: justify;
+    font-variant: inherit;
+}
+
+.chunk :deep(.xml-pb-image + .xml-row) {
+    padding-top: 50px;
+    padding-bottom: 10px;
+    border-top-width: 0px;
+}
+
+.chunk :deep(.xml-cell) {
+    display: table-cell;
+    padding-top: inherit;
+    padding-bottom: inherit;
+}
+
+.chunk :deep(s) {
+    text-decoration: none;
+}
+
+.chunk :deep(.xml-titlePage) {
+    display: none;
+}
+
+.chunk :deep(.xml-ref) {
+    vertical-align: 0.3em;
+    font-size: 0.7em;
+    padding: 0 0.2rem;
+    border-radius: 50%;
 }
 
 .chunk-topics {
@@ -519,20 +947,14 @@ export default {
     align-items: center;
     justify-content: center;
     font-family: system-ui, -apple-system, sans-serif;
-}
-
-.window-ellipsis {
-    display: block;
-    text-align: center;
-    color: #888;
-    cursor: pointer;
-    font-size: 1.6rem;
-    line-height: 1;
     padding: 0.5rem 0;
-    user-select: none;
 }
 
-.window-ellipsis:hover {
-    color: #333;
+.window-nav.top {
+    margin-bottom: 0.75rem;
+}
+
+.window-nav.bottom {
+    margin-top: 0.75rem;
 }
 </style>

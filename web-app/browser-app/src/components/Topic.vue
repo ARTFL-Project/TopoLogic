@@ -234,21 +234,6 @@ export default {
             }
             return `Top ${this.documents.length} documents by weight for this topic`;
         },
-        philoTimeSeriesBiBlioLink: function () {
-            let dbUrls = {}
-            for (let dbname in this.$globalConfig.philoLogicUrls) {
-                let link = this.$globalConfig.philoLogicUrls[dbname]
-                dbUrls[dbname] = `${link}/time_series?topicmodel=${this.topic}&year_interval=${this.$modelConfig.TOPICS_OVER_TIME.topics_over_time_interval}&start_date=${this.$globalConfig.timeSeriesConfig.startDate}&end_date=${this.$globalConfig.timeSeriesConfig.endDate}`;
-            }
-            return dbUrls
-        },
-        philoTimeSeriesQueryLink: function () {
-            let queryString = topicData[parseInt(this.topic)].description
-                .split(", ")
-                .map((a) => `${a}.?`)
-                .join(" OR ");
-            return `${this.$globalConfig.philoLogicUrl}/time_series?year_interval=${this.$modelConfig.TOPICS_OVER_TIME.topics_over_time_interval}&start_date=${this.$globalConfig.timeSeriesConfig.startDate}&end_date=${this.$globalConfig.timeSeriesConfig.endDate}&q=${queryString}`;
-        },
     },
     mounted() {
         this.fetchData();

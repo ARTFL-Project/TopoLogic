@@ -41,9 +41,7 @@
                                 <li v-for="word in simWordsByTopics" :key="word.word"
                                     class="list-group-item"
                                     style="border-radius: 0px; border-width: 1px 0px; font-size: 90%">
-                                    <a :id="`${word.word}-topics`"
-                                        class="word-link">{{ word.word }}</a>
-                                    <word-link :target="`${word.word}-topics`" :word="word.word"></word-link>
+                                    <router-link :to="`/word/${word.word}`" class="word-link">{{ word.word }}</router-link>
                                     <span class="badge rounded-pill bg-secondary float-end">
                                         {{ word.weight.toFixed(4) }}
                                     </span>
@@ -58,9 +56,7 @@
                                 <li v-for="word in simWordsByCooc" :key="word.word"
                                     class="list-group-item"
                                     style="border-radius: 0px; border-width: 1px 0px; font-size: 90%">
-                                    <a :id="`${word.word}-docs`"
-                                        class="word-link">{{ word.word }}</a>
-                                    <word-link :target="`${word.word}-docs`" :word="word.word"></word-link>
+                                    <router-link :to="`/word/${word.word}`" class="word-link">{{ word.word }}</router-link>
                                     <span class="badge rounded-pill bg-secondary float-end">
                                         {{ word.weight.toFixed(4) }}
                                     </span>
@@ -88,12 +84,11 @@
 <script>
 import topicData from "../../topic_words.json";
 import Citations from "./Citations.vue";
-import WordLink from "./WordLink.vue";
 import SortableTable from "./SortableTable.vue";
 
 export default {
     name: "Word",
-    components: { Citations, WordLink, SortableTable },
+    components: { Citations, SortableTable },
     data() {
         return {
             word: "",

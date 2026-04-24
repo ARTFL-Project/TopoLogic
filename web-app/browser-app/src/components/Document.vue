@@ -49,17 +49,12 @@
                                 v-for="weightedWord in words"
                                 :key="weightedWord[2]"
                             >
-                                <a
-                                    :id="`${weightedWord[2]}`"
-                                    :style="`display:inline-block; padding: 5px; cursor: pointer; font-size: ${
+                                <router-link
+                                    :to="`/word/${weightedWord[0]}`"
+                                    :style="`display:inline-block; padding: 5px; font-size: ${
                                         1 + weightedWord[1]
                                     }rem; color: ${weightedWord[3]}`"
-                                >{{ weightedWord[0] }}</a>
-                                <word-link
-                                    :target="weightedWord[2]"
-                                    :metadata="mainDoc.metadata"
-                                    :word="weightedWord[0]"
-                                ></word-link>
+                                >{{ weightedWord[0] }}</router-link>
                             </span>
                         </div>
                     </div>
@@ -117,7 +112,6 @@
 <script>
 import topicData from "../../topic_words.json";
 import Citations from "./Citations.vue";
-import WordLink from "./WordLink.vue";
 import SortableTable from "./SortableTable.vue";
 import DocTabs from "./DocTabs.vue";
 
@@ -125,7 +119,6 @@ export default {
     name: "Document",
     components: {
         Citations,
-        WordLink,
         SortableTable,
         DocTabs,
     },
@@ -146,7 +139,6 @@ export default {
             vectorSimDocs: [],
             topicSimDocs: [],
             topicDistribution: [],
-            philoUrl: this.$globalConfig.philoLogicUrl,
         };
     },
     mounted() {

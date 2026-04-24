@@ -563,7 +563,7 @@ def build_web_app(
         database_name,
         GLOBAL_CONFIG["WEB_APP"]["server_name"],
         GLOBAL_CONFIG["WEB_APP"]["proxy_path"],
-        {db_name: db_config["db_url"] for db_name, db_config in inference_config["databases"].items()},
+        list(inference_config["databases"].keys()),
         min_year,
         max_year,
         topics_over_time["topics_over_time_interval"],

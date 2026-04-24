@@ -103,21 +103,7 @@ export default {
     },
     methods: {
         goToTopic(topic) {
-            if (this.routeName == "home") {
-                this.$router.push(`/topic/${topic.name}`);
-            } else {
-                if (topic.name.length.toString() == 1) {
-                    window.open(
-                        `${this.$globalConfig.philoLogicUrl}/query?report=bibliography&${this.$route.params.fieldName}="${this.$route.params.fieldValue}"&alltopicmodels=0${topic.name}`,
-                        "_blank"
-                    );
-                } else {
-                    window.open(
-                        `${this.$globalConfig.philoLogicUrl}/query?report=bibliography&${this.$route.params.fieldName}="${this.$route.params.fieldValue}"&alltopicmodels=${topic.name}`,
-                        "_blank"
-                    );
-                }
-            }
+            this.$router.push(`/topic/${topic.name}`);
         },
         smartRound(num) {
             num = parseFloat(num);
