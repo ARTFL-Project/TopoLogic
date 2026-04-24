@@ -149,15 +149,22 @@ def write_app_config(
     interval,
     time_series_enabled=True,
 ):
-    """Write app config used to build topic modeling browser web app"""
+    """Write app config used to build topic modeling browser web app.
+
+    Splits into two files:
+    - appConfig.build.json: values vite bakes into the bundle (just appPath).
+    - appConfig.json: everything else, fetched at runtime so edits take effect
+      on page reload without rebuilding.
+    """
+    app_path = os.path.join(proxy_path, "topologic", database_name)
+    with open(os.path.join(db_path, "appConfig.build.json"), "w") as build_config:
+        json.dump({"appPath": app_path, "devServerConfig": {}}, build_config, indent=4)
     with open(os.path.join(db_path, "appConfig.json"), "w") as app_config:
         json.dump(
             {
-                "webServer": "Apache",
                 "apiServer": os.path.join(server_name, proxy_path, "topologic-api"),
                 "philoLogicUrls": philologic_links,
                 "databaseName": database_name,
-                "appPath": os.path.join(proxy_path, "topologic", database_name),
                 "metadataFields": [
                     {"field": "author", "style": {}, "link": False},
                     {"field": "title", "style": {"font-style": "italic"}, "link": True},

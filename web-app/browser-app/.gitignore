@@ -4,6 +4,7 @@ node_modules
 
 # Per-deployment files — the dev tree may carry stubs that shouldn't be committed.
 appConfig.json
+appConfig.build.json
 model_config.ini
 topic_words.json
 

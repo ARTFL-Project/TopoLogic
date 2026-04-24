@@ -4,17 +4,20 @@ import path from "path"
 import fs from "fs"
 
 export default defineConfig(({ command }) => {
-    // appConfig.json is per-deployment (written per-model at training time).
-    // In the source tree it may be absent — fall back to sensible defaults
-    // so `npm run build` works for local dev / CI without a deployed model.
-    let appConfig = { appPath: "/", devServerConfig: {} }
-    const appConfigPath = path.resolve(__dirname, "appConfig.json")
-    if (fs.existsSync(appConfigPath)) {
-        appConfig = JSON.parse(fs.readFileSync(appConfigPath, "utf-8"))
+    // appConfig.build.json is per-deployment (written per-model at training
+    // time). It holds only the handful of values that vite needs to bake into
+    // the bundle — the rest of the config lives in appConfig.json and is
+    // fetched at runtime so edits don't require a rebuild. In the source tree
+    // this file may be absent — fall back to sensible defaults so
+    // `npm run build` works for local dev / CI without a deployed model.
+    let buildConfig = { appPath: "/", devServerConfig: {} }
+    const buildConfigPath = path.resolve(__dirname, "appConfig.build.json")
+    if (fs.existsSync(buildConfigPath)) {
+        buildConfig = JSON.parse(fs.readFileSync(buildConfigPath, "utf-8"))
     }
 
     const base = command === "build"
-        ? (appConfig.appPath.startsWith("/") ? appConfig.appPath : "/" + appConfig.appPath) + "/"
+        ? (buildConfig.appPath.startsWith("/") ? buildConfig.appPath : "/" + buildConfig.appPath) + "/"
         : "/"
 
     return {
@@ -32,6 +35,6 @@ export default defineConfig(({ command }) => {
                 scss: { api: "modern-compiler" },
             },
         },
-        server: appConfig.devServerConfig || {},
+        server: buildConfig.devServerConfig || {},
     }
 })

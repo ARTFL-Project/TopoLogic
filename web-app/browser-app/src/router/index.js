@@ -9,10 +9,10 @@ import TimeView from "../components/TimeView.vue"
 import TopicalReading from "../components/TopicalReading.vue"
 import MetadataExplorer from "../components/MetadataExplorer.vue"
 
-import globalConfig from "../../appConfig.json"
+import buildConfig from "../../appConfig.build.json"
 
 export default createRouter({
-    history: createWebHistory(globalConfig.appPath),
+    history: createWebHistory(buildConfig.appPath),
     routes: [
         { path: "/", name: "home", component: { render: () => null } },
         { path: "/topic/:topic", name: "topic", component: Topic },

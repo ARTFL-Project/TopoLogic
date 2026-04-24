@@ -15,7 +15,6 @@ import {
 import "bootstrap/dist/css/bootstrap.css"
 import "bootstrap"
 
-import globalConfig from "../appConfig.json"
 import modelConfigRaw from "../model_config.ini?raw"
 
 use([
@@ -27,16 +26,22 @@ use([
     LegendComponent,
 ])
 
-const app = createApp(App)
+// appConfig.json is fetched at runtime (not imported) so per-deployment edits
+// — metadata fields, API URL, time-series bounds, etc. — take effect on page
+// reload without rebuilding. Only appConfig.build.json (appPath) is baked in,
+// because vite bakes `base` into asset URLs.
+axios.get(`${import.meta.env.BASE_URL}appConfig.json`).then((response) => {
+    const app = createApp(App)
 
-app.use(router)
-app.component("v-chart", ECharts)
+    app.use(router)
+    app.component("v-chart", ECharts)
 
-app.config.globalProperties.$http = axios
-app.config.globalProperties.$globalConfig = globalConfig
-app.config.globalProperties.$modelConfig = parseModelConfig(modelConfigRaw)
+    app.config.globalProperties.$http = axios
+    app.config.globalProperties.$globalConfig = response.data
+    app.config.globalProperties.$modelConfig = parseModelConfig(modelConfigRaw)
 
-app.mount("#app")
+    app.mount("#app")
+})
 
 function parseModelConfig(raw) {
     const regex = {

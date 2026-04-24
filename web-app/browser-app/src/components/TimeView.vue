@@ -7,7 +7,24 @@
             </div>
         </div>
         <div v-else class="card">
-            <div class="card-header">Evolution of all topics over time</div>
+            <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <span>Evolution of all topics over time</span>
+                <div class="d-flex align-items-center gap-2">
+                    <label class="small mb-0">From:</label>
+                    <input type="number" class="form-control form-control-sm" style="width: 6rem"
+                        :min="dataMinYear" :max="dataMaxYear"
+                        v-model.number="startDate" @change="onRangeChange" />
+                    <label class="small mb-0">To:</label>
+                    <input type="number" class="form-control form-control-sm" style="width: 6rem"
+                        :min="dataMinYear" :max="dataMaxYear"
+                        v-model.number="endDate" @change="onRangeChange" />
+                    <label class="small mb-0 ms-2">Interval (yrs):</label>
+                    <select class="form-select form-select-sm" style="width: auto"
+                        v-model.number="evolutionInterval">
+                        <option v-for="opt in intervalOptions" :key="opt" :value="opt">{{ opt }}</option>
+                    </select>
+                </div>
+            </div>
             <div class="row p-2">
                 <div class="col-4">
                     <div class="mb-2">
@@ -51,9 +68,13 @@ export default {
     data() {
         return {
             timeSeriesEnabled: this.$globalConfig.timeSeriesConfig.enabled !== false,
-            startIndex: 0,
-            endIndex: 0,
-            topicsOverTime: [],
+            intervalOptions: [1, 5, 10, 25, 50, 100],
+            evolutionInterval: this.$globalConfig.timeSeriesConfig.interval || 1,
+            startDate: this.$globalConfig.timeSeriesConfig.startDate,
+            endDate: this.$globalConfig.timeSeriesConfig.endDate,
+            dataMinYear: null,  // bounds of the raw data, shown in the year inputs
+            dataMaxYear: null,
+            rawTopicsOverTime: null,  // per-year data from the API, held for client-side rebucketing
             topicData: topicData,
             topicColorByName: Object.fromEntries(topicData.map(t => [t.name, t.color])),
             allSeriesVisible: true,
@@ -99,71 +120,111 @@ export default {
     },
     watch: {
         // call again the method if the route changes
-        $route: "fetchData"
+        $route: "fetchData",
+        evolutionInterval() { this.rebuild(); }
     },
     methods: {
         fetchData() {
             if (!this.timeSeriesEnabled) {
                 return;
             }
-            this.fieldName = this.$route.params.fieldName;
             this.$http
                 .get(
                     `${this.$globalConfig.apiServer}/get_time_distributions/${this.$globalConfig.databaseName}`
                 )
                 .then(response => {
-                    this.topicsOverTime = response.data.distributions_over_time;
-
-                    // Get start and end index of data to display
-                    this.startIndex = this.topicsOverTime[0].topic_evolution.labels.indexOf(
-                        this.$globalConfig.timeSeriesConfig.startDate
-                    );
-                    this.endIndex = this.topicsOverTime[0].topic_evolution.labels.length;
-                    for (
-                        let index = 0;
-                        index <
-                        this.topicsOverTime[0].topic_evolution.labels.length;
-                        index += 1
-                    ) {
-                        if (
-                            this.topicsOverTime[0].topic_evolution.labels[
-                                index
-                            ] > this.$globalConfig.timeSeriesConfig.endDate
-                        ) {
-                            this.endIndex = index + 1;
-                            break;
-                        }
-                    }
-                    // Adjust weight of data so that the total weight of all weights equals to 100
-                    let topicWeightTotal = 0;
-                    for (let dist of this.topicsOverTime) {
-                        let topicTotal = dist.topic_evolution.data.reduce(
-                            (partialSum, b) => partialSum + b,
-                            0
-                        );
-                        topicWeightTotal += topicTotal;
-                    }
-                    let multiplier = 100 / topicWeightTotal;
-                    for (let dist of this.topicsOverTime) {
-                        this.topicsOverTime[
-                            dist.topic
-                        ].topic_evolution.data = dist.topic_evolution.data.map(
-                            weight => weight * multiplier
-                        );
-                    }
-
-                    this.categories = this.topicsOverTime[0].topic_evolution.labels.slice(
-                        this.startIndex,
-                        this.endIndex
-                    );
-                    this.series = this.topicsOverTime.map(topic => ({
-                        data: topic.topic_evolution.data.slice(
-                            this.startIndex,
-                            this.endIndex
-                        ),
-                        name: topic.topic
-                    }));
+                    this.rawTopicsOverTime = response.data.distributions_over_time;
+                    const labels = this.rawTopicsOverTime[0].topic_evolution.labels;
+                    this.dataMinYear = labels[0];
+                    this.dataMaxYear = labels[labels.length - 1];
+                    // If the config left start/end open, fall back to the raw
+                    // data's bounds so the inputs always show a concrete year.
+                    if (this.startDate == null) this.startDate = this.dataMinYear;
+                    if (this.endDate == null) this.endDate = this.dataMaxYear;
+                    this.rebuild();
                 });
+        },
+        onRangeChange() {
+            // Clamp to available range and enforce start <= end.
+            if (this.dataMinYear != null && this.startDate < this.dataMinYear) this.startDate = this.dataMinYear;
+            if (this.dataMaxYear != null && this.endDate > this.dataMaxYear) this.endDate = this.dataMaxYear;
+            if (this.startDate > this.endDate) this.startDate = this.endDate;
+            this.rebuild();
+        },
+        rebucket(evolution, interval) {
+            // Mirror of Topic.vue's rebucket (and the server-side DB._rebucket):
+            // align bucket starts to multiples of `interval` and average within.
+            if (!evolution || !evolution.labels || interval <= 1) return evolution;
+            const byYear = new Map();
+            for (let i = 0; i < evolution.labels.length; i += 1) {
+                byYear.set(evolution.labels[i], evolution.data[i]);
+            }
+            const first = evolution.labels[0];
+            const last = evolution.labels[evolution.labels.length - 1];
+            const labels = [];
+            const data = [];
+            let bucketStart = Math.floor(first / interval) * interval;
+            while (bucketStart <= last) {
+                const bucketEnd = bucketStart + interval;
+                const vals = [];
+                for (let y = bucketStart; y < bucketEnd; y += 1) {
+                    if (byYear.has(y)) vals.push(byYear.get(y));
+                }
+                if (vals.length > 0) {
+                    labels.push(bucketStart);
+                    const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+                    data.push(mean);
+                }
+                bucketStart = bucketEnd;
+            }
+            return { labels, data };
+        },
+        sliceRange(labels) {
+            // Snap to the bucket containing startDate / endDate.
+            let start = 0;
+            let end = labels.length;
+            if (this.startDate != null) {
+                for (let i = 0; i < labels.length; i += 1) {
+                    if (labels[i] <= this.startDate) start = i;
+                    else break;
+                }
+            }
+            if (this.endDate != null) {
+                for (let i = 0; i < labels.length; i += 1) {
+                    if (labels[i] > this.endDate) { end = i + 1; break; }
+                }
+            }
+            return { start, end };
+        },
+        rebuild() {
+            if (!this.rawTopicsOverTime) return;
+            const interval = parseInt(this.evolutionInterval) || 1;
+            const bucketed = this.rawTopicsOverTime.map(topic => ({
+                topic: topic.topic,
+                evolution: this.rebucket(topic.topic_evolution, interval)
+            }));
+            // Normalize so the summed weight across all topics over the full
+            // range totals 100 — matches the pre-bucketing behavior so the
+            // visible portion stays comparable across interval settings.
+            const { start, end } = this.sliceRange(bucketed[0].evolution.labels);
+            let grandTotal = 0;
+            for (const t of bucketed) {
+                for (const w of t.evolution.data) grandTotal += w;
+            }
+            const multiplier = grandTotal > 0 ? 100 / grandTotal : 1;
+            this.categories = bucketed[0].evolution.labels.slice(start, end);
+            this.series = bucketed.map(t => ({
+                name: t.topic,
+                data: t.evolution.data.slice(start, end).map(w => w * multiplier)
+            }));
+            // Restore visibility state for topics the user had already toggled off.
+            if (this.seriesActive.length !== this.series.length) {
+                this.series = this.series.map(s =>
+                    this.seriesActive.includes(s.name)
+                        ? s
+                        : { name: s.name, data: this.categories.map(() => 0.0) }
+                );
+            }
         },
         clearAllSeries() {
             this.series = this.series.map(series => ({
@@ -180,24 +241,18 @@ export default {
         },
         selectTopic(topic) {
             if (this.seriesActive.includes(topic)) {
-                const idx = this.series.findIndex(s => s.name === topic);
-                if (idx !== -1) this.series.splice(idx, 1);
                 this.seriesActive.splice(this.seriesActive.indexOf(topic), 1);
+                const idx = this.series.findIndex(s => s.name === topic);
+                if (idx !== -1) {
+                    this.series.splice(idx, 1, { name: topic, data: this.categories.map(() => 0.0) });
+                }
                 let el = document.getElementById(`topic-${topic}`);
                 el.style.backgroundColor = "#fff";
                 el.parentNode.style.color = "rgba(0, 0, 0, .35)";
             } else {
-                this.series = [
-                    ...this.series,
-                    {
-                        name: topic,
-                        data: this.topicsOverTime[topic].topic_evolution.data.slice(
-                            this.startIndex,
-                            this.endIndex
-                        )
-                    }
-                ];
                 this.seriesActive.push(topic);
+                // Rebuild from raw so this topic's real data comes back.
+                this.rebuild();
                 const el = document.getElementById(`topic-${topic}`);
                 el.style.backgroundColor = this.topicColorByName[topic];
                 el.parentNode.style.color = "inherit";

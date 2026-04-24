@@ -121,6 +121,17 @@ def get_favicon(table_name: str):
     return FileResponse(path)
 
 
+# appConfig.json is fetched at runtime by the SPA (main.js) so per-deployment
+# edits — metadata fields, API URL, time-series bounds, etc. — take effect on
+# page reload without rebuilding the bundle.
+@app.get("/{table_name}/appConfig.json")
+def get_app_config(table_name: str):
+    path = _safe_path(table_name, "appConfig.json")
+    if not os.path.isfile(path):
+        raise HTTPException(status_code=404, detail="appConfig.json not found")
+    return FileResponse(path, media_type="application/json")
+
+
 # Legacy Vue CLI / Webpack layout — pre-Vite builds split CSS and JS into
 # dist/css/ and dist/js/. Kept so older deployed DBs continue to work
 # without a rebuild.
