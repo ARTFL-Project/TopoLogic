@@ -14,7 +14,11 @@
                             <li v-for="entry in overview.field_distributions[field]" :key="entry.value"
                                 class="list-group-item d-flex justify-content-between align-items-center py-1"
                                 style="font-size: 0.9rem">
-                                <span class="text-truncate me-2" :title="entry.value">{{ entry.value }}</span>
+                                <router-link
+                                    class="text-truncate me-2"
+                                    :to="`/metadata/${encodeURIComponent(field)}/${encodeURIComponent(entry.value)}`"
+                                    :title="entry.value"
+                                >{{ entry.value }}</router-link>
                                 <span class="badge rounded-pill bg-secondary">{{ entry.count }}</span>
                             </li>
                         </ul>

@@ -10,32 +10,35 @@ from typing import Dict, Union
 def read_config(config_path):
     """Read config file for building the topic model and associated app"""
     config = configparser.ConfigParser()
-    config.read(config_path)
-    training_dbs = [i.strip() for i in config["TRAINING_DATA"]["philologic_database_paths"].split(",")]
-    training_db_urls = [i.strip().rstrip("/") for i in config["TRAINING_DATA"]["philologic_database_urls"].split(",")]
+    config.read(config_path, encoding="utf-8")
+    training_paths = [i.strip() for i in config["TRAINING_DATA"]["text_paths"].split(",") if i.strip()]
     training_text_object_levels = [i.strip() for i in config["TRAINING_DATA"]["text_object_level"].split(",")]
     training_data: Dict[str, Union[int, Dict[str, Dict[str, str]]]] = {}
     training_data["databases"] = {
-        os.path.basename(os.path.normpath(db_path)): {
-            "db_path": db_path,
-            "db_url": db_url,
+        os.path.basename(os.path.normpath(path)): {
+            "db_path": path,
             "text_object_level": text_object_level,
         }
-        for db_path, db_url, text_object_level in zip(training_dbs, training_db_urls, training_text_object_levels)
+        for path, text_object_level in zip(training_paths, training_text_object_levels)
     }
     training_data["min_tokens_per_doc"] = int(config["TRAINING_DATA"]["min_tokens_per_doc"])
 
-    inference_dbs = [i.strip() for i in config["INFERENCE_DATA"]["philologic_database_paths"].split(",")]
-    inference_db_urls = [i.strip().rstrip("/") for i in config["INFERENCE_DATA"]["philologic_database_urls"].split(",")]
+    inference_paths = [i.strip() for i in config["INFERENCE_DATA"]["text_paths"].split(",") if i.strip()]
+    inference_raw_urls = [
+        i.strip().rstrip("/")
+        for i in config["INFERENCE_DATA"].get("philologic_database_urls", "").split(",")
+    ]
+    # Pad URL list so a shorter list (or empty) still aligns by position.
+    inference_urls = inference_raw_urls + [""] * max(0, len(inference_paths) - len(inference_raw_urls))
     inference_text_object_levels = [i.strip() for i in config["INFERENCE_DATA"]["text_object_level"].split(",")]
     inference_data: Dict[str, Union[int, Dict[str, Dict[str, str]]]] = {}
     inference_data["databases"] = {
-        os.path.basename(os.path.normpath(db_path)): {
-            "db_path": db_path,
+        os.path.basename(os.path.normpath(path)): {
+            "db_path": path,
             "db_url": db_url,
             "text_object_level": text_object_level,
         }
-        for db_path, db_url, text_object_level in zip(inference_dbs, inference_db_urls, inference_text_object_levels)
+        for path, db_url, text_object_level in zip(inference_paths, inference_urls, inference_text_object_levels)
     }
     inference_data["min_tokens_per_doc"] = int(config["INFERENCE_DATA"]["min_tokens_per_doc"])
 

@@ -48,7 +48,7 @@ def read_model_config(table_name):
             zip(
                 [
                     os.path.basename(os.path.normpath(db_path))
-                    for db_path in local_config["INFERENCE_DATA"]["philologic_database_paths"].split(",")
+                    for db_path in local_config["INFERENCE_DATA"]["text_paths"].split(",")
                 ],
                 [i.strip() for i in local_config["INFERENCE_DATA"]["text_object_level"].split(",")],
             )

@@ -23,6 +23,7 @@ from topologic import (
     year_normalizer,
 )
 from topologic.DB import DBHandler
+from topologic.text_parser import is_philo_db, parse_files
 
 GLOBAL_CONFIG = configparser.ConfigParser()
 GLOBAL_CONFIG.read("/etc/topologic/global_settings.ini")
@@ -102,6 +103,9 @@ def main(args):
         os.makedirs(training_texts_path, exist_ok=True)
 
     if args.preprocessed_data_path is None:
+        parsed_root = os.path.join(args.data_output, "parsed")
+        ensure_parsed_dbs(training_config, parsed_root, args.workers, args.debug)
+        ensure_parsed_dbs(inference_config, parsed_root, args.workers, args.debug)
         print("## PROCESSING DATA ##", flush=True)
         prepare_data(
             prep_config,
@@ -161,6 +165,32 @@ def main(args):
 
     if args.debug is False:
         shutil.rmtree(args.data_output, ignore_errors=True)
+
+
+def ensure_parsed_dbs(data_config, parsed_root, workers, debug):
+    """For any `text_paths` entry that isn't an existing philo-db, parse it
+    in-place and rewrite `db_path` to the generated philo-db directory.
+    """
+    for db_name, db_config in data_config["databases"].items():
+        src_path = db_config["db_path"]
+        if is_philo_db(src_path):
+            continue
+        if not os.path.isdir(src_path):
+            print(f"Error: text_paths entry is not a directory: {src_path}")
+            exit(1)
+        parsed_dir = os.path.join(parsed_root, db_name)
+        # If this db is already parsed (e.g., shared training/inference entry),
+        # just point at the existing output.
+        if not is_philo_db(parsed_dir):
+            print(f"## PARSING RAW FILES: {db_name} ##", flush=True)
+            parse_files(
+                input_file_path=src_path,
+                output_path=parsed_dir,
+                object_level=db_config["text_object_level"],
+                workers=workers,
+                debug=debug,
+            )
+        db_config["db_path"] = parsed_dir
 
 
 def get_file_list(data_path, metadata_filters, object_level, word_length):
@@ -452,7 +482,7 @@ def build_web_app(
     shutil.copytree("/var/lib/topologic/web-app/browser-app", db_path)
     shutil.copy2("/var/lib/topologic/web-app/apache_htaccess.conf", os.path.join(db_path, ".htaccess"))
     config = configparser.ConfigParser()
-    config.read(config_path)
+    config.read(config_path, encoding="utf-8")
 
     years = set()
     metadata_field_names = set()
