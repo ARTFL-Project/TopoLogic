@@ -7,9 +7,8 @@ import sys
 from typing import Dict, Union
 
 
-# bertopic-only settings. Absent or empty in the config means "use
-# BERTopicModel's own default", which keeps defaults defined in exactly one
-# place instead of being restated here.
+# bertopic-only. Absent or empty means "use BERTopicModel's default", so
+# defaults live in exactly one place.
 BERTOPIC_OPTIONS = (
     "embedding_model",
     "min_cluster_size",
@@ -102,14 +101,10 @@ def read_config(config_path):
     vectorization = {}
     for key, value in config["VECTORIZATION"].items():
         if key in ("min_freq", "max_freq"):
-            # int vs float is meaningful to sklearn: an int is an absolute
-            # document count, a float is a proportion of the corpus. A value
-            # above 1 can only be a count (proportions live in [0, 1]), so
-            # that is what decides. Without this, min_freq = 5 raises
-            # InvalidParameterError and an absolute floor is unreachable --
-            # which matters most for c-TF-IDF, whose whole mechanism is
-            # elevating cluster-distinctive terms that a proportional floor
-            # removes.
+            # sklearn reads an int as an absolute document count and a float
+            # as a proportion, so anything above 1 must be a count. Without
+            # this an absolute floor is unreachable (min_freq = 5 raises),
+            # which matters most for c-TF-IDF.
             number = float(value.strip())
             vectorization[key] = int(number) if number > 1 else number
         elif key == "ngram":
@@ -121,18 +116,13 @@ def read_config(config_path):
                 vectorization[key] = None
         else:
             vectorization[key] = value
-    # Only keys actually present in the file land here. build_model forwards
-    # just those, so BERTopicModel.__init__ stays the single source of
-    # defaults rather than having them restated in the config layer.
+    # Only keys present in the file land here; build_model forwards just those.
     topic_modeling = {}
     for key, value in config["TOPIC_MODELING"].items():
         value = value.strip()
         if key == "number_of_topics":
-            # Three sentinels, understood by BERTopic and required to be an
-            # int by nmf/lda/gnmf (enforced in build_model):
-            #   ""/"none" -> None, use the clustering's own topic count
-            #   "auto"    -> let the backend merge similar topics
-            #   N         -> exactly N topics
+            # ""/"none" -> None (the clustering decides), "auto" -> merge
+            # similar topics, N -> exactly N. nmf/lda require an int.
             lowered = value.lower()
             if lowered in ("", "none"):
                 topic_modeling[key] = None
@@ -141,13 +131,11 @@ def read_config(config_path):
             else:
                 topic_modeling[key] = int(value)
         elif key == "max_iter":
-            # Meaningless for bertopic, so empty is allowed; build_model
-            # requires a real value for the backends that iterate.
+            # Empty is allowed for bertopic; build_model requires it otherwise.
             topic_modeling[key] = int(value) if value else None
         elif key in BERTOPIC_OPTIONS and not value:
-            # Empty means "use the model default": leave the key out entirely
-            # so build_model has nothing to forward. Storing the empty value
-            # instead would override the default with '' or False.
+            # Leave the key out so build_model forwards nothing; storing "" or
+            # False here would override the model default.
             continue
         elif key in ("min_cluster_size", "embedding_batch_size"):
             topic_modeling[key] = int(value)

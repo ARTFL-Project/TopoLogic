@@ -32,9 +32,8 @@ from topologic.text_parser import is_philo_db, parse_files
 def _create_lz4_tarball(out_path, source_dir):
     """Stream `source_dir` into an lz4-compressed tarball at `out_path`.
 
-    lz4 is ~3-5x faster than gzip at compression/decompression with somewhat
-    larger output — much better tradeoff for the preprocessed-data tarball,
-    which is read once per re-run and rewritten on every fresh preprocess.
+    lz4 trades somewhat larger output for 3-5x faster (de)compression, which
+    suits a tarball rewritten on every fresh preprocess.
     """
     import tarfile
 
@@ -53,9 +52,7 @@ def _extract_preprocessed_tarball(tarball_path, out_dir):
     """
     import tarfile
     name = tarball_path.lower()
-    # filter='data' (the safe-by-default introduced in Python 3.12) blocks
-    # tar archives from extracting outside the destination, setting setuid
-    # bits, etc. Required to silence the Python 3.14 DeprecationWarning.
+    # filter="data" blocks extraction outside the destination and setuid bits.
     if name.endswith(".lz4"):
         import lz4.frame
         with lz4.frame.open(tarball_path, "rb") as compressed_fp:
@@ -197,9 +194,7 @@ def main(args):
         )
     else:
         if model_config["algorithm"] == "bertopic":
-            # Greene stability resamples the corpus and refits at a fixed k.
-            # BERTopic derives its own topic count from the clustering, so
-            # there is no k to sweep.
+            # Greene stability refits at a fixed k; bertopic has no k to sweep.
             raise ValueError(
                 "--evaluate estimates the number of topics for nmf/lda, which take k as "
                 "an input. bertopic determines its topic count from the clustering; tune "
@@ -220,12 +215,9 @@ def main(args):
             workers=args.workers,
         )
 
-    # Re-tar everything at end-of-run so the embedding cache (written by
-    # build_model into <data_output>/{training,inference}/embeddings_*.npy)
-    # is preserved for future --preprocessed_data_path runs. The pre-build
-    # tarball produced inside prepare_data has only the preprocessed text;
-    # this one has preprocessed text + embedding cache, so re-running with
-    # the latest tarball skips the slow embedding step.
+    # Re-tar at end-of-run so the embedding cache is preserved for future
+    # --preprocessed_data_path runs; the tarball from prepare_data has only the
+    # preprocessed text, so re-running with this one skips embedding.
     if args.evaluate is False:
         post_tarball = f"{args.data_output}_with_embeddings_{time.strftime('%Y-%m-%d_%H-%M')}.tar.lz4"
         try:
@@ -367,13 +359,10 @@ def prepare_data(
                     output.write(" ".join(text))
             text.save(os.path.join(training_texts_path, db_name, "tokens", f"{pos}.pkl"))
             text.metadata["philo_db"] = db_name
-            # Paragraph extraction needs a philo id for every training doc.
-            # `metadata` below is deliberately only filled when the inference
-            # pass will NOT redo this collection, so it is empty whenever the
-            # training and inference object levels differ -- the common case
-            # (train on div3, infer on doc). Keying paragraph extraction off it
-            # therefore wrote nothing at all for those runs, silently costing
-            # BERTopic its raw text and chunked training its chunks.
+            # Separate from `metadata`, which is deliberately empty when the
+            # training and inference object levels differ. Paragraph extraction
+            # needs every training doc regardless, and keying it off `metadata`
+            # silently wrote nothing for those runs.
             paragraph_metadata[pos] = text.metadata
             if (
                 db_name in inference_config["databases"]
@@ -383,10 +372,8 @@ def prepare_data(
             pos += 1
         with open(os.path.join(training_texts_path, db_name, "metadata.pickle"), "wb") as output_metadata:
             pickle.dump(metadata, output_metadata)
-        # Extract atomic raw-text paragraphs for any embedding-based backend
-        # (BERTopic). Cheap; runs unconditionally so the preprocessed tarball
-        # is portable across embedding models — chunks are formed at embed
-        # time, sized to whatever SBERT model the user picks.
+        # Atomic raw-text paragraphs. Runs unconditionally so the tarball
+        # stays portable — chunks are formed later, at whatever size is asked.
         written = write_raw_paragraphs_for_metadata(
             metadata=paragraph_metadata,
             db_name=db_name,
@@ -528,13 +515,10 @@ def build_model(
                 f"got {max_iter!r}. Only bertopic may leave it empty."
             )
 
-    # Load and prepare a corpus.
-    #
-    # bertopic chunks at embed time, straight from raw_paragraphs, so chunking
-    # the corpus as well would double-chunk. nmf/lda have no such step, which
-    # makes the training corpus the place their chunking happens. Either way
-    # the INFERENCE corpus stays document-level: documents are what the web app
-    # cites, links and reports on.
+    # bertopic chunks at embed time, so chunking its corpus too would
+    # double-chunk; nmf/lda have no such step, making the training corpus where
+    # their chunking happens. The inference corpus always stays
+    # document-level — documents are what the web app cites.
     training_chunk_size = None if algorithm == "bertopic" else training_config.get("max_chunk_size")
     print("Vectorize documents...", flush=True)
     training_corpus = Corpus(
@@ -567,8 +551,8 @@ def build_model(
                 break
 
     if identical_corpus is True:
-        # training_chunk_size forces a separate inference corpus: reusing the
-        # training object would make every "document" a chunk downstream.
+        # Chunked training forces a separate inference corpus, or every
+        # "document" downstream would be a chunk.
         if training_chunk_size is None and (
             training_config["min_tokens_per_doc"] == inference_config["min_tokens_per_doc"] or evaluate is True
         ):
@@ -592,16 +576,15 @@ def build_model(
 
     print("inference corpus size:", full_corpus.size)
 
-    # Instantiate a topic model. An unrecognized algorithm must raise: the
-    # previous `else -> LDA` fallback meant a full run with algorithm=bertopic
-    # completed successfully having quietly built an LDA model.
+    # An unrecognized algorithm must raise: the previous `else -> LDA` fallback
+    # meant a bertopic run completed having quietly built an LDA model.
     if algorithm == "nmf":
         topic_model = NonNegativeMatrixFactorization(training_corpus, max_iter=max_iter)
     elif algorithm == "lda":
         topic_model = LatentDirichletAllocation(training_corpus, max_iter=max_iter)
     elif algorithm == "bertopic":
-        # Forward only the keys the config actually set, so
-        # BERTopicModel.__init__ remains the one place defaults live.
+        # Only keys the config actually set, so BERTopicModel.__init__ stays
+        # the one place defaults live.
         bertopic_options = {
             key: model_options[key]
             for key in (
@@ -616,11 +599,9 @@ def build_model(
         }
         if "embedding_batch_size" in model_options:
             bertopic_options["batch_size"] = model_options["embedding_batch_size"]
-        # Chunk size comes from the data sections, not TOPIC_MODELING: it
-        # describes how the corpus is cut up, and training and inference may
-        # legitimately differ. infer_topics uses the training corpus, so the
-        # training value is the one the model is constructed with;
-        # infer_and_replace re-reads it for the inference corpus below.
+        # From the data sections, not TOPIC_MODELING: training and inference
+        # may legitimately differ. infer_topics uses the training value;
+        # infer_and_replace swaps in the inference one below.
         if training_config.get("max_chunk_size") is not None:
             bertopic_options["max_chunk_size"] = training_config["max_chunk_size"]
         topic_model = BERTopicModel(training_corpus, max_iter=max_iter, **bertopic_options)
@@ -632,8 +613,7 @@ def build_model(
         full_corpus.build_annoy_index()
         print("Inferring topics...", flush=True)
         topic_model.infer_topics(num_topics=number_of_topics)
-        # Inference may chunk at a different size than training; swap it in for
-        # the apply step so the corpus is cut the way INFERENCE_DATA asks.
+        # Cut the inference corpus the way INFERENCE_DATA asks.
         if algorithm == "bertopic":
             topic_model.max_chunk_size = inference_config.get("max_chunk_size")
         topic_model.infer_and_replace(full_corpus)
@@ -688,11 +668,8 @@ def build_web_app(
     config["DATA"] = {
         "num_docs": full_corpus.size,
         "num_tokens": len(full_corpus.vectorizer.vocabulary_),
-        # The count the model actually produced, which is the only reliable
-        # source. [TOPIC_MODELING]/number_of_topics is an *input*: bertopic
-        # derives its topic count from the clustering, so that field may be
-        # empty or "auto", and even an explicit integer is only a target that
-        # agglomerative reduction need not hit exactly.
+        # What the model actually produced. [TOPIC_MODELING]/number_of_topics
+        # is only the input and may be empty, "auto", or simply not hit.
         "num_topics": topic_model.nb_topics,
         "metadata": ",".join(metadata_field_names),
     }

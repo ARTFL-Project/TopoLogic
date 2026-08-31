@@ -43,18 +43,11 @@ app.add_middleware(
 
 
 def _read_topic_count(local_config, table_name):
-    """Number of topics in the built model.
+    """Number of topics in the built model, most authoritative source first.
 
-    Three sources, most authoritative first:
-
-    1. [DATA]/num_topics -- written by build_web_app from the fitted model.
-    2. COUNT(*) on the topics table -- true of any built database, and what
-       lets a bertopic database built before (1) existed work without a rebuild.
-    3. [TOPIC_MODELING]/number_of_topics -- only the *input*, and the reason
-       this helper exists. For bertopic it is routinely empty or "auto" because
-       the clustering decides the count, so int() on it raises ValueError; even
-       an explicit integer is a target that agglomerative reduction need not
-       hit exactly.
+    [DATA]/num_topics comes from the fitted model; COUNT(*) on the topics table
+    covers databases built before it existed; [TOPIC_MODELING]/number_of_topics
+    is only the *input* and for bertopic is routinely empty or "auto".
     """
     if local_config.has_option("DATA", "num_topics"):
         return int(local_config["DATA"]["num_topics"])
@@ -96,8 +89,7 @@ def read_model_config(table_name):
         "maxTf": float(local_config["VECTORIZATION"]["max_freq"]),
         "minTf": float(local_config["VECTORIZATION"]["min_freq"]),
         "vectorization": local_config["VECTORIZATION"]["vectorization"].upper(),
-        # Largest n in the ngram range, so the UI can describe it instead of
-        # asserting "unigrams and bigrams" regardless of configuration.
+        # Largest n in the ngram range, so the UI can describe it.
         "ngram": int(local_config["VECTORIZATION"]["ngram"].split(",")[-1].strip() or 1),
         "topics": _read_topic_count(local_config, table_name),
         "method": local_config["TOPIC_MODELING"]["algorithm"],

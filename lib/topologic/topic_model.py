@@ -44,9 +44,7 @@ class TopicModel(object):
     def _build_topic_index(self):
         """Derive topic frequencies and the doc-topic Annoy index.
 
-        Backend-independent: whatever produced `document_topic_matrix`, the
-        frequency normalization and the similarity index over its rows are the
-        same. Kept in one place so a new backend cannot drift from the others.
+        Backend-independent, kept in one place so backends cannot drift.
         """
         topic_sums = np.asarray(self.document_topic_matrix.sum(axis=0)).ravel()
         total = topic_sums.sum()
@@ -65,16 +63,11 @@ class TopicModel(object):
     def fold_in(self, bow, iterations=10):
         """Infer topic weights for unseen rows with the topic-word matrix frozen.
 
-        Used to score passages for the topical-reading view. The obvious
-        one-liner, `bow @ beta.T`, is badly biased: topic rows of the
-        topic-word matrix carry unequal total mass, so a topic with a large
-        vocabulary scores higher on ANY passage. Measured against a proper
-        NMF.transform it agreed on only 43.8% of argmax topics, and its
-        weights correlated +0.998 with topic row mass -- it was largely
-        measuring topic size rather than passage content.
-
-        Multiplicative updates for KL divergence fix that (97.2% agreement at
-        10 iterations) and cost one sparse matmul per iteration.
+        Scores passages for the reading view. Not `bow @ beta.T`: topic rows
+        carry unequal total mass, so that scores large-vocabulary topics higher
+        on any passage (43.8% argmax agreement with NMF.transform, weights
+        correlating +0.998 with row mass). KL multiplicative updates reach
+        97.2% at 10 iterations, one matmul each.
 
         Returns row-normalized weights, n_rows x n_topics.
         """
@@ -84,8 +77,7 @@ class TopicModel(object):
             return np.zeros((X.shape[0], beta.shape[0]))
         # Uniform start carrying each row's total mass.
         W = np.repeat(X.sum(axis=1, keepdims=True) / beta.shape[0], beta.shape[0], axis=1)
-        # Every row of `ones @ beta.T` is beta.sum(1), so broadcast it instead
-        # of doing an n x vocab x topics matmul to build identical rows.
+        # Every row of `ones @ beta.T` is beta.sum(1); broadcast instead.
         beta_col_sums = beta.sum(axis=1)[None, :] + 1e-10
         for _ in range(iterations):
             W *= ((X / (W @ beta + 1e-10)) @ beta.T) / beta_col_sums
@@ -163,22 +155,20 @@ class NonNegativeMatrixFactorization(TopicModel):
 class BERTopicModel(TopicModel):
     """SBERT + UMAP + HDBSCAN + c-TF-IDF via BERTopic.
 
-    Two deliberate departures from stock BERTopic, both needed to satisfy the
-    contract DB.py expects of a topic model (see SEMANTIC_TOPICS.md):
+    Three departures from stock BERTopic, needed to satisfy the topic-model
+    contract DB.py expects (see SEMANTIC_TOPICS.md):
 
-    1. The corpus's vectorizer vocabulary is pinned for c-TF-IDF, so word_ids
-       stay aligned with the `words` table (which iterates corpus columns).
+    1. The corpus vocabulary is pinned for c-TF-IDF, so word_ids stay aligned
+       with the `words` table.
     2. `document_topic_matrix` is a softmax over cosine similarity to topic
-       centroids, NOT HDBSCAN membership. HDBSCAN gives a hard partition in
-       probability clothing, which collapses every mixed-membership consumer
-       downstream -- entropy-based focus_score, metadata centroids, doc-doc
-       similarity, topic evolution. See `_soft_topic_distribution`.
-    3. Both fitting and inference operate on CHUNKS; documents are the
-       length-weighted mean of their chunks' topic distributions. Nothing is
-       mean-pooled in embedding space. See `_aggregate_chunks_to_docs`.
+       centroids, not HDBSCAN membership — that is a hard partition in
+       probability clothing, and it collapses every mixed-membership consumer
+       downstream.
+    3. Fitting and inference both operate on chunks; documents are the
+       length-weighted mean of their chunks' distributions.
 
-    This remains a clustering with a soft read-out, not a learned
-    decomposition; GNMF (Phase 4) is the intended production successor.
+    Still a clustering with a soft read-out rather than a learned
+    decomposition; GNMF (Phase 4) is the intended successor.
     """
 
     def __init__(
@@ -219,11 +209,9 @@ class BERTopicModel(TopicModel):
         from bertopic.vectorizers import ClassTfidfTransformer
         from sklearn.feature_extraction.text import CountVectorizer
 
-        # Fit on CHUNKS, not documents. A long document's word co-occurrence is
+        # Fit on chunks, not documents: a long document's word co-occurrence is
         # nearly uniform, so document-level statistics cannot separate themes
-        # that reliably appear together inside it; chunks break that
-        # correlation. The embeddings are per-chunk for the same reason -- see
-        # ChunkedCorpus and SEMANTIC_TOPICS.md Phase 3.
+        # that always appear together inside it.
         chunked, embedder = self.corpus.compute_or_load_embeddings(
             self.embedding_model,
             batch_size=self.batch_size,
@@ -243,14 +231,10 @@ class BERTopicModel(TopicModel):
 
         umap_model, hdbscan_model = self._build_clustering_backend()
 
-        # num_topics is one of three sentinels (parsed in config.py):
-        #   None   -> HDBSCAN's clusters used as-is (no post-reduction).
-        #   "auto" -> second HDBSCAN pass merging similar topics.
-        #   int N  -> Agglomerative reduction to exactly N topics.
-        # Prefer the first two. Agglomerative reduction repeatedly merges the
-        # most similar pair, and the largest cluster sits nearest the corpus
-        # centroid, so it wins merges and snowballs -- one of the four causes
-        # of the mega-topic. Reach a target count via min_cluster_size instead.
+        # Three sentinels (parsed in config.py): None keeps HDBSCAN's clusters,
+        # "auto" merges similar ones, int N reduces agglomeratively. Prefer the
+        # first two — agglomerative merging snowballs into one oversized topic,
+        # since the largest cluster sits nearest the corpus centroid.
         nr_topics = num_topics
         if isinstance(nr_topics, int):
             print(
@@ -260,21 +244,14 @@ class BERTopicModel(TopicModel):
                 flush=True,
             )
 
-        # language="multilingual": BERTopic's _preprocess_text strips all
-        # non-ASCII characters when language=="english" (the default), which
-        # turns "liberté" into "libert" -- not in the pinned vocabulary, so
-        # df=0 in c-TF-IDF and idf=inf. Anything other than "english" skips
-        # that strip; "multilingual" is the safe choice for any corpus.
-        # ctfidf_model: BM25 + sqrt(TF) per BERTopic best practices.
+        # language="multilingual": with "english" BERTopic strips non-ASCII,
+        # turning "liberté" into "libert" — absent from the pinned vocabulary,
+        # so df=0 and idf=inf. Any other value skips that.
         #
-        # No representation_model. KeyBERTInspired/MMR were tried here and are
-        # deliberately absent: BERTopic's _extract_words_per_topic feeds them
-        # into `topic_representations_` and never writes back to `c_tf_idf_`.
-        # Since the persisted topic_word_matrix reads c_tf_idf_ -- the only
-        # full-vocabulary output, and so the only one DB.py can consume --
-        # every re-ranking they produced was computed on the GPU and discarded.
-        # Diversification lives in top_words() instead (see mmr_diversity),
-        # where it can reach the output without distorting the matrix.
+        # No representation_model, deliberately: BERTopic feeds those into
+        # `topic_representations_` and never back into `c_tf_idf_`, which is
+        # what the persisted matrix reads — so their output was computed on the
+        # GPU and discarded. Diversification lives in top_words() instead.
         ctfidf_model = ClassTfidfTransformer(
             bm25_weighting=True,
             reduce_frequent_words=True,
@@ -304,10 +281,8 @@ class BERTopicModel(TopicModel):
                 flush=True,
             )
         if self.reduce_outliers and n_outliers:
-            # NOT BERTopic's strategy="probabilities", which sends every
-            # outlier to its argmax topic and so systematically feeds the
-            # densest cluster. Centroid proximity spreads them by what they
-            # actually resemble.
+            # Not strategy="probabilities", which sends every outlier to its
+            # argmax topic and so feeds the densest cluster.
             labels = self._assign_outliers_by_centroid(embeddings, labels)
             self.model.update_topics(docs, topics=labels.tolist(), vectorizer_model=pinned_vectorizer)
 
@@ -321,16 +296,14 @@ class BERTopicModel(TopicModel):
         self.nb_topics = len(topic_ids)
 
         # Centroids come from `labels`, the same partition that fed
-        # update_topics and therefore c_tf_idf_. This is what keeps
-        # topic_word_matrix and document_topic_matrix describing one
+        # update_topics and so c_tf_idf_ — keeping both matrices on one
         # clustering rather than two.
         self.topic_centroids_ = self._topic_centroids(embeddings, labels, topic_ids)
         self._store_bertopic_matrices(chunked, topic_ids)
         self._report_topic_sizes(labels, topic_ids)
 
         if self.mmr_diversity > 0:
-            # Must happen while the embedder is alive; top_words() needs these
-            # long after it has been freed.
+            # While the embedder is still alive; top_words() needs these later.
             print(f"Embedding {len(self.corpus.feature_names)} vocabulary terms for MMR...", flush=True)
             self.word_embeddings_ = embedder.encode(
                 list(self.corpus.feature_names),
@@ -351,11 +324,9 @@ class BERTopicModel(TopicModel):
     def infer_and_replace(self, corpus):
         """Apply the trained BERTopic to a (possibly different) corpus.
 
-        Mirrors the NMF path: the topic-word side stays as learned during
-        training (c_tf_idf_, the analogue of NMF's components_) and only the
-        document side is recomputed. Centroids are the trained ones, so this
-        needs no BERTopic transform -- no UMAP projection, no HDBSCAN
-        approximate_predict, just cosine against stored vectors.
+        Mirrors the NMF path: the topic-word side stays as trained and only the
+        document side is recomputed. Uses the stored centroids, so it needs no
+        BERTopic transform — just cosine against them.
         """
         self.corpus = corpus
         chunked, embedder = corpus.compute_or_load_embeddings(
@@ -379,14 +350,11 @@ class BERTopicModel(TopicModel):
     def top_words(self, topic_id, num_words):
         """c-TF-IDF top words, optionally MMR-diversified.
 
-        With mmr_diversity == 0 this is exactly the base implementation.
-        Above 0, words are re-ordered to suppress near-duplicates
-        (homme/hommes/humanite) using the vocabulary embeddings.
-
-        Note the weights returned are the true c-TF-IDF scores either way, so
-        under MMR they are no longer monotonically decreasing -- DB.py feeds
-        them straight into the word_distribution bar chart
-        (DB.py:1117-1121). That is why this defaults to off.
+        At mmr_diversity == 0 this is the base implementation. Above 0, words
+        are re-ordered to suppress near-duplicates. Weights stay the true
+        c-TF-IDF scores either way, so under MMR they stop decreasing
+        monotonically — DB.py feeds them straight into a bar chart, which is
+        why this defaults to off.
         """
         if self.mmr_diversity <= 0 or self.word_embeddings_ is None:
             return super().top_words(topic_id, num_words)
@@ -420,11 +388,10 @@ class BERTopicModel(TopicModel):
     # ------------------------------------------------------------------
 
     def _resolved_min_cluster_size(self):
-        """Explicit value, else a fraction of corpus size.
+        """Explicit value, else 0.2% of corpus size with a floor of 10.
 
-        A fixed 10 means something completely different at 5k docs than at
-        500k. 0.2% with a floor of 10 is a starting heuristic, not a tuned
-        constant -- see the open questions in SEMANTIC_TOPICS.md.
+        A fixed value means something different at 5k docs than at 500k. This
+        is a starting heuristic, not a tuned constant.
         """
         if self.min_cluster_size is not None:
             return int(self.min_cluster_size)
@@ -437,10 +404,8 @@ class BERTopicModel(TopicModel):
         being available at runtime so a CUDA-installed env on a CPU-only
         machine still works.
 
-        cluster_selection_method defaults to "leaf" rather than HDBSCAN's
-        "eom": excess-of-mass structurally prefers a few large clusters, which
-        is one of the causes of the mega-topic. "leaf" yields more, smaller,
-        more comparable topics.
+        cluster_selection_method defaults to "leaf": excess-of-mass prefers a
+        few large clusters, which is one cause of the mega-topic.
         """
         min_cluster_size = self._resolved_min_cluster_size()
         print(
@@ -519,13 +484,10 @@ class BERTopicModel(TopicModel):
     def _softmax(scores):
         """Row-wise softmax, returned as float64.
 
-        float64 is part of the contract, not a precision whim: sklearn hands
-        NMF's document_topic_matrix back as float64, and np.float64 subclasses
-        Python float so `json.dump` accepts it. np.float32 does not, and the
-        failure surfaces far downstream -- topic_frequencies inherits the
-        dtype and blows up in DB.save_topics after the whole model has been
-        fitted. The cosine math upstream stays float32; only the distribution
-        that leaves this class is widened.
+        float64 is contractual, not a precision whim: np.float64 subclasses
+        Python float so json.dump accepts it, np.float32 does not, and the
+        failure surfaces only in DB.save_topics after the model is fitted.
+        Upstream cosine math stays float32.
         """
         scores = np.asarray(scores, dtype=np.float64)
         shifted = scores - scores.max(axis=1, keepdims=True)
@@ -538,12 +500,11 @@ class BERTopicModel(TopicModel):
     TARGET_LOGIT_GAP = 2.0
 
     def _calibrate_temperature(self, similarity):
-        """Choose T from the observed spread of top-1 vs top-2 similarity.
+        """Choose T from the observed top-1 vs top-2 similarity spread.
 
-        Cosine ranges vary widely across embedding models and corpora: a
-        temperature that gives useful mixed membership on one produces
-        one-hot rows on another. Anchoring on the median top-1/top-2 gap makes
-        the resulting peakiness comparable regardless of that scale.
+        Cosine ranges vary widely across models and corpora, so a fixed
+        temperature that gives useful mixed membership on one goes one-hot on
+        another. The median gap makes peakiness comparable across both.
         """
         if similarity.shape[1] < 2:
             return 1.0
@@ -554,14 +515,9 @@ class BERTopicModel(TopicModel):
     def _soft_topic_distribution(self, embeddings):
         """Softmax over cosine similarity to topic centroids.
 
-        Replaces HDBSCAN membership vectors, which are near one-hot. Every
-        document gets real mass on several topics -- including former
-        outliers, which land near whichever centroids they resemble instead of
-        all piling into the densest cluster.
-
-        Temperature is the knob: low -> near one-hot (the old behaviour),
-        high -> uniform mush. Left unset it is calibrated from the data once,
-        at fit time, and reused afterwards so inference matches training.
+        Replaces HDBSCAN membership vectors, which are near one-hot. Low
+        temperature approaches one-hot, high goes to uniform; left unset it is
+        calibrated once at fit time and reused so inference matches training.
         """
         similarity = self._cosine_to_centroids(embeddings, self.topic_centroids_)
         if self.assignment_temperature_ is None:
@@ -587,14 +543,10 @@ class BERTopicModel(TopicModel):
     def _aggregate_chunks_to_docs(chunk_distributions, doc_index, tokens, n_docs):
         """Length-weighted mean of each document's chunk distributions.
 
-        This is the step that replaces mean-pooling, and it is valid where
-        pooling was not: a convex combination of distributions is a
-        distribution, whereas the mean of unit vectors is not a unit vector.
-        Weighting by chunk length is the analogue of bag-of-words additivity --
-        a 1000-word chunk should outweigh a 200-word tail.
-
-        Done as one sparse matmul rather than np.add.at, which is slow at
-        corpus scale.
+        Replaces mean-pooling and is valid where it was not: a convex
+        combination of distributions is a distribution, while the mean of unit
+        vectors is not a unit vector. Length weighting is the analogue of
+        bag-of-words additivity. One sparse matmul, not np.add.at.
         """
         weights = np.asarray(tokens, dtype=np.float64)
         weights = np.where(weights > 0, weights, 1.0)
@@ -615,10 +567,9 @@ class BERTopicModel(TopicModel):
         row_order = [row_index[tid] for tid in topic_ids]
         self.topic_word_matrix = csr_matrix(self.model.c_tf_idf_[row_order])
 
-        # Score each chunk, then aggregate to documents. The chunk-level
-        # distributions are what the reading view shows, so the document's
-        # distribution is by construction the weighted mean of what a reader
-        # sees passage by passage (SEMANTIC_TOPICS.md Phase 3.5).
+        # Score each chunk, then aggregate. The chunk distributions are what
+        # the reading view shows, so a document's distribution is by
+        # construction the weighted mean of what a reader sees.
         self.chunk_topic_matrix = self._soft_topic_distribution(chunked.embeddings)
         self.chunk_doc_index = chunked.doc_index
         self.chunk_tokens = chunked.tokens
@@ -629,11 +580,8 @@ class BERTopicModel(TopicModel):
         )
 
     def _report_topic_sizes(self, labels, topic_ids):
-        """Print the size skew -- the thing this backend most often gets wrong.
-
-        Skew is reported against uniform (1/n_topics), not an absolute
-        percentage: 33% is perfectly balanced across 3 topics and a severe
-        mega-topic across 100.
+        """Print size skew against uniform, since 33% is balanced across 3
+        topics and a severe mega-topic across 100.
         """
         counts = np.asarray([(labels == topic_id).sum() for topic_id in topic_ids], dtype=float)
         share = counts / max(counts.sum(), 1.0)

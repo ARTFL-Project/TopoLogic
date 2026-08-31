@@ -400,13 +400,9 @@ class DBHandler:
     def save_doc_chunks(cls, inference_databases, top_k=8, max_chunk_size=None):
         """Structural chunking + HTML rendering for the topical-reading view.
 
-        Each doc's `words_and_philo_ids/*.lz4` JSONL records are grouped by
-        paragraph (the 5-tuple `position[:5]`, which is the paragraph level in
-        PhiloLogic's hierarchy), then grouped into chunks of at most
-        `max_chunk_size` preprocessed tokens. Paragraphs with no surviving
-        preprocessed tokens (fully-stopworded captions, headers) contribute
-        nothing to the count and so fold into a neighbour rather than standing
-        alone.
+        Records are grouped by paragraph (`position[:5]`), then into chunks of
+        at most `max_chunk_size`. Paragraphs with no surviving preprocessed
+        tokens contribute nothing and fold into a neighbour.
 
         For each chunk we:
           1. Render HTML by calling `philologic.runtime.get_text.get_text_obj`
@@ -417,10 +413,8 @@ class DBHandler:
              trained topic-word matrix, using a sliding window that includes
              the previous and next chunks' tokens for θ stability.
 
-        Chunking is the same `group_by_counts` used to build the model's own
-        training and embedding chunks, so the passages a reader sees are the
-        passages the model scored — not a second, parallel estimate that can
-        disagree with the document it describes.
+        Chunking is the same `group_by_counts` the model itself uses, so the
+        passages a reader sees are the passages the model scored.
 
         Results are written to a new `chunks JSON` column on the `docs` table
         as `[{paragraph_philo_ids: [...], html: "...", top_topics: [[id, w], ...],
@@ -436,9 +430,8 @@ class DBHandler:
 
         from topologic.chunking import assign_preproc_tokens, group_by_counts
 
-        # Preprocessed tokens, not raw words: max_chunk_size is stated in raw
-        # words, and the two differ by roughly 5x on real corpora. Scale so a
-        # reading chunk covers about as much text as an embedding chunk.
+        # max_chunk_size is in raw words; these counts are preprocessed tokens,
+        # about 5x fewer on real corpora.
         chunk_cap = max(int((max_chunk_size or 500) / 5), 20)
         from collections import namedtuple
         from philologic.runtime.DB import DB as PhiloDB
@@ -618,8 +611,7 @@ class DBHandler:
                 inference_texts.append(" ".join(parts))
 
             bow = vectorizer.transform(inference_texts)  # n_chunks × vocab
-            # Not `bow @ beta.T`: that is dominated by topic row mass rather
-            # than passage content. See TopicModel.fold_in.
+            # Not `bow @ beta.T` — see TopicModel.fold_in.
             theta_norm = cls.model.fold_in(bow)
 
             # Render HTML by asking PhiloLogic to format each paragraph
@@ -1055,11 +1047,8 @@ class DBHandler:
                     topic_words.append(
                         {
                             "name": topic_id,
-                            # float(): the DuckDB insert above already coerces
-                            # this, but the JSON copy did not -- so any backend
-                            # whose topic_frequencies are not float64 (np.float32
-                            # is not a Python float) failed here at the very end
-                            # of a build.
+                            # float(): np.float32 is not a Python float, so
+                            # json.dump rejects it at the end of a build.
                             "frequency": float(frequency),
                             "description": ", ".join(description),
                             "top_words": top_words,

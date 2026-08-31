@@ -17,9 +17,9 @@ from tqdm import tqdm
 class ChunkedCorpus(NamedTuple):
     """One row per chunk, plus the mapping back to documents.
 
-    `doc_index[i]` is the sklearn_vector_space ROW of the document chunk i
-    belongs to; `tokens[i]` is its raw word count, used to weight the
-    aggregation back to document level. Chunks never span documents.
+    `doc_index[i]` is the sklearn_vector_space row of chunk i's document;
+    `tokens[i]` is its raw word count, used to weight aggregation back to
+    document level. Chunks never span documents.
     """
 
     texts: list
@@ -35,12 +35,9 @@ class ChunkedCorpus(NamedTuple):
 def iter_text_collections(text_path):
     """Yield the DirEntry of each text-collection subdirectory under `text_path`.
 
-    Filtering to real directories is load-bearing, not defensive:
-    `Corpus.compute_or_load_embeddings` caches `embeddings_*.npy` in
-    `text_path` itself, i.e. as a sibling of the collections. Any scan here
-    that descends unconditionally raises NotADirectoryError on that file the
-    moment a run reuses a post-build tarball -- which is exactly what the
-    tarball exists for.
+    The is_dir filter is load-bearing: the embedding cache is written into
+    `text_path` as a sibling of the collections, so an unconditional scan hits
+    NotADirectoryError as soon as a run reuses a post-build tarball.
     """
     for entry in os.scandir(text_path):
         if entry.is_dir() and os.path.isdir(os.path.join(entry.path, "texts")):
@@ -50,23 +47,19 @@ def iter_text_collections(text_path):
 class savedTexts:
     def __init__(self, text_path, max_chunk_size=None):
         self.text_path = text_path
-        # When set, iteration yields CHUNKS rather than documents, so each row
-        # of the corpus matrix is a chunk. Only ever set on a training corpus:
-        # inference rows must stay documents, since that is what the web app
-        # cites and links.
+        # When set, iteration yields chunks rather than documents. Only ever
+        # set on a training corpus — inference rows must stay documents, since
+        # that is what the web app cites.
         self.max_chunk_size = max_chunk_size
 
     def iter_doc_entries(self):
         """(doc_id, text_file_path, collection_path), globally sorted by doc_id.
 
         The single definition of corpus row order: row i of
-        `Corpus.sklearn_vector_space` is entry i of this list. Any parallel
-        walk over the corpus -- embeddings, per-doc side files -- must go
-        through this rather than re-deriving an order, or it risks pairing
-        row i with a different document: doc ids are assigned by a global
-        counter in contiguous per-database blocks, while `os.scandir` returns
-        inode order, and the two disagree as soon as there is more than one
-        database.
+        `sklearn_vector_space` is entry i here. Any parallel walk must go
+        through this rather than re-derive an order — doc ids are assigned in
+        contiguous per-database blocks while `os.scandir` returns inode order,
+        so the two disagree with more than one database.
         """
         entries = []
         for collection in iter_text_collections(self.text_path):
@@ -78,23 +71,16 @@ class savedTexts:
         return entries
 
     def iter_chunk_texts(self, max_chunk_size):
-        """Yield preprocessed text split into chunks of at most `max_chunk_size` raw words.
+        """Yield preprocessed text in chunks of at most `max_chunk_size` raw words.
 
-        Used to make the TRAINING corpus chunk-level. A long document's word
+        Makes the training corpus chunk-level: a long document's word
         co-occurrence is nearly uniform, so document-level statistics cannot
-        separate themes that reliably appear together inside it; chunks break
-        that correlation. Measured on a synthetic corpus where three pairs of
-        themes always co-occur, document-level NMF recovered 5/6 themes at 53%
-        top-word purity while chunk-level recovered 6/6 at 100%.
+        separate themes that always appear together inside it.
 
-        Chunk boundaries come from `raw_paragraphs` (raw words, so the size
-        means the same thing as it does for embedding) but the text emitted is
-        the PREPROCESSED token stream, mapped onto paragraphs by byte range —
-        that is what the vectorizer must see.
-
-        Falls back to yielding whole documents, with a warning, when the
-        per-paragraph inputs are missing (a tarball preprocessed before byte
-        spans were recorded).
+        Boundaries come from `raw_paragraphs` (raw words, so the setting means
+        the same everywhere) but the text emitted is the preprocessed stream,
+        which is what the vectorizer must see. Falls back to whole documents
+        when the per-paragraph inputs are missing.
         """
         import json as _json
 
@@ -135,8 +121,8 @@ class savedTexts:
                     yield fh.read()
                 continue
 
-            # Group on raw words so the cap means the same thing everywhere,
-            # then emit the preprocessed tokens that fall in each group.
+            # Group on raw words so the cap means the same everywhere, then
+            # emit the preprocessed tokens falling in each group.
             raw_groups = group_by_counts(
                 [len(p["text"].split()) for p in paragraphs], max_chunk_size
             )
@@ -148,15 +134,13 @@ class savedTexts:
                     emitted = True
                     yield text
             if not emitted:
-                # Every paragraph was stopworded away; keep the row so the
-                # corpus size still matches what the caller counted.
+                # Everything was stopworded away; keep the row so the corpus
+                # size still matches.
                 yield ""
 
         if degraded == total_docs:
-            # Not a degradation but a misconfiguration: max_chunk_size was
-            # asked for and nothing was chunked, so the run would silently
-            # produce exactly the unchunked model. That is how a chunked
-            # Condorcet build came out byte-identical to the unchunked one.
+            # Misconfiguration, not degradation: the run would otherwise
+            # produce exactly the unchunked model, silently.
             raise RuntimeError(
                 f"max_chunk_size={max_chunk_size} was set but none of {total_docs} docs could be "
                 "chunked: raw_paragraphs, tokens/*.pkl, or paragraph byte spans are missing from "
@@ -256,13 +240,9 @@ class Corpus:
     def build_chunks(self, max_chunk_size):
         """Split every document into chunks of at most `max_chunk_size` raw words.
 
-        Returns (texts, doc_index, tokens): parallel arrays where doc_index[i]
-        is the sklearn_vector_space ROW of the document chunk i belongs to.
-        Chunks never span documents, so this mapping is what lets a
-        chunk-level model report a document-level result.
-
-        Cheap (reads JSON, no model), so it is recomputed rather than cached
-        even when the embeddings themselves are cached.
+        Returns parallel (texts, doc_index, tokens); `doc_index[i]` is the
+        matrix row of chunk i's document. Cheap enough to recompute even when
+        the embeddings are cached.
         """
         import json as _json
 
@@ -303,10 +283,8 @@ class Corpus:
                 f"Chunked {len(set(doc_index))} docs but corpus size is {self.size}"
             )
         if oversized:
-            # A paragraph longer than the cap cannot be split without breaking
-            # the one guarantee callers rely on, so it becomes an over-cap
-            # chunk. Say so: for embedding backends it means the tokenizer
-            # silently drops the tail.
+            # Unsplittable: for embedding backends this means the tokenizer
+            # silently drops the tail, so say so.
             print(
                 f"Warning: {oversized} chunks exceed max_chunk_size={max_chunk_size} because a "
                 f"single paragraph does. Embedding backends will truncate these.",
@@ -317,23 +295,14 @@ class Corpus:
     def compute_or_load_embeddings(self, model_name, batch_size=32, max_chunk_size=None):
         """Embed every chunk of every document. No pooling.
 
-        Returns (ChunkedCorpus, embedder) with one row per CHUNK, not per
-        document.
+        Returns (ChunkedCorpus, embedder), one row per chunk. Deliberately does
+        not mean-pool to document vectors: the mean of points on a sphere is
+        not on the sphere, so a multi-topic document lands between clusters
+        rather than in any. Callers aggregate in topic space instead.
 
-        Mean-pooling chunk embeddings into a document vector used to happen
-        here and was wrong: the mean of points on a sphere is not on the
-        sphere, so a document spanning several topics landed in empty space
-        between the clusters rather than in any of them. On Condorcet that hit
-        40% of documents, the largest averaging 67 chunks into one vector.
-        Callers aggregate in TOPIC space instead, which is additive and valid.
-
-        `max_chunk_size` is in raw words and is clamped to what the embedder
-        can actually encode. Left as None it defaults to the model's own
-        limit.
-
-        Cache lives next to the texts dir so it survives the
-        `--preprocessed_data_path` tar/decompress flow, keyed on the sanitized
-        model name and the chunk size (which changes the chunking).
+        `max_chunk_size` is in raw words, clamped to what the embedder can
+        encode; None means the model's own limit. The cache sits beside the
+        texts dir so it survives the tarball flow, keyed on model and cap.
         """
         if self.max_chunk_size:
             raise RuntimeError(
@@ -342,17 +311,12 @@ class Corpus:
                 "up with raw_paragraphs. Build the corpus with max_chunk_size=None for "
                 "embedding backends (build_model does this)."
             )
-        # Load the embedder regardless of cache state: the caller passes it to
-        # BERTopic as embedding_model (for topic embeddings / outlier
-        # strategies), so it is needed even on a pure cache hit. Caller frees
-        # it via `del` when done.
+        # Needed even on a cache hit: the caller passes it to BERTopic as
+        # embedding_model. Caller frees it with `del`.
         embedder = self._load_embedder(model_name)
 
-        # Convert subword max_seq_length to a raw-word budget. Multilingual
-        # subword tokenizers (XLM-R, BPE) average ~1.6 subwords per word for
-        # European languages; the 0.9 factor leaves headroom against
-        # punctuation and rare tokens. Now that grouping honours this as a
-        # ceiling rather than a floor, the headroom is real.
+        # Subword max_seq_length -> raw-word budget: ~1.6 subwords per word for
+        # European languages, with 0.9 for headroom.
         model_limit = max(int(embedder.max_seq_length / 1.6 * 0.9), 32)
         if max_chunk_size is None:
             cap = model_limit
@@ -374,9 +338,8 @@ class Corpus:
         texts, doc_index, tokens = self.build_chunks(cap)
 
         safe_name = re.sub(r"[^A-Za-z0-9._-]", "_", model_name)
-        # v3: one row per chunk rather than per document, so the cache carries
-        # the doc mapping alongside. Keyed on the cap too, since changing it
-        # changes the chunking.
+        # v3: one row per chunk, so the mapping travels with it. Keyed on the
+        # cap too, since changing it changes the chunking.
         cache_path = os.path.join(
             self.texts_to_vectorize.text_path, f"embeddings_v3_{safe_name}_c{cap}.npz"
         )

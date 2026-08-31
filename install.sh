@@ -105,13 +105,10 @@ rm -rf /var/lib/topologic/web-app
 rsync -a --exclude node_modules --exclude dist web-app/ /var/lib/topologic/web-app/
 rm -rf /var/lib/topologic/config
 cp -Rf config /var/lib/topologic
-# Gunicorn loads the API module once at worker start, so a running server keeps
-# serving the code it was launched with. Copying api/ into place above is not
-# enough: without this the install appears to succeed and change nothing.
-#
-# Only ever RESTART an already-running server. `systemctl restart` would also
-# start a stopped one, and an install has no business starting a service the
-# operator deliberately stopped.
+# Gunicorn loads the API module at worker start, so copying api/ into place is
+# not enough: without a restart the install appears to succeed and change
+# nothing. Only ever restart an already-RUNNING server — `systemctl restart`
+# would also start a stopped one, which an install has no business doing.
 echo -e "\nAPI server:"
 if [ "$RESTART" = "no" ]; then
     echo "  --no-restart given; a running server will keep serving the previous code."
