@@ -21,18 +21,24 @@ dependencies = [
     "httptools",
     "annoy",
     "duckdb>=1.1",
+    "lz4",
     "multiprocess",
     "text_preprocessing",
     "philologic>=5.2.2.1",
     "spacy-transformers",
+    "bertopic>=0.16",
+    "sentence-transformers",
 ]
 
 # Install-time backend choice. Exactly one of these extras must be passed to
 # `uv sync` (install.sh resolves it from the --cpu/--cuda flag). `cuda` adds
-# cupy-cuda12x, which spacy's preprocessing uses for GPU array ops.
+# cupy-cuda12x (spacy GPU array ops). For GPU UMAP/HDBSCAN with BERTopic,
+# install cuml-cu12 separately (`pip install --extra-index-url
+# https://pypi.nvidia.com cuml-cu12`); BERTopicModel auto-detects it at
+# runtime and falls back to the CPU implementations otherwise.
 [project.optional-dependencies]
-cpu = ["torch"]
-cuda = ["torch", "cupy-cuda12x"]
+cpu = ["torch>=2.5"]
+cuda = ["torch>=2.5", "cupy-cuda12x"]
 
 [tool.uv]
 conflicts = [

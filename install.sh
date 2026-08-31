@@ -6,19 +6,22 @@ set -e
 # Controls which torch wheel index is used (and whether cupy is installed
 # for GPU-accelerated spacy preprocessing).
 BACKEND=""
+RESTART="yes"
 for arg in "$@"; do
     case "$arg" in
         --cpu)  BACKEND="cpu" ;;
         --cuda) BACKEND="cuda" ;;
+        --no-restart) RESTART="no" ;;
         -h|--help)
-            echo "Usage: $0 [--cpu | --cuda]"
-            echo "  --cpu   Install CPU-only torch; skip cupy."
-            echo "  --cuda  Install CUDA 12.4 torch + cupy-cuda12x for GPU spacy."
-            echo "  (default) Auto-detect: use --cuda if nvidia-smi is on PATH, else --cpu."
+            echo "Usage: $0 [--cpu | --cuda] [--no-restart]"
+            echo "  --cpu         Install CPU-only torch; skip cupy."
+            echo "  --cuda        Install CUDA 12.4 torch + cupy-cuda12x for GPU spacy."
+            echo "  (default)     Auto-detect: use --cuda if nvidia-smi is on PATH, else --cpu."
+            echo "  --no-restart  Do not restart a running API server after installing."
             exit 0 ;;
         *)
             echo "Unknown argument: $arg" >&2
-            echo "Usage: $0 [--cpu | --cuda]" >&2
+            echo "Usage: $0 [--cpu | --cuda] [--no-restart]" >&2
             exit 1 ;;
     esac
 done
@@ -102,4 +105,41 @@ rm -rf /var/lib/topologic/web-app
 rsync -a --exclude node_modules --exclude dist web-app/ /var/lib/topologic/web-app/
 rm -rf /var/lib/topologic/config
 cp -Rf config /var/lib/topologic
+# Gunicorn loads the API module once at worker start, so a running server keeps
+# serving the code it was launched with. Copying api/ into place above is not
+# enough: without this the install appears to succeed and change nothing.
+#
+# Only ever RESTART an already-running server. `systemctl restart` would also
+# start a stopped one, and an install has no business starting a service the
+# operator deliberately stopped.
+echo -e "\nAPI server:"
+if [ "$RESTART" = "no" ]; then
+    echo "  --no-restart given; a running server will keep serving the previous code."
+elif command -v systemctl >/dev/null 2>&1 && systemctl cat topologic.service >/dev/null 2>&1; then
+    if systemctl is-active --quiet topologic.service; then
+        echo "  Restarting topologic.service to pick up the new code..."
+        if sudo systemctl restart topologic.service; then
+            echo "  topologic.service restarted."
+        else
+            echo "  WARNING: restart failed — the server is still running the PREVIOUS code." >&2
+            echo "           Retry with: sudo systemctl restart topologic.service" >&2
+        fi
+    else
+        echo "  topologic.service is installed but stopped; leaving it stopped."
+        echo "  Start it with: sudo systemctl start topologic.service"
+    fi
+elif pgrep -f "gunicorn topologic_explorer:app" >/dev/null 2>&1; then
+    echo "  WARNING: an API server is running but is not managed by topologic.service," >&2
+    echo "           so it could not be restarted and is serving the PREVIOUS code." >&2
+    echo "           Restart it manually:" >&2
+    echo "             pkill -f 'gunicorn topologic_explorer:app'" >&2
+    echo "             /var/lib/topologic/api_server/web_server.sh" >&2
+else
+    echo "  No running API server detected. Start one with:"
+    echo "    /var/lib/topologic/api_server/web_server.sh"
+    echo "  or, to have systemd manage it:"
+    echo "    sudo cp api_server/topologic.service /etc/systemd/system/"
+    echo "    sudo systemctl daemon-reload && sudo systemctl enable --now topologic.service"
+fi
+
 echo -e "\n## IMPORTANT ##\nTopoLogic runs behind the Gunicorn web server. Make sure you configure the Gunicorn config file in /var/lib/topologic/api_server/gunicorn.conf.py. You should also make sure it autostarts on boot.\n"

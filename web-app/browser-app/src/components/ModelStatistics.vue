@@ -16,9 +16,8 @@
                         <h6>Vectorization parameters:</h6>
                         <ul>
                             <li style="padding: 5px">Corpus using {{ config.vectorization }} weighting.</li>
-                            <li style="padding: 5px">Tokens include unigrams and bigrams</li>
-                            <li style="padding: 5px">Tokens occurring in more than {{ 100 - config.maxTf * 100 }}% and
-                                less than {{ config.minTf * 100 }}% of documents were filtered out.</li>
+                            <li style="padding: 5px">{{ ngramDescription }}</li>
+                            <li style="padding: 5px">{{ filterDescription }}</li>
                         </ul>
                     </div>
                 </div>
@@ -53,6 +52,33 @@ export default {
             .then(response => {
                 this.config = response.data;
             });
+    },
+    computed: {
+        filterDescription() {
+            const { minTf, maxTf } = this.config;
+            if (minTf === undefined || maxTf === undefined) {
+                return "";
+            }
+            // min_freq/max_freq are a proportion of the corpus when <= 1 and an
+            // absolute document count when > 1 (see config.py). The previous
+            // text assumed a proportion always, so an absolute floor of 5
+            // rendered as "500%".
+            const describe = (value) =>
+                value <= 1
+                    ? `${+(value * 100).toFixed(2)}% of documents`
+                    : `${value} documents`;
+            return `Tokens occurring in more than ${describe(maxTf)}, or in fewer than ${describe(
+                minTf
+            )}, were filtered out.`;
+        },
+        ngramDescription() {
+            // Was hardcoded to "unigrams and bigrams" while both shipped
+            // configs use ngram = 1.
+            const n = this.config.ngram;
+            return n > 1
+                ? `Tokens include unigrams through ${n}-grams`
+                : "Tokens include unigrams";
+        }
     },
     methods: {
         toggleStatistics() {

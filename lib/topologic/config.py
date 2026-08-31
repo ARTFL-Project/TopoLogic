@@ -7,6 +7,20 @@ import sys
 from typing import Dict, Union
 
 
+# bertopic-only settings. Absent or empty in the config means "use
+# BERTopicModel's own default", which keeps defaults defined in exactly one
+# place instead of being restated here.
+BERTOPIC_OPTIONS = (
+    "embedding_model",
+    "min_cluster_size",
+    "cluster_selection_method",
+    "reduce_outliers",
+    "assignment_temperature",
+    "mmr_diversity",
+    "embedding_batch_size",
+)
+
+
 def read_config(config_path):
     """Read config file for building the topic model and associated app"""
     config = configparser.ConfigParser()
@@ -22,6 +36,12 @@ def read_config(config_path):
         for path, text_object_level in zip(training_paths, training_text_object_levels)
     }
     training_data["min_tokens_per_doc"] = int(config["TRAINING_DATA"]["min_tokens_per_doc"])
+    # Ceiling on a chunk, in RAW words. Empty means "one chunk per text
+    # object" -- the pre-chunking behaviour -- so existing configs are
+    # unaffected. Raw words, not preprocessed tokens: raw words are what bound
+    # the embedder's context window, and the two differ by ~5x.
+    _chunk = config["TRAINING_DATA"].get("max_chunk_size", "").strip()
+    training_data["max_chunk_size"] = int(_chunk) if _chunk else None
 
     inference_paths = [i.strip() for i in config["INFERENCE_DATA"]["text_paths"].split(",") if i.strip()]
     inference_text_object_levels = [i.strip() for i in config["INFERENCE_DATA"]["text_object_level"].split(",")]
@@ -34,6 +54,12 @@ def read_config(config_path):
         for path, text_object_level in zip(inference_paths, inference_text_object_levels)
     }
     inference_data["min_tokens_per_doc"] = int(config["INFERENCE_DATA"]["min_tokens_per_doc"])
+    # Ceiling on a chunk, in RAW words. Empty means "one chunk per text
+    # object" -- the pre-chunking behaviour -- so existing configs are
+    # unaffected. Raw words, not preprocessed tokens: raw words are what bound
+    # the embedder's context window, and the two differ by ~5x.
+    _chunk = config["INFERENCE_DATA"].get("max_chunk_size", "").strip()
+    inference_data["max_chunk_size"] = int(_chunk) if _chunk else None
 
     metadata_filters = {}
     for key, value in config["METADATA_FILTERS"].items():
@@ -76,7 +102,16 @@ def read_config(config_path):
     vectorization = {}
     for key, value in config["VECTORIZATION"].items():
         if key in ("min_freq", "max_freq"):
-            vectorization[key] = float(value.strip())
+            # int vs float is meaningful to sklearn: an int is an absolute
+            # document count, a float is a proportion of the corpus. A value
+            # above 1 can only be a count (proportions live in [0, 1]), so
+            # that is what decides. Without this, min_freq = 5 raises
+            # InvalidParameterError and an absolute floor is unreachable --
+            # which matters most for c-TF-IDF, whose whole mechanism is
+            # elevating cluster-distinctive terms that a proportional floor
+            # removes.
+            number = float(value.strip())
+            vectorization[key] = int(number) if number > 1 else number
         elif key == "ngram":
             vectorization[key] = tuple([int(v.strip()) for v in value.split(",")])
         elif key == "max_features":
@@ -86,10 +121,40 @@ def read_config(config_path):
                 vectorization[key] = None
         else:
             vectorization[key] = value
+    # Only keys actually present in the file land here. build_model forwards
+    # just those, so BERTopicModel.__init__ stays the single source of
+    # defaults rather than having them restated in the config layer.
     topic_modeling = {}
     for key, value in config["TOPIC_MODELING"].items():
-        if key in ("number_of_topics", "max_iter"):
-            topic_modeling[key] = int(value.strip())
+        value = value.strip()
+        if key == "number_of_topics":
+            # Three sentinels, understood by BERTopic and required to be an
+            # int by nmf/lda/gnmf (enforced in build_model):
+            #   ""/"none" -> None, use the clustering's own topic count
+            #   "auto"    -> let the backend merge similar topics
+            #   N         -> exactly N topics
+            lowered = value.lower()
+            if lowered in ("", "none"):
+                topic_modeling[key] = None
+            elif lowered == "auto":
+                topic_modeling[key] = "auto"
+            else:
+                topic_modeling[key] = int(value)
+        elif key == "max_iter":
+            # Meaningless for bertopic, so empty is allowed; build_model
+            # requires a real value for the backends that iterate.
+            topic_modeling[key] = int(value) if value else None
+        elif key in BERTOPIC_OPTIONS and not value:
+            # Empty means "use the model default": leave the key out entirely
+            # so build_model has nothing to forward. Storing the empty value
+            # instead would override the default with '' or False.
+            continue
+        elif key in ("min_cluster_size", "embedding_batch_size"):
+            topic_modeling[key] = int(value)
+        elif key in ("assignment_temperature", "mmr_diversity"):
+            topic_modeling[key] = float(value)
+        elif key == "reduce_outliers":
+            topic_modeling[key] = value.lower() in ("1", "true", "yes", "on")
         else:
             topic_modeling[key] = value
     topics_over_time = {}

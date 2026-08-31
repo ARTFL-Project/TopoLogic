@@ -5,6 +5,8 @@ import os
 import re
 from collections import defaultdict
 
+import duckdb
+
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, HTMLResponse
 from starlette.middleware.cors import CORSMiddleware
@@ -40,6 +42,44 @@ app.add_middleware(
 )
 
 
+def _read_topic_count(local_config, table_name):
+    """Number of topics in the built model.
+
+    Three sources, most authoritative first:
+
+    1. [DATA]/num_topics -- written by build_web_app from the fitted model.
+    2. COUNT(*) on the topics table -- true of any built database, and what
+       lets a bertopic database built before (1) existed work without a rebuild.
+    3. [TOPIC_MODELING]/number_of_topics -- only the *input*, and the reason
+       this helper exists. For bertopic it is routinely empty or "auto" because
+       the clustering decides the count, so int() on it raises ValueError; even
+       an explicit integer is a target that agglomerative reduction need not
+       hit exactly.
+    """
+    if local_config.has_option("DATA", "num_topics"):
+        return int(local_config["DATA"]["num_topics"])
+    try:
+        conn = duckdb.connect(_db_path(table_name), read_only=True)
+        try:
+            return int(conn.execute("SELECT COUNT(*) FROM topics").fetchone()[0])
+        finally:
+            conn.close()
+    except HTTPException:
+        raise
+    except Exception:
+        pass
+    configured = local_config["TOPIC_MODELING"]["number_of_topics"].strip()
+    if configured.isdigit():
+        return int(configured)
+    raise HTTPException(
+        status_code=500,
+        detail=(
+            f"Cannot determine the topic count for {table_name!r}: no [DATA] num_topics, "
+            f"no readable topics table, and [TOPIC_MODELING] number_of_topics is {configured!r}."
+        ),
+    )
+
+
 def read_model_config(table_name):
     local_config = configparser.ConfigParser()
     local_config.read(_safe_path(table_name, "model_config.ini"))
@@ -56,7 +96,10 @@ def read_model_config(table_name):
         "maxTf": float(local_config["VECTORIZATION"]["max_freq"]),
         "minTf": float(local_config["VECTORIZATION"]["min_freq"]),
         "vectorization": local_config["VECTORIZATION"]["vectorization"].upper(),
-        "topics": int(local_config["TOPIC_MODELING"]["number_of_topics"]),
+        # Largest n in the ngram range, so the UI can describe it instead of
+        # asserting "unigrams and bigrams" regardless of configuration.
+        "ngram": int(local_config["VECTORIZATION"]["ngram"].split(",")[-1].strip() or 1),
+        "topics": _read_topic_count(local_config, table_name),
         "method": local_config["TOPIC_MODELING"]["algorithm"],
         "topic_over_time_interval": int(local_config["TOPICS_OVER_TIME"]["topics_over_time_interval"]),
         "metadata_fields": local_config["DATA"]["metadata"].split(","),

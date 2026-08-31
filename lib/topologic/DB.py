@@ -397,24 +397,30 @@ class DBHandler:
 
 
     @classmethod
-    def save_doc_chunks(cls, inference_databases, top_k=8, min_tokens_per_chunk=100):
+    def save_doc_chunks(cls, inference_databases, top_k=8, max_chunk_size=None):
         """Structural chunking + HTML rendering for the topical-reading view.
 
         Each doc's `words_and_philo_ids/*.lz4` JSONL records are grouped by
         paragraph (the 5-tuple `position[:5]`, which is the paragraph level in
-        PhiloLogic's hierarchy). Adjacent paragraphs are merged until a chunk
-        reaches at least `min_tokens_per_chunk` words — so a line-break-heavy
-        header/caption folds into the following paragraph rather than standing
-        alone. The last chunk absorbs any residual tail.
+        PhiloLogic's hierarchy), then grouped into chunks of at most
+        `max_chunk_size` preprocessed tokens. Paragraphs with no surviving
+        preprocessed tokens (fully-stopworded captions, headers) contribute
+        nothing to the count and so fold into a neighbour rather than standing
+        alone.
 
         For each chunk we:
           1. Render HTML by calling `philologic.runtime.get_text.get_text_obj`
              on each constituent paragraph's philo_id and concatenating. This
              matches exactly what PhiloLogic's navigation report would render
              — formatting, italics, page breaks, notes — only pre-baked.
-          2. Compute a top-K topic distribution via one-step fold-in against
-             the trained topic-word matrix, using a sliding window that
-             includes the previous and next chunks' tokens for θ stability.
+          2. Compute a top-K topic distribution by folding in against the
+             trained topic-word matrix, using a sliding window that includes
+             the previous and next chunks' tokens for θ stability.
+
+        Chunking is the same `group_by_counts` used to build the model's own
+        training and embedding chunks, so the passages a reader sees are the
+        passages the model scored — not a second, parallel estimate that can
+        disagree with the document it describes.
 
         Results are written to a new `chunks JSON` column on the `docs` table
         as `[{paragraph_philo_ids: [...], html: "...", top_topics: [[id, w], ...],
@@ -427,7 +433,13 @@ class DBHandler:
         import json as _json
         import os as _os
         import lz4.frame
-        from bisect import bisect_right
+
+        from topologic.chunking import assign_preproc_tokens, group_by_counts
+
+        # Preprocessed tokens, not raw words: max_chunk_size is stated in raw
+        # words, and the two differ by roughly 5x on real corpora. Scale so a
+        # reading chunk covers about as much text as an embedding chunk.
+        chunk_cap = max(int((max_chunk_size or 500) / 5), 20)
         from collections import namedtuple
         from philologic.runtime.DB import DB as PhiloDB
         from philologic.runtime.get_text import get_text_obj
@@ -443,7 +455,6 @@ class DBHandler:
         empty_request = _PhiloRequest("", "", "", [])
 
         vectorizer = cls.model.corpus.vectorizer
-        beta_dense = cls.model.topic_word_matrix.toarray()
         preproc_text_root = cls.model.corpus.texts_to_vectorize.text_path
 
         # Caches shared across docs for the life of save_doc_chunks —
@@ -535,16 +546,25 @@ class DBHandler:
             paragraphs = []
             cur_key = None
             cur = []
+
+            def _emit(key, toks):
+                paragraphs.append({
+                    "philo_id": key,
+                    "tokens": toks,
+                    "start_byte": toks[0][0],
+                    "end_byte": max(t[1] for t in toks),
+                })
+
             for sb, eb, tok, pos, ptype in level_tokens:
                 key = tuple(pos[:5]) if len(pos) >= 5 else tuple(pos)
                 if key != cur_key:
                     if cur:
-                        paragraphs.append({"philo_id": cur_key, "tokens": cur})
+                        _emit(cur_key, cur)
                     cur_key = key
                     cur = []
                 cur.append((sb, eb, tok, ptype))
             if cur:
-                paragraphs.append({"philo_id": cur_key, "tokens": cur})
+                _emit(cur_key, cur)
             if not paragraphs:
                 continue
 
@@ -561,56 +581,15 @@ class DBHandler:
             except FileNotFoundError:
                 preproc_tokens_obj = None
 
-            para_preproc_tokens = [[] for _ in paragraphs]
-            if preproc_tokens_obj is not None:
-                # Paragraph boundaries from the RAW lz4 tokens — preprocessing
-                # can't move content, only drop it, so a surviving preproc
-                # token always falls inside its source paragraph's raw span.
-                para_starts = []
-                para_ends = []
-                for p in paragraphs:
-                    if p["tokens"]:
-                        para_starts.append(p["tokens"][0][0])
-                        para_ends.append(p["tokens"][-1][1])
-                    else:
-                        para_starts.append(0)
-                        para_ends.append(0)
-                for pt in preproc_tokens_obj:
-                    text = getattr(pt, "text", None)
-                    if not text or not text.strip() or text == "#DEL#":
-                        continue
-                    ext = getattr(pt, "ext", None) or {}
-                    sb = ext.get("start_byte")
-                    if sb is None:
-                        continue
-                    # Rightmost paragraph whose start_byte is ≤ sb
-                    idx = bisect_right(para_starts, sb) - 1
-                    if idx < 0 or idx >= len(paragraphs):
-                        continue
-                    if sb > para_ends[idx]:
-                        # Between paragraphs (unlikely; sanity check).
-                        continue
-                    para_preproc_tokens[idx].append(text)
+            para_preproc_tokens = assign_preproc_tokens(paragraphs, preproc_tokens_obj)
 
             # Build chunks. Count is preprocessed tokens per paragraph (what
             # actually contributes to the vectorizer's BOW). Paragraphs with
             # zero preproc tokens (fully-stopworded captions, etc.) naturally
             # fold forward — they don't advance the counter on their own.
-            chunks_para_indices = []
-            bucket = []
-            bucket_count = 0
-            for idx in range(len(paragraphs)):
-                bucket.append(idx)
-                bucket_count += len(para_preproc_tokens[idx])
-                if bucket_count >= min_tokens_per_chunk:
-                    chunks_para_indices.append(bucket)
-                    bucket = []
-                    bucket_count = 0
-            if bucket:
-                if chunks_para_indices:
-                    chunks_para_indices[-1].extend(bucket)
-                else:
-                    chunks_para_indices.append(bucket)
+            chunks_para_indices = group_by_counts(
+                [len(t) for t in para_preproc_tokens], chunk_cap
+            )
 
             # Materialize chunks as (paragraph_list, preproc_token_list) pairs.
             chunks = [
@@ -639,10 +618,9 @@ class DBHandler:
                 inference_texts.append(" ".join(parts))
 
             bow = vectorizer.transform(inference_texts)  # n_chunks × vocab
-            theta_matrix = bow @ beta_dense.T             # n_chunks × n_topics
-            row_sums = theta_matrix.sum(axis=1, keepdims=True)
-            safe = np.where(row_sums > 0, row_sums, 1.0)
-            theta_norm = theta_matrix / safe
+            # Not `bow @ beta.T`: that is dominated by topic row mass rather
+            # than passage content. See TopicModel.fold_in.
+            theta_norm = cls.model.fold_in(bow)
 
             # Render HTML by asking PhiloLogic to format each paragraph
             # object; concatenate for a chunk that spans multiple paragraphs.
@@ -1077,7 +1055,12 @@ class DBHandler:
                     topic_words.append(
                         {
                             "name": topic_id,
-                            "frequency": frequency,
+                            # float(): the DuckDB insert above already coerces
+                            # this, but the JSON copy did not -- so any backend
+                            # whose topic_frequencies are not float64 (np.float32
+                            # is not a Python float) failed here at the very end
+                            # of a build.
+                            "frequency": float(frequency),
                             "description": ", ".join(description),
                             "top_words": top_words,
                             "color": _topic_color(topic_id, cls.model.nb_topics),

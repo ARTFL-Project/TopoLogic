@@ -62,8 +62,12 @@ def topic_num_evaluator(
         corpus = load(corpus_path)
         if algorithm == "nmf":
             model = NonNegativeMatrixFactorization
-        else:
+        elif algorithm == "lda":
             model = LatentDirichletAllocation
+        else:
+            # Greene stability refits at a fixed k; only backends that take k
+            # as an input can be swept. Raising beats silently sweeping LDA.
+            raise ValueError(f"Topic-number evaluation supports nmf and lda, not {algorithm!r}.")
         topic_model = model(corpus)
         topic_model.infer_topics(k)
         reference_rank = [list(zip(*topic_model.top_words(i, top_n_words)))[0] for i in range(k)]

@@ -21,6 +21,7 @@ While you can build and install TopoLogic directly, it is highly encouraged to u
 -   Run the `install.sh` script (it will install [uv](https://docs.astral.sh/uv/getting-started/installation/) automatically if it isn't already on your system; uv then manages Python 3.12 and the project virtual environment). Pass `--cpu` or `--cuda` to pick the torch backend; without a flag, the script auto-detects via `nvidia-smi`.
 -   If your OS uses systemd, use the `topologic.service` template in `api_server/topologic.service` to start the API server.
 -   The install includes Gunicorn, used to serve the API. Start it from the shell script installed in `/var/lib/topologic/api_server/`, adjusting paths/ports for your setup.
+-   **Re-running `install.sh` restarts the API server** if `topologic.service` is installed *and* currently running. Gunicorn loads the API module once at worker start, so without a restart a running server keeps serving the previous code and the install looks like it did nothing. A service that is installed but stopped is left stopped — an install should not start something you deliberately stopped. If a server is running outside systemd, the script says so and prints the manual restart commands rather than touching it. Pass `--no-restart` to skip this entirely.
 
 
 ## HOW TO USE
