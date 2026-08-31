@@ -13,6 +13,8 @@ BERTOPIC_OPTIONS = (
     "embedding_model",
     "min_cluster_size",
     "cluster_selection_method",
+    "cluster_selection_epsilon",
+    "umap_neighbors",
     "reduce_outliers",
     "assignment_temperature",
     "mmr_diversity",
@@ -117,8 +119,11 @@ def read_config(config_path):
         else:
             vectorization[key] = value
     # Only keys present in the file land here; build_model forwards just those.
+    # Backend settings may live in their own [BERTOPIC] section or inline in
+    # [TOPIC_MODELING]; the dedicated section wins.
     topic_modeling = {}
-    for key, value in config["TOPIC_MODELING"].items():
+    bertopic_items = dict(config["BERTOPIC"]) if config.has_section("BERTOPIC") else {}
+    for key, value in list(config["TOPIC_MODELING"].items()) + list(bertopic_items.items()):
         value = value.strip()
         if key == "number_of_topics":
             # ""/"none" -> None (the clustering decides), "auto" -> merge
@@ -137,14 +142,25 @@ def read_config(config_path):
             # Leave the key out so build_model forwards nothing; storing "" or
             # False here would override the model default.
             continue
-        elif key in ("min_cluster_size", "embedding_batch_size"):
+        elif key in ("min_cluster_size", "embedding_batch_size", "umap_neighbors"):
             topic_modeling[key] = int(value)
-        elif key in ("assignment_temperature", "mmr_diversity"):
+        elif key in ("assignment_temperature", "mmr_diversity", "cluster_selection_epsilon"):
             topic_modeling[key] = float(value)
         elif key == "reduce_outliers":
             topic_modeling[key] = value.lower() in ("1", "true", "yes", "on")
         else:
             topic_modeling[key] = value
+    # A misplaced or misspelled key used to be dropped in silence, so a run
+    # would complete having ignored every setting the user changed.
+    known = set(BERTOPIC_OPTIONS) | {"algorithm", "number_of_topics", "max_iter"}
+    unknown = sorted(k for k in topic_modeling if k not in known)
+    if unknown:
+        print(
+            f"Warning: unrecognized [TOPIC_MODELING]/[BERTOPIC] keys ignored: {', '.join(unknown)}. "
+            f"Known keys: {', '.join(sorted(known))}.",
+            flush=True,
+        )
+
     topics_over_time = {}
     for key, value in config["TOPICS_OVER_TIME"].items():
         if key == "topics_over_time_interval":

@@ -177,9 +177,11 @@ class BERTopicModel(TopicModel):
         max_iter=None,
         embedding_model="Alibaba-NLP/gte-multilingual-base",
         reduce_outliers=True,
-        min_cluster_size=None,
+        min_cluster_size=10,
         max_chunk_size=None,
         cluster_selection_method="leaf",
+        cluster_selection_epsilon=0.0,
+        umap_neighbors=15,
         assignment_temperature=None,
         mmr_diversity=0.0,
         batch_size=32,
@@ -187,9 +189,11 @@ class BERTopicModel(TopicModel):
         super().__init__(corpus, max_iter=max_iter)
         self.embedding_model = embedding_model
         self.reduce_outliers = reduce_outliers
-        self.min_cluster_size = min_cluster_size
+        self.min_cluster_size = int(min_cluster_size)
         self.max_chunk_size = max_chunk_size
         self.cluster_selection_method = cluster_selection_method
+        self.cluster_selection_epsilon = cluster_selection_epsilon
+        self.umap_neighbors = umap_neighbors
         self.assignment_temperature = assignment_temperature
         self.assignment_temperature_ = None  # resolved at fit time
         self.mmr_diversity = mmr_diversity
@@ -229,7 +233,7 @@ class BERTopicModel(TopicModel):
             ngram_range=self.corpus.ngram,
         )
 
-        umap_model, hdbscan_model = self._build_clustering_backend()
+        umap_model, hdbscan_model = self._build_clustering_backend(len(embeddings))
 
         # Three sentinels (parsed in config.py): None keeps HDBSCAN's clusters,
         # "auto" merges similar ones, int N reduces agglomeratively. Prefer the
@@ -387,30 +391,23 @@ class BERTopicModel(TopicModel):
     # Internals
     # ------------------------------------------------------------------
 
-    def _resolved_min_cluster_size(self):
-        """Explicit value, else 0.2% of corpus size with a floor of 10.
-
-        A fixed value means something different at 5k docs than at 500k. This
-        is a starting heuristic, not a tuned constant.
-        """
-        if self.min_cluster_size is not None:
-            return int(self.min_cluster_size)
-        return max(10, int(0.002 * self.corpus.size))
-
-    def _build_clustering_backend(self):
+    def _build_clustering_backend(self, n_points):
         """Use cuML's GPU UMAP + HDBSCAN when available, else CPU equivalents.
 
         cuML lives in the `cuda` extra. The import is gated on CUDA actually
         being available at runtime so a CUDA-installed env on a CPU-only
         machine still works.
 
-        cluster_selection_method defaults to "leaf": excess-of-mass prefers a
-        few large clusters, which is one cause of the mega-topic.
+        Granularity knobs, roughly in order of effect: cluster_selection_method
+        ("eom" gives markedly fewer, broader topics than "leaf"), umap_neighbors
+        (higher preserves more global structure), min_cluster_size, and
+        cluster_selection_epsilon (merges clusters closer than the threshold).
         """
-        min_cluster_size = self._resolved_min_cluster_size()
         print(
-            f"HDBSCAN: min_cluster_size={min_cluster_size}, "
-            f"cluster_selection_method={self.cluster_selection_method}",
+            f"UMAP/HDBSCAN over {n_points} points: min_cluster_size={self.min_cluster_size}, "
+            f"cluster_selection_method={self.cluster_selection_method}, "
+            f"n_neighbors={self.umap_neighbors}, "
+            f"cluster_selection_epsilon={self.cluster_selection_epsilon}",
             flush=True,
         )
         try:
@@ -425,11 +422,18 @@ class BERTopicModel(TopicModel):
                 from cuml.manifold import UMAP as cuUMAP
                 print("Using cuML GPU UMAP + HDBSCAN.", flush=True)
                 return (
-                    cuUMAP(n_neighbors=15, n_components=5, min_dist=0.0, metric="cosine", random_state=0),
+                    cuUMAP(
+                        n_neighbors=self.umap_neighbors,
+                        n_components=5,
+                        min_dist=0.0,
+                        metric="cosine",
+                        random_state=0,
+                    ),
                     cuHDBSCAN(
-                        min_cluster_size=min_cluster_size,
+                        min_cluster_size=self.min_cluster_size,
                         metric="euclidean",
                         cluster_selection_method=self.cluster_selection_method,
+                        cluster_selection_epsilon=self.cluster_selection_epsilon,
                         prediction_data=True,
                     ),
                 )
@@ -439,11 +443,18 @@ class BERTopicModel(TopicModel):
         from hdbscan import HDBSCAN
         from umap import UMAP
         return (
-            UMAP(n_neighbors=15, n_components=5, min_dist=0.0, metric="cosine", random_state=0),
+            UMAP(
+                n_neighbors=self.umap_neighbors,
+                n_components=5,
+                min_dist=0.0,
+                metric="cosine",
+                random_state=0,
+            ),
             HDBSCAN(
-                min_cluster_size=min_cluster_size,
+                min_cluster_size=self.min_cluster_size,
                 metric="euclidean",
                 cluster_selection_method=self.cluster_selection_method,
+                cluster_selection_epsilon=self.cluster_selection_epsilon,
                 prediction_data=True,
             ),
         )

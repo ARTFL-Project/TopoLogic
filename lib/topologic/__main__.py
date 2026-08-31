@@ -592,6 +592,8 @@ def build_model(
                 "reduce_outliers",
                 "min_cluster_size",
                 "cluster_selection_method",
+                "cluster_selection_epsilon",
+                "umap_neighbors",
                 "assignment_temperature",
                 "mmr_diversity",
             )
@@ -613,9 +615,14 @@ def build_model(
         full_corpus.build_annoy_index()
         print("Inferring topics...", flush=True)
         topic_model.infer_topics(num_topics=number_of_topics)
-        # Cut the inference corpus the way INFERENCE_DATA asks.
+        # Cut the inference corpus the way INFERENCE_DATA asks, defaulting to
+        # the training size. Falling back to the embedder's limit instead would
+        # score coarse, blurred inference chunks against centroids learned from
+        # fine ones.
         if algorithm == "bertopic":
-            topic_model.max_chunk_size = inference_config.get("max_chunk_size")
+            topic_model.max_chunk_size = inference_config.get(
+                "max_chunk_size"
+            ) or training_config.get("max_chunk_size")
         topic_model.infer_and_replace(full_corpus)
 
     return topic_model, full_corpus, training_corpus
