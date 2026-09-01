@@ -15,9 +15,12 @@ Input preference:
 from __future__ import annotations
 
 import argparse
+import itertools
 import json
+import re
 import sys
-from typing import Any, Dict, List, Tuple
+import unicodedata
+from typing import Any, Dict, List, Sequence, Tuple
 
 from tqdm import tqdm
 
@@ -66,6 +69,258 @@ PROMPT_INSTRUCTION = (
 )
 
 
+# Second pass. The first pass labels each topic with only its own terms in view,
+# so it cannot avoid giving two topics the same label -- it never learns the
+# other one exists. This pass labels sibling topics together, with the terms that
+# separate them called out.
+#
+# Two things it deliberately does not do. It never asks whether the existing
+# labels are distinct -- a judgement small models get wrong (asked about
+# "Religion chretienne" vs "Religion catholique" the model returned both
+# unchanged). And it never shows the existing label, which only anchors the
+# rewrite on the wording it is supposed to replace. The model must also cite the
+# distinctive terms behind each label, a claim that can be checked.
+
+SECOND_PASS_INSTRUCTION = (
+    "Label each of the {n} topics below. They come from the same topic model and "
+    "overlap, so a reader must be able to tell them apart from the labels alone.\n\n"
+    "For each topic you get its main terms, which say what it is about, and the "
+    "terms that set it apart from the others here.\n\n"
+    "{blocks}"
+    "Labels already used by other topics in this model — do not return any of "
+    "these, or anything close:\n  {taken}\n\n"
+    "Rules:\n"
+    "1. Name the subject from the MAIN terms. The label should read as a natural "
+    "name for the topic as a whole, not as a list of its rarest words.\n"
+    "2. Then check it against the other topics here: if your label would fit more "
+    "than one of them, use the SETS IT APART terms to narrow it until it fits "
+    "only this one.\n"
+    "3. Do not invent a subject the terms do not support, and do not drift off the "
+    "subject the topics share.\n"
+    "4. Each label: a {language} noun phrase of 1 to 5 words, grammatical on its "
+    "own. Never name a topic by joining two of its terms with a conjunction "
+    "(\"Finance et credit\" is always wrong) — find the word or phrase that covers "
+    "both instead.\n"
+    "5. All {n} labels must differ from each other.\n"
+    "6. After each label, write || and then the 2 or 3 terms it comes from, copied "
+    "exactly from that topic's lists.\n\n"
+    "Return exactly {n} lines and nothing else:\n"
+    "{example}"
+)
+
+# Gate for the second pass. Rather than asking whether labels are distinguishable
+# -- a judgement small models get wrong -- put the labels to work: show the model
+# each topic's distinctive terms and ask it to match topics to labels. Labels that
+# really discriminate make that easy; labels that do not make it guesswork. This
+# is an object-level task, which is what these models are good at, and it stops
+# the pass churning labels that were already fine.
+
+DISCRIMINATION_INSTRUCTION = (
+    "Each topic below is described by the terms that set it apart from the others. "
+    "Match every topic to the one label that fits it best.\n\n"
+    "Labels:\n{choices}\n\n"
+    "{blocks}"
+    "Each label is used exactly once. Return exactly {n} lines and nothing else, "
+    "in this form:\n{example}"
+)
+
+
+def labels_discriminate(
+    pipe,
+    group: Sequence[int],
+    labels: Dict[int, str],
+    distinctive: Dict[int, List[str]],
+) -> bool:
+    """True when the model can match each topic back to its own label.
+
+    Label order is shuffled (deterministically, so runs repeat) to keep position
+    from giving the answer away.
+    """
+    letters = [chr(ord("A") + i) for i in range(len(group))]
+    order = sorted(range(len(group)), key=lambda i: _fold(labels[group[i]]))
+    choices = "\n".join(f"  {n + 1}. {labels[group[i]]}" for n, i in enumerate(order))
+    blocks = "".join(
+        f"{letter}. terms: {', '.join(distinctive[topic_id][:8])}\n"
+        for letter, topic_id in zip(letters, group)
+    )
+    prompt = DISCRIMINATION_INSTRUCTION.format(
+        choices=choices,
+        blocks=blocks,
+        n=len(group),
+        example="\n".join(f"{letter}: <number>" for letter in letters),
+    )
+    try:
+        reply = _generate(pipe, prompt, max_new_tokens=8 * len(group) + 16)
+    except Exception:
+        # If the test cannot run, assume the labels are fine and change nothing.
+        return True
+
+    picked: Dict[str, int] = {}
+    for line in reply.splitlines():
+        match = re.match(r"^\s*\(?([A-Z])\)?\s*[:.\)-]\s*(\d+)", line)
+        if match and match.group(1) in letters:
+            picked[match.group(1)] = int(match.group(2)) - 1
+    if len(picked) != len(group) or len(set(picked.values())) != len(group):
+        return False
+    return all(order[picked[letter]] == i for i, letter in enumerate(letters))
+
+
+REPAIR_INSTRUCTION = (
+    "The label \"{label}\" was rejected: it names two things joined by a "
+    "conjunction instead of naming one theme.\n\n"
+    "Write a better {language} label for this topic. Find the single word or "
+    "phrase that COVERS both halves — the category they are both instances of — "
+    "rather than listing them. A one-word label is fine if it is the right word. "
+    "The label must contain no conjunction.\n\n"
+    "Return only the label.\n\n"
+    "terms: {payload}"
+)
+
+# Rule 3 repair, continued: models produce "<word> and <word>" labels despite the
+# first-pass prompt forbidding it, and the pattern is cheap to detect and re-ask.
+_LABEL_STOPWORDS = {
+    "de", "du", "des", "la", "le", "les", "of", "the", "a", "aux", "en", "dans",
+    "sur", "for", "in", "der", "die", "das", "und", "el", "los", "las", "il",
+    "lo", "di", "da",
+}
+def _fold(word: str) -> str:
+    """Lowercase, strip accents, and truncate to a crude stem."""
+    folded = unicodedata.normalize("NFKD", word.lower())
+    return "".join(c for c in folded if not unicodedata.combining(c))
+
+
+
+# Conjunctions to look for, resolved from --language. Several languages use a
+# single letter that is a preposition or article elsewhere ("y", "e", "i", "a"),
+# so those are only ever checked when that language was actually requested --
+# Spanish "Derecho a propiedad" must not be read as a juxtaposition.
+_CONJUNCTIONS_BY_LANGUAGE = {
+    "english": {"and"},
+    "french": {"et"}, "francais": {"et"}, "latin": {"et"},
+    "german": {"und"}, "deutsch": {"und"},
+    "spanish": {"y", "e"}, "espanol": {"y", "e"}, "castellano": {"y", "e"},
+    "italian": {"e", "ed"}, "italiano": {"e", "ed"},
+    "portuguese": {"e"}, "portugues": {"e"},
+    "catalan": {"i"}, "polish": {"i"}, "polski": {"i"},
+    "dutch": {"en"}, "nederlands": {"en"},
+    "swedish": {"och"}, "svenska": {"och"},
+    "norwegian": {"og"}, "danish": {"og"}, "dansk": {"og"},
+    "finnish": {"ja"}, "suomi": {"ja"},
+    "czech": {"a"}, "cestina": {"a"},
+    "romanian": {"si"}, "romana": {"si"},
+    "turkish": {"ve"}, "turkce": {"ve"},
+    "hungarian": {"es"}, "magyar": {"es"},
+    "russian": {"и"}, "ukrainian": {"и", "та"}, "greek": {"και"},
+}
+# Used when the language is not one we know: multi-letter conjunctions only,
+# since those are the ones that cannot be mistaken for a preposition.
+_DEFAULT_CONJUNCTIONS = {"and", "et", "und", "och", "og", "ed", "ja", "ve", "и", "και", "та"}
+
+# A conjunction is never a content word when comparing two labels.
+_LABEL_STOPWORDS |= set().union(*_CONJUNCTIONS_BY_LANGUAGE.values()) | _DEFAULT_CONJUNCTIONS
+
+_JUXTAPOSITION_RE = re.compile(r"^(\w+)\s+(\w+)\s+(\w+)$", re.UNICODE)
+
+
+def conjunctions_for(language: str) -> set:
+    """Conjunctions worth checking for labels written in `language`."""
+    key = re.sub(r"[^a-z]", "", _fold(language or ""))
+    return _CONJUNCTIONS_BY_LANGUAGE.get(key, _DEFAULT_CONJUNCTIONS)
+
+
+def _label_tokens(label: str) -> List[str]:
+    r"""Content words of a label, folded and truncated so financiere ~ finance.
+
+    \w rather than [a-z]: the ASCII class returned nothing at all for Cyrillic
+    or Greek labels, which silently excluded them from collision detection.
+    """
+    return [w[:6] for w in re.findall(r"\w+", _fold(label), re.UNICODE)
+            if w not in _LABEL_STOPWORDS and len(w) > 1]
+
+
+def candidate_groups(labels: Dict[int, str]) -> List[List[int]]:
+    """Topics whose labels may be too alike, grouped transitively.
+
+    Deliberately high recall: a group that turns out to be fine costs one
+    generation, because the second-pass prompt is allowed to return the labels
+    unchanged. No lexical measure can tell "chretienne vs catholique" (the same
+    thing) from "penal vs de propriete" (not), so that call belongs to the model.
+    """
+    pairs = []
+    for a, b in itertools.combinations(sorted(labels), 2):
+        ta, tb = _label_tokens(labels[a]), _label_tokens(labels[b])
+        sa, sb = set(ta), set(tb)
+        if not sa or not sb:
+            continue
+        jaccard = len(sa & sb) / len(sa | sb)
+        if labels[a].strip().lower() == labels[b].strip().lower() or ta[0] == tb[0] or jaccard >= 0.5:
+            pairs.append((a, b))
+
+    parent: Dict[int, int] = {}
+
+    def find(x: int) -> int:
+        while parent.get(x, x) != x:
+            x = parent[x]
+        return x
+
+    for a, b in pairs:
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[rb] = ra
+
+    grouped: Dict[int, List[int]] = {}
+    for topic_id in labels:
+        grouped.setdefault(find(topic_id), []).append(topic_id)
+    return sorted((sorted(v) for v in grouped.values() if len(v) > 1), key=lambda g: g[0])
+
+
+def discriminative_terms(
+    group: Sequence[int],
+    top_words_by_topic: Dict[int, List[Tuple[str, float]]],
+    top_n: int = 8,
+) -> Tuple[List[str], Dict[int, List[str]]]:
+    """Terms that separate each topic in a group from its siblings.
+
+    Weights are normalized per topic first: c-TF-IDF magnitudes are not
+    comparable across topics, so raw differences would mostly measure topic size.
+    """
+    normalized = {}
+    for topic_id in group:
+        weights = dict(top_words_by_topic[topic_id])
+        peak = max(weights.values(), default=0.0) or 1.0
+        normalized[topic_id] = {w: v / peak for w, v in weights.items()}
+
+    common = set.intersection(*(set(normalized[t]) for t in group)) if group else set()
+    shared = sorted(common, key=lambda w: -sum(normalized[t][w] for t in group))[:top_n]
+
+    distinctive: Dict[int, List[str]] = {}
+    for topic_id in group:
+        mine = normalized[topic_id]
+        others = [normalized[t] for t in group if t != topic_id]
+        ranked = sorted(mine, key=lambda w: -(mine[w] - max((o.get(w, 0.0) for o in others), default=0.0)))
+        distinctive[topic_id] = ranked[:top_n]
+    return shared, distinctive
+
+
+def is_juxtaposition(label: str, conjunctions: set | None = None) -> bool:
+    """True for labels of the form "<word> and <word>".
+
+    The defect is the juxtaposition itself, not where the words came from: a
+    label that names two things instead of one has dodged the job of naming the
+    theme, whether or not the words appear in the topic's own term list
+    ("Finance et credit" uses neither, and is the clearest case). A single term
+    is fine; only the conjunction is disqualifying.
+
+    Detection needs a conjunction between two space-separated words, so it does
+    nothing for languages that do not separate words that way (Chinese,
+    Japanese, Thai) or that attach the conjunction as a clitic (Latin -que).
+    """
+    match = _JUXTAPOSITION_RE.match(label.strip())
+    if not match:
+        return False
+    return _fold(match.group(2)) in (conjunctions or _DEFAULT_CONJUNCTIONS)
+
+
 def _format_payload(top_words: List[Tuple[str, float]]) -> str:
     """Render the top-words list as a compact JSON array the model can parse."""
     payload = [{"word": w, "weight": round(float(weight), 4)} for w, weight in top_words]
@@ -85,10 +340,205 @@ def _extract_top_words(entry: Dict[str, Any]) -> List[Tuple[str, float]]:
     return [(w, round((n - i) / n, 3)) for i, w in enumerate(words)]
 
 
+def _clean_label(raw: str) -> str:
+    label = raw.strip().strip('"\'`.').splitlines()[0].strip() if raw.strip() else ""
+    for prefix in ("Label:", "label:"):
+        if label.startswith(prefix):
+            label = label[len(prefix):].strip()
+    return label.strip('"\'`.')[:80]
+
+
+def _generate(pipe, prompt: str, max_new_tokens: int = 24) -> str:
+    """One turn against the chat model. Gemma's template rejects `system`."""
+    out = pipe(
+        [{"role": "user", "content": prompt}],
+        max_new_tokens=max_new_tokens,
+        max_length=None,
+        do_sample=False,
+    )
+    generated = out[0]["generated_text"]
+    return generated[-1]["content"] if isinstance(generated, list) else generated
+
+
+def repair_concatenations(
+    pipe,
+    labels: Dict[int, str],
+    top_words_by_topic: Dict[int, List[Tuple[str, float]]],
+    language: str,
+) -> int:
+    """Re-ask for any label that just joins two of the topic's own top terms."""
+    conjunctions = conjunctions_for(language)
+    offenders = [t for t, label in labels.items() if is_juxtaposition(label, conjunctions)]
+    if not offenders:
+        return 0
+    repaired = 0
+    for topic_id in tqdm(offenders, desc="Repairing concatenated labels"):
+        prompt = REPAIR_INSTRUCTION.format(
+            label=labels[topic_id],
+            language=language,
+            payload=_format_payload(top_words_by_topic[topic_id]),
+        )
+        for attempt in range(2):
+            nudge = "" if attempt == 0 else (
+                "\n\nYour previous answer still used a conjunction. Give a single noun "
+                "phrase naming the theme, with no conjunction at all."
+            )
+            try:
+                candidate = _clean_label(_generate(pipe, prompt + nudge))
+            except Exception as e:
+                print(f"topologic-labeler: repair of topic {topic_id} failed: {e}", file=sys.stderr)
+                break
+            # Only accept a replacement that is not itself a juxtaposition.
+            if candidate and not is_juxtaposition(candidate, conjunctions):
+                print(f"  t{topic_id}: {labels[topic_id]!r} -> {candidate!r}", flush=True)
+                labels[topic_id] = candidate
+                repaired += 1
+                break
+    return repaired
+
+
+def _parse_group_reply(reply: str, letters: Sequence[str]) -> Dict[str, Tuple[str, List[str]]]:
+    """Parse "A: <label> || <term>, <term>" lines into {letter: (label, terms)}."""
+    parsed: Dict[str, Tuple[str, List[str]]] = {}
+    for line in reply.splitlines():
+        match = re.match(r"^\s*\(?([A-Z])\)?\s*[:.\)-]\s*(.+?)\s*$", line)
+        if not match or match.group(1) not in letters:
+            continue
+        body = match.group(2)
+        label_part, _, evidence_part = body.partition("||")
+        label = _clean_label(label_part)
+        cited = [t.strip().strip('"\'`.') for t in re.split(r"[,;]", evidence_part) if t.strip()]
+        if label:
+            parsed[match.group(1)] = (label, cited)
+    return parsed
+
+
+def _evidence_supports(cited: Sequence[str], distinctive: Sequence[str]) -> bool:
+    """At least one cited term must really be one of that topic's terms.
+
+    The check is what stops an invented subject: asked to relabel a topic of
+    papier/argent/banque/monnaie, the model once produced "Finance immobiliere",
+    a claim no term in the list supports.
+    """
+    if not cited:
+        return False
+    pool = {_fold(t)[:6] for t in distinctive}
+    return any(_fold(t)[:6] in pool for t in cited)
+
+
+def refine_groups(
+    pipe,
+    labels: Dict[int, str],
+    top_words_by_topic: Dict[int, List[Tuple[str, float]]],
+    language: str,
+) -> int:
+    """Relabel topics whose labels may be indistinguishable from a sibling's."""
+    groups = candidate_groups(labels)
+    if not groups:
+        return 0
+    print(f"Second pass: {len(groups)} candidate group(s) of similar labels.", flush=True)
+
+    changed = 0
+    kept = 0
+    for group in tqdm(groups, desc="Distinguishing similar labels"):
+        letters = [chr(ord("A") + i) for i in range(len(group))]
+        shared, distinctive = discriminative_terms(group, top_words_by_topic)
+
+        # Identical labels cannot discriminate, so there is nothing to test —
+        # and the test would be worse than useless: with two members a blind
+        # guess matches the bijection half the time, which is exactly how a
+        # duplicated label survived this gate.
+        folded = [_fold(labels[t]).strip() for t in group]
+        duplicated = len(set(folded)) != len(folded)
+        if not duplicated and labels_discriminate(pipe, group, labels, distinctive):
+            kept += 1
+            continue
+        # Main terms lead: asked to build the label out of the distinctive terms,
+        # the model produced labels made of a topic's rarest words that no longer
+        # named its subject (a topic of culte/religion/clerge came back "Liberte
+        # conscience"). The distinctive terms are for separating, not for naming.
+        #
+        # The existing label is deliberately withheld: shown one, the model
+        # anchors on it and returns a paraphrase ("Droit de propriete" ->
+        # "Droit de la propriete") instead of labelling from the terms.
+        blocks = "".join(
+            f"{letter}. main terms: {', '.join(w for w, _ in top_words_by_topic[topic_id][:12])}\n"
+            f"   sets it apart from the others: {', '.join(distinctive[topic_id])}\n\n"
+            for letter, topic_id in zip(letters, group)
+        )
+        outside = sorted({labels[t] for t in labels if t not in group})
+        prompt = SECOND_PASS_INSTRUCTION.format(
+            n=len(group),
+            language=language,
+            shared=", ".join(shared) or "(none)",
+            blocks=blocks,
+            taken=", ".join(outside) or "(none)",
+            example="\n".join(f"{letter}: <label> || <term>, <term>" for letter in letters),
+        )
+
+        accepted: Dict[str, str] = {}
+        for attempt in range(2):
+            nudge = "" if attempt == 0 else (
+                "\n\nYour previous answer was rejected. Give exactly one line per letter, "
+                "every label different, and cite distinctive terms copied from that "
+                "topic's own list."
+            )
+            try:
+                reply = _generate(pipe, prompt + nudge, max_new_tokens=40 * len(group) + 24)
+            except Exception as e:
+                print(f"topologic-labeler: group {group} failed: {e}", file=sys.stderr)
+                break
+
+            parsed = _parse_group_reply(reply, letters)
+            if len(parsed) != len(group):
+                continue
+            proposed = [label for label, _ in parsed.values()]
+            if len({label.lower() for label in proposed}) != len(group):
+                continue
+            # The prompt forbids juxtapositions, but nothing enforced it here,
+            # so the pass could undo a repair it had just made ("Finances" came
+            # back as "Banque et monnaie").
+            if any(is_juxtaposition(label, conjunctions_for(language)) for label in proposed):
+                continue
+            # A rewrite that trades a collision inside the group for one outside
+            # it has not helped. This actually happened: a religion topic came
+            # back "Droit constitutionnel", colliding with "Politique
+            # constitutionnelle" elsewhere in the model.
+            outside_tokens = {frozenset(_label_tokens(labels[t])) for t in labels if t not in group}
+            if any(frozenset(_label_tokens(label)) in outside_tokens for label in proposed):
+                continue
+            grounded = all(
+                _evidence_supports(
+                    cited,
+                    list(distinctive[topic_id]) + [w for w, _ in top_words_by_topic[topic_id][:12]],
+                )
+                for (letter, topic_id), (_, cited) in zip(zip(letters, group), parsed.values())
+            )
+            if not grounded:
+                continue
+            accepted = {letter: label for letter, (label, _) in parsed.items()}
+            break
+
+        if not accepted:
+            print(f"  group {group}: no usable reply; keeping first-pass labels.", flush=True)
+            continue
+        for letter, topic_id in zip(letters, group):
+            new_label = accepted[letter]
+            if new_label != labels[topic_id]:
+                print(f"  t{topic_id}: {labels[topic_id]!r} -> {new_label!r}", flush=True)
+                labels[topic_id] = new_label
+                changed += 1
+    if kept:
+        print(f"  {kept} group(s) already discriminated; left unchanged.", flush=True)
+    return changed
+
+
 def label_topics(
     top_words_by_topic: Dict[int, List[Tuple[str, float]]],
     model_id: str,
     language: str = "English",
+    existing_labels: Dict[int, str] | None = None,
+    second_pass: bool = True,
 ) -> Dict[int, str]:
     try:
         from transformers import pipeline
@@ -112,42 +562,77 @@ def label_topics(
         print(f"topologic-labeler: failed to load {model_id} ({e})", file=sys.stderr)
         return {}
 
-    instruction = PROMPT_INSTRUCTION.format(language=language)
+    labels: Dict[int, str] = dict(existing_labels or {})
+    if existing_labels:
+        print(f"Reusing {len(labels)} existing labels; skipping the first pass.", flush=True)
+    else:
+        instruction = PROMPT_INSTRUCTION.format(language=language)
+        for topic_id in tqdm(sorted(top_words_by_topic), desc="Labeling topics"):
+            payload = _format_payload(top_words_by_topic[topic_id])
+            try:
+                raw = _generate(pipe, f"{instruction}\nterms: {payload}\n\nLabel:")
+            except Exception as e:
+                print(f"topologic-labeler: topic {topic_id} failed: {e}", file=sys.stderr)
+                continue
+            label = _clean_label(raw)
+            if label:
+                labels[topic_id] = label
 
-    labels: Dict[int, str] = {}
-    for topic_id in tqdm(sorted(top_words_by_topic), desc="Labeling topics"):
-        payload = _format_payload(top_words_by_topic[topic_id])
-        # Merged user turn — Gemma's chat template rejects `system`.
-        messages = [
-            {"role": "user", "content": f"{instruction}\nterms: {payload}\n\nLabel:"},
-        ]
-        try:
-            out = pipe(messages, max_new_tokens=24, max_length=None, do_sample=False)
-        except Exception as e:
-            print(f"topologic-labeler: topic {topic_id} failed: {e}", file=sys.stderr)
-            continue
+    if labels:
+        repaired = repair_concatenations(pipe, labels, top_words_by_topic, language)
+        refined = refine_groups(pipe, labels, top_words_by_topic, language) if second_pass else 0
+        if repaired or refined:
+            print(f"Repaired {repaired} concatenated label(s); "
+                  f"rewrote {refined} label(s) to distinguish similar topics.", flush=True)
 
-        gen = out[0]["generated_text"]
-        raw = gen[-1]["content"] if isinstance(gen, list) else gen
-        label = raw.strip().strip('"\'`.').splitlines()[0].strip()
-        # Trim a leading "Label:" the model sometimes repeats.
-        for prefix in ("Label:", "label:"):
-            if label.startswith(prefix):
-                label = label[len(prefix):].strip()
-        label = label.strip('"\'`.')[:80]
-        if label:
-            labels[topic_id] = label
+        # Say so rather than leaving it to be discovered in the web app.
+        seen: Dict[str, List[int]] = {}
+        for topic_id, label in labels.items():
+            seen.setdefault(_fold(label).strip(), []).append(topic_id)
+        duplicates = {k: v for k, v in seen.items() if len(v) > 1}
+        if duplicates:
+            for label_key, topic_ids in sorted(duplicates.items()):
+                print(f"Warning: topics {topic_ids} still share the label "
+                      f"{labels[topic_ids[0]]!r}.", flush=True)
+        leftover = [t for t, label in labels.items()
+                    if is_juxtaposition(label, conjunctions_for(language))]
+        if leftover:
+            print(f"Warning: {len(leftover)} label(s) still name two things instead of "
+                  f"one: {[labels[t] for t in leftover]}", flush=True)
 
     return labels
 
 
-def relabel_json(path: str, model_id: str, language: str) -> int:
+def relabel_json(
+    path: str,
+    model_id: str,
+    language: str,
+    second_pass: bool = True,
+    second_pass_only: bool = False,
+) -> int:
     with open(path, "r", encoding="utf-8") as f:
         topics = json.load(f)
 
     top_words_by_topic = {int(entry["name"]): _extract_top_words(entry) for entry in topics}
 
-    labels = label_topics(top_words_by_topic, model_id=model_id, language=language)
+    existing = None
+    if second_pass_only:
+        existing = {int(e["name"]): e["label"] for e in topics if e.get("label")}
+        if not existing:
+            print(
+                "topologic-labeler: --second-pass-only needs existing labels, and this "
+                "file has none; file not modified.",
+                file=sys.stderr,
+            )
+            return 0
+
+    labels = label_topics(
+        top_words_by_topic,
+        model_id=model_id,
+        language=language,
+        existing_labels=existing,
+        second_pass=second_pass,
+    )
     if not labels:
         print("topologic-labeler: no labels produced; file not modified.", file=sys.stderr)
         return 0
@@ -172,9 +657,26 @@ def main() -> None:
     parser.add_argument("topic_words_path", help="Path to topic_words.json to update in place")
     parser.add_argument("--model", required=True, help="HuggingFace instruction-tuned model ID")
     parser.add_argument("--language", default="English", help="Language for generated labels")
+    parser.add_argument(
+        "--no-second-pass",
+        action="store_true",
+        help="Skip the pass that distinguishes topics whose labels are too alike.",
+    )
+    parser.add_argument(
+        "--second-pass-only",
+        action="store_true",
+        help="Keep the labels already in the file and only run the refinement passes. "
+             "Lets an existing model be re-labelled without regenerating every label.",
+    )
     args = parser.parse_args()
 
-    n = relabel_json(args.topic_words_path, args.model, args.language)
+    n = relabel_json(
+        args.topic_words_path,
+        args.model,
+        args.language,
+        second_pass=not args.no_second_pass,
+        second_pass_only=args.second_pass_only,
+    )
     print(f"topologic-labeler: wrote {n} labels to {args.topic_words_path}")
 
 
