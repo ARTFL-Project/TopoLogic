@@ -36,8 +36,8 @@ def iter_text_collections(text_path):
     """Yield the DirEntry of each text-collection subdirectory under `text_path`.
 
     The is_dir filter is load-bearing: the embedding cache is written into
-    `text_path` as a sibling of the collections, so an unconditional scan hits
-    NotADirectoryError as soon as a run reuses a post-build tarball.
+    `text_path` as a sibling of the collections, so an unconditional scan would
+    try to descend into it.
     """
     for entry in os.scandir(text_path):
         if entry.is_dir() and os.path.isdir(os.path.join(entry.path, "texts")):
@@ -140,7 +140,7 @@ class savedTexts:
 
         if degraded == total_docs:
             # Misconfiguration, not degradation: the run would otherwise
-            # produce exactly the unchunked model, silently.
+            # produce exactly the unchunked model.
             raise RuntimeError(
                 f"max_chunk_size={max_chunk_size} was set but none of {total_docs} docs could be "
                 "chunked: raw_paragraphs, tokens/*.pkl, or paragraph byte spans are missing from "
@@ -296,9 +296,8 @@ class Corpus:
         """Embed every chunk of every document. No pooling.
 
         Returns (ChunkedCorpus, embedder), one row per chunk. Deliberately does
-        not mean-pool to document vectors: the mean of points on a sphere is
-        not on the sphere, so a multi-topic document lands between clusters
-        rather than in any. Callers aggregate in topic space instead.
+        not mean-pool to document vectors: the mean of points on a sphere is not
+        on the sphere. Callers aggregate in topic space instead.
 
         `max_chunk_size` is in raw words, clamped to what the embedder can
         encode; None means the model's own limit. The cache sits beside the

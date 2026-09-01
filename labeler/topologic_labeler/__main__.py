@@ -69,17 +69,11 @@ PROMPT_INSTRUCTION = (
 )
 
 
-# Second pass. The first pass labels each topic with only its own terms in view,
-# so it cannot avoid giving two topics the same label -- it never learns the
-# other one exists. This pass labels sibling topics together, with the terms that
-# separate them called out.
-#
-# Two things it deliberately does not do. It never asks whether the existing
-# labels are distinct -- a judgement small models get wrong (asked about
-# "Religion chretienne" vs "Religion catholique" the model returned both
-# unchanged). And it never shows the existing label, which only anchors the
-# rewrite on the wording it is supposed to replace. The model must also cite the
-# distinctive terms behind each label, a claim that can be checked.
+# Second pass. The first pass sees one topic at a time, so it cannot avoid
+# giving two topics the same label. This pass labels sibling topics together,
+# with the terms that separate them called out. It never shows the existing
+# label, which would only anchor the rewrite, and it requires the model to cite
+# the terms behind each label so the claim can be checked.
 
 SECOND_PASS_INSTRUCTION = (
     "Label each of the {n} topics below. They come from the same topic model and "
@@ -108,12 +102,10 @@ SECOND_PASS_INSTRUCTION = (
     "{example}"
 )
 
-# Gate for the second pass. Rather than asking whether labels are distinguishable
-# -- a judgement small models get wrong -- put the labels to work: show the model
-# each topic's distinctive terms and ask it to match topics to labels. Labels that
-# really discriminate make that easy; labels that do not make it guesswork. This
-# is an object-level task, which is what these models are good at, and it stops
-# the pass churning labels that were already fine.
+# Gate for the second pass. Rather than asking whether labels are
+# distinguishable, put them to work: show each topic's distinctive terms and ask
+# the model to match topics to labels. Labels that discriminate make that easy.
+# Keeps the pass from churning labels that were already fine.
 
 DISCRIMINATION_INSTRUCTION = (
     "Each topic below is described by the terms that set it apart from the others. "
@@ -176,8 +168,6 @@ REPAIR_INSTRUCTION = (
     "terms: {payload}"
 )
 
-# Rule 3 repair, continued: models produce "<word> and <word>" labels despite the
-# first-pass prompt forbidding it, and the pattern is cheap to detect and re-ask.
 _LABEL_STOPWORDS = {
     "de", "du", "des", "la", "le", "les", "of", "the", "a", "aux", "en", "dans",
     "sur", "for", "in", "der", "die", "das", "und", "el", "los", "las", "il",
@@ -192,8 +182,7 @@ def _fold(word: str) -> str:
 
 # Conjunctions to look for, resolved from --language. Several languages use a
 # single letter that is a preposition or article elsewhere ("y", "e", "i", "a"),
-# so those are only ever checked when that language was actually requested --
-# Spanish "Derecho a propiedad" must not be read as a juxtaposition.
+# so those are only checked when that language is requested.
 _CONJUNCTIONS_BY_LANGUAGE = {
     "english": {"and"},
     "french": {"et"}, "francais": {"et"}, "latin": {"et"},
@@ -212,8 +201,8 @@ _CONJUNCTIONS_BY_LANGUAGE = {
     "hungarian": {"es"}, "magyar": {"es"},
     "russian": {"и"}, "ukrainian": {"и", "та"}, "greek": {"και"},
 }
-# Used when the language is not one we know: multi-letter conjunctions only,
-# since those are the ones that cannot be mistaken for a preposition.
+# For an unrecognized language: multi-letter conjunctions only, since those
+# cannot be mistaken for a preposition.
 _DEFAULT_CONJUNCTIONS = {"and", "et", "und", "och", "og", "ed", "ja", "ve", "и", "και", "та"}
 
 # A conjunction is never a content word when comparing two labels.
@@ -231,8 +220,7 @@ def conjunctions_for(language: str) -> set:
 def _label_tokens(label: str) -> List[str]:
     r"""Content words of a label, folded and truncated so financiere ~ finance.
 
-    \w rather than [a-z]: the ASCII class returned nothing at all for Cyrillic
-    or Greek labels, which silently excluded them from collision detection.
+    \w rather than [a-z] so non-Latin scripts are not dropped.
     """
     return [w[:6] for w in re.findall(r"\w+", _fold(label), re.UNICODE)
             if w not in _LABEL_STOPWORDS and len(w) > 1]
@@ -241,10 +229,10 @@ def _label_tokens(label: str) -> List[str]:
 def candidate_groups(labels: Dict[int, str]) -> List[List[int]]:
     """Topics whose labels may be too alike, grouped transitively.
 
-    Deliberately high recall: a group that turns out to be fine costs one
-    generation, because the second-pass prompt is allowed to return the labels
-    unchanged. No lexical measure can tell "chretienne vs catholique" (the same
-    thing) from "penal vs de propriete" (not), so that call belongs to the model.
+    Deliberately high recall: no lexical measure can tell "chretienne vs
+    catholique" (the same thing) from "penal vs de propriete" (not), so the
+    decision is left to the discrimination gate. A group that turns out to be
+    fine costs one generation.
     """
     pairs = []
     for a, b in itertools.combinations(sorted(labels), 2):
@@ -306,10 +294,8 @@ def is_juxtaposition(label: str, conjunctions: set | None = None) -> bool:
     """True for labels of the form "<word> and <word>".
 
     The defect is the juxtaposition itself, not where the words came from: a
-    label that names two things instead of one has dodged the job of naming the
-    theme, whether or not the words appear in the topic's own term list
-    ("Finance et credit" uses neither, and is the clearest case). A single term
-    is fine; only the conjunction is disqualifying.
+    label naming two things has dodged the job of naming the theme. A single
+    term is fine; only the conjunction is disqualifying.
 
     Detection needs a conjunction between two space-separated words, so it does
     nothing for languages that do not separate words that way (Chinese,
@@ -366,7 +352,7 @@ def repair_concatenations(
     top_words_by_topic: Dict[int, List[Tuple[str, float]]],
     language: str,
 ) -> int:
-    """Re-ask for any label that just joins two of the topic's own top terms."""
+    """Re-ask for any label that names two things joined by a conjunction."""
     conjunctions = conjunctions_for(language)
     offenders = [t for t, label in labels.items() if is_juxtaposition(label, conjunctions)]
     if not offenders:
@@ -416,9 +402,7 @@ def _parse_group_reply(reply: str, letters: Sequence[str]) -> Dict[str, Tuple[st
 def _evidence_supports(cited: Sequence[str], distinctive: Sequence[str]) -> bool:
     """At least one cited term must really be one of that topic's terms.
 
-    The check is what stops an invented subject: asked to relabel a topic of
-    papier/argent/banque/monnaie, the model once produced "Finance immobiliere",
-    a claim no term in the list supports.
+    Stops the model naming a subject none of the terms supports.
     """
     if not cited:
         return False
@@ -444,23 +428,16 @@ def refine_groups(
         letters = [chr(ord("A") + i) for i in range(len(group))]
         shared, distinctive = discriminative_terms(group, top_words_by_topic)
 
-        # Identical labels cannot discriminate, so there is nothing to test —
-        # and the test would be worse than useless: with two members a blind
-        # guess matches the bijection half the time, which is exactly how a
-        # duplicated label survived this gate.
+        # Identical labels cannot discriminate, so there is nothing to test,
+        # and with two members a blind guess passes half the time.
         folded = [_fold(labels[t]).strip() for t in group]
         duplicated = len(set(folded)) != len(folded)
         if not duplicated and labels_discriminate(pipe, group, labels, distinctive):
             kept += 1
             continue
-        # Main terms lead: asked to build the label out of the distinctive terms,
-        # the model produced labels made of a topic's rarest words that no longer
-        # named its subject (a topic of culte/religion/clerge came back "Liberte
-        # conscience"). The distinctive terms are for separating, not for naming.
-        #
-        # The existing label is deliberately withheld: shown one, the model
-        # anchors on it and returns a paraphrase ("Droit de propriete" ->
-        # "Droit de la propriete") instead of labelling from the terms.
+        # Main terms lead: they name the subject, the distinctive terms only
+        # separate it from its siblings. The existing label is withheld so the
+        # rewrite is not anchored on the wording it replaces.
         blocks = "".join(
             f"{letter}. main terms: {', '.join(w for w, _ in top_words_by_topic[topic_id][:12])}\n"
             f"   sets it apart from the others: {', '.join(distinctive[topic_id])}\n\n"
@@ -495,15 +472,12 @@ def refine_groups(
             proposed = [label for label, _ in parsed.values()]
             if len({label.lower() for label in proposed}) != len(group):
                 continue
-            # The prompt forbids juxtapositions, but nothing enforced it here,
-            # so the pass could undo a repair it had just made ("Finances" came
-            # back as "Banque et monnaie").
+            # Enforce the prompt's no-juxtaposition rule, so this pass cannot
+            # undo a repair.
             if any(is_juxtaposition(label, conjunctions_for(language)) for label in proposed):
                 continue
-            # A rewrite that trades a collision inside the group for one outside
-            # it has not helped. This actually happened: a religion topic came
-            # back "Droit constitutionnel", colliding with "Politique
-            # constitutionnelle" elsewhere in the model.
+            # A rewrite that trades a collision inside the group for one
+            # outside it has not helped.
             outside_tokens = {frozenset(_label_tokens(labels[t])) for t in labels if t not in group}
             if any(frozenset(_label_tokens(label)) in outside_tokens for label in proposed):
                 continue
@@ -585,7 +559,7 @@ def label_topics(
             print(f"Repaired {repaired} concatenated label(s); "
                   f"rewrote {refined} label(s) to distinguish similar topics.", flush=True)
 
-        # Say so rather than leaving it to be discovered in the web app.
+        # Report rather than leave it to be found in the web app.
         seen: Dict[str, List[int]] = {}
         for topic_id, label in labels.items():
             seen.setdefault(_fold(label).strip(), []).append(topic_id)

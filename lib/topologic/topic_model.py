@@ -156,7 +156,7 @@ class BERTopicModel(TopicModel):
     """SBERT + UMAP + HDBSCAN + c-TF-IDF via BERTopic.
 
     Three departures from stock BERTopic, needed to satisfy the topic-model
-    contract DB.py expects (see SEMANTIC_TOPICS.md):
+    contract DB.py expects:
 
     1. The corpus vocabulary is pinned for c-TF-IDF, so word_ids stay aligned
        with the `words` table.
@@ -166,9 +166,6 @@ class BERTopicModel(TopicModel):
        downstream.
     3. Fitting and inference both operate on chunks; documents are the
        length-weighted mean of their chunks' distributions.
-
-    Still a clustering with a soft read-out rather than a learned
-    decomposition; GNMF (Phase 4) is the intended successor.
     """
 
     def __init__(
@@ -253,9 +250,8 @@ class BERTopicModel(TopicModel):
         # so df=0 and idf=inf. Any other value skips that.
         #
         # No representation_model, deliberately: BERTopic feeds those into
-        # `topic_representations_` and never back into `c_tf_idf_`, which is
-        # what the persisted matrix reads — so their output was computed on the
-        # GPU and discarded. Diversification lives in top_words() instead.
+        # `topic_representations_`, never back into `c_tf_idf_`, which is what
+        # the persisted matrix reads. Diversification lives in top_words().
         ctfidf_model = ClassTfidfTransformer(
             bm25_weighting=True,
             reduce_frequent_words=True,
@@ -495,10 +491,8 @@ class BERTopicModel(TopicModel):
     def _softmax(scores):
         """Row-wise softmax, returned as float64.
 
-        float64 is contractual, not a precision whim: np.float64 subclasses
-        Python float so json.dump accepts it, np.float32 does not, and the
-        failure surfaces only in DB.save_topics after the model is fitted.
-        Upstream cosine math stays float32.
+        float64 is contractual: np.float64 subclasses Python float so json.dump
+        accepts it, np.float32 does not. Upstream cosine math stays float32.
         """
         scores = np.asarray(scores, dtype=np.float64)
         shifted = scores - scores.max(axis=1, keepdims=True)
@@ -554,10 +548,9 @@ class BERTopicModel(TopicModel):
     def _aggregate_chunks_to_docs(chunk_distributions, doc_index, tokens, n_docs):
         """Length-weighted mean of each document's chunk distributions.
 
-        Replaces mean-pooling and is valid where it was not: a convex
-        combination of distributions is a distribution, while the mean of unit
-        vectors is not a unit vector. Length weighting is the analogue of
-        bag-of-words additivity. One sparse matmul, not np.add.at.
+        A convex combination of distributions is a distribution, unlike the
+        mean of unit vectors. Length weighting is the analogue of bag-of-words
+        additivity. One sparse matmul, not np.add.at.
         """
         weights = np.asarray(tokens, dtype=np.float64)
         weights = np.where(weights > 0, weights, 1.0)

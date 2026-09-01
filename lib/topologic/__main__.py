@@ -361,8 +361,7 @@ def prepare_data(
             text.metadata["philo_db"] = db_name
             # Separate from `metadata`, which is deliberately empty when the
             # training and inference object levels differ. Paragraph extraction
-            # needs every training doc regardless, and keying it off `metadata`
-            # silently wrote nothing for those runs.
+            # needs every training doc regardless.
             paragraph_metadata[pos] = text.metadata
             if (
                 db_name in inference_config["databases"]
@@ -576,8 +575,8 @@ def build_model(
 
     print("inference corpus size:", full_corpus.size)
 
-    # An unrecognized algorithm must raise: the previous `else -> LDA` fallback
-    # meant a bertopic run completed having quietly built an LDA model.
+    # An unrecognized algorithm must raise rather than fall through to a
+    # default, which would build a different model than the config asked for.
     if algorithm == "nmf":
         topic_model = NonNegativeMatrixFactorization(training_corpus, max_iter=max_iter)
     elif algorithm == "lda":

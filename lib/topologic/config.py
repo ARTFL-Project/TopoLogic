@@ -104,9 +104,7 @@ def read_config(config_path):
     for key, value in config["VECTORIZATION"].items():
         if key in ("min_freq", "max_freq"):
             # sklearn reads an int as an absolute document count and a float
-            # as a proportion, so anything above 1 must be a count. Without
-            # this an absolute floor is unreachable (min_freq = 5 raises),
-            # which matters most for c-TF-IDF.
+            # as a proportion, so anything above 1 must be a count.
             number = float(value.strip())
             vectorization[key] = int(number) if number > 1 else number
         elif key == "ngram":

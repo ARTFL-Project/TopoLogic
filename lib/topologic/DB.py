@@ -1047,8 +1047,8 @@ class DBHandler:
                     topic_words.append(
                         {
                             "name": topic_id,
-                            # float(): np.float32 is not a Python float, so
-                            # json.dump rejects it at the end of a build.
+                            # np.float32 is not a Python float, and json.dump
+                            # rejects it.
                             "frequency": float(frequency),
                             "description": ", ".join(description),
                             "top_words": top_words,
