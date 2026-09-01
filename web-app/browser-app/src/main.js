@@ -5,6 +5,10 @@ import axios from "axios"
 import ECharts from "vue-echarts"
 import { use } from "echarts/core"
 import { CanvasRenderer } from "echarts/renderers"
+// echarts 6 deprecated grid.containLabel; without this the option is ignored
+// and axis labels clip. Registering the compat feature keeps every existing
+// grid definition working unchanged.
+import { LegacyGridContainLabel } from "echarts/features"
 import { BarChart, LineChart } from "echarts/charts"
 import {
     GridComponent,
@@ -19,6 +23,7 @@ import modelConfigRaw from "../model_config.ini?raw"
 
 use([
     CanvasRenderer,
+    LegacyGridContainLabel,
     BarChart,
     LineChart,
     GridComponent,
