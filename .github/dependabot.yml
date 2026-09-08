@@ -1,0 +1,42 @@
+# Dependabot version updates.
+#
+# Alerts were already enabled on this repo, but with no config here nothing
+# ever opened a PR, so advisories just accumulated (53 open at the time this
+# was added). The `dependabot/*` branches on origin are leftovers from an
+# older npm-only config and can be deleted.
+#
+# Minor/patch bumps are grouped into one PR per manifest — the dependency
+# trees here are mostly transitive (torch, spacy, HF), so ungrouped updates
+# would mean dozens of near-identical PRs. Majors stay separate: plotly,
+# smart-open and vite have all needed judgment calls rather than a merge.
+version: 2
+updates:
+  - package-ecosystem: "uv"
+    directory: "/lib"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+    groups:
+      lib-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "uv"
+    directory: "/labeler"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+    groups:
+      labeler-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "npm"
+    directory: "/web-app/browser-app"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+    groups:
+      browser-app-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
