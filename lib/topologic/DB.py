@@ -1062,24 +1062,37 @@ class DBHandler:
             json.dump(topic_words, out_file)
 
         if topic_labeling and topic_labeling.get("enabled"):
+            import shutil
             import subprocess
 
-            print("Labeling topics with LLM...", flush=True)
-            result = subprocess.run(
-                [
-                    "topologic-labeler",
-                    topic_words_path,
-                    "--model", topic_labeling.get("model", "google/gemma-4-E2B-it"),
-                    "--language", topic_labeling.get("language", "English"),
-                ],
-                check=False,
-            )
-            if result.returncode != 0:
+            # `install.sh --skip-labeler` omits the labeler entirely, so resolve
+            # it before running: subprocess would raise FileNotFoundError, which
+            # `check=False` does not suppress. A missing labeler should degrade
+            # exactly the way a failing one does.
+            labeler = shutil.which("topologic-labeler")
+            if labeler is None:
                 print(
-                    f"topologic-labeler returned {result.returncode}; topics will fall "
-                    "back to their top-word description.",
+                    "topic_labeling is enabled but topologic-labeler is not installed; "
+                    "topics will fall back to their top-word description.",
                     flush=True,
                 )
+            else:
+                print("Labeling topics with LLM...", flush=True)
+                result = subprocess.run(
+                    [
+                        labeler,
+                        topic_words_path,
+                        "--model", topic_labeling.get("model", "google/gemma-4-E2B-it"),
+                        "--language", topic_labeling.get("language", "English"),
+                    ],
+                    check=False,
+                )
+                if result.returncode != 0:
+                    print(
+                        f"topologic-labeler returned {result.returncode}; topics will fall "
+                        "back to their top-word description.",
+                        flush=True,
+                    )
 
         cls.db.execute("CREATE INDEX topic_id_index ON topics(topic_id)")
 
