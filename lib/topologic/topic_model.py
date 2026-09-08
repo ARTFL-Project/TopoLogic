@@ -174,7 +174,7 @@ class BERTopicModel(TopicModel):
         max_iter=None,
         embedding_model="Alibaba-NLP/gte-multilingual-base",
         reduce_outliers=True,
-        min_cluster_size=10,
+        min_cluster_size=25,
         max_chunk_size=None,
         cluster_selection_method="leaf",
         cluster_selection_epsilon=0.0,
