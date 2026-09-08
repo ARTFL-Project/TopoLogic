@@ -7,21 +7,26 @@ set -e
 # for GPU-accelerated spacy preprocessing).
 BACKEND=""
 RESTART="yes"
+SKIP_LABELER="no"
 for arg in "$@"; do
     case "$arg" in
         --cpu)  BACKEND="cpu" ;;
         --cuda) BACKEND="cuda" ;;
         --no-restart) RESTART="no" ;;
+        --skip-labeler) SKIP_LABELER="yes" ;;
         -h|--help)
-            echo "Usage: $0 [--cpu | --cuda] [--no-restart]"
-            echo "  --cpu         Install CPU-only torch; skip cupy."
-            echo "  --cuda        Install CUDA 12.4 torch + cupy-cuda12x for GPU spacy."
-            echo "  (default)     Auto-detect: use --cuda if nvidia-smi is on PATH, else --cpu."
-            echo "  --no-restart  Do not restart a running API server after installing."
+            echo "Usage: $0 [--cpu | --cuda] [--no-restart] [--skip-labeler]"
+            echo "  --cpu           Install CPU-only torch; skip cupy."
+            echo "  --cuda          Install CUDA 12.4 torch + cupy-cuda12x for GPU spacy."
+            echo "  (default)       Auto-detect: use --cuda if nvidia-smi is on PATH, else --cpu."
+            echo "  --no-restart    Do not restart a running API server after installing."
+            echo "  --skip-labeler  Skip the LLM topic-labeler venv (~5GB, a second torch copy)."
+            echo "                  Serve-only installs never invoke it; training with"
+            echo "                  [TOPIC_LABELING] enabled falls back to top-word labels."
             exit 0 ;;
         *)
             echo "Unknown argument: $arg" >&2
-            echo "Usage: $0 [--cpu | --cuda] [--no-restart]" >&2
+            echo "Usage: $0 [--cpu | --cuda] [--no-restart] [--skip-labeler]" >&2
             exit 1 ;;
     esac
 done
@@ -67,10 +72,16 @@ cp -R lib /var/lib/topologic/lib
 # The labeler lives in its own package + venv because it needs a newer
 # `transformers` than spacy-transformers allows in the main env. The main
 # topologic pipeline shells out to `topologic-labeler` on demand.
-rm -rf /var/lib/topologic/labeler
-cp -R labeler /var/lib/topologic/labeler
-( cd /var/lib/topologic/labeler && UV_PROJECT_ENVIRONMENT=/var/lib/topologic/topologic_labeler_env uv sync --frozen --extra "$BACKEND" )
-sudo ln -sf /var/lib/topologic/topologic_labeler_env/bin/topologic-labeler /usr/local/bin/topologic-labeler
+# --skip-labeler only declines to install/update it; an existing labeler from a
+# previous run is left alone and keeps working.
+if [ "$SKIP_LABELER" = "yes" ]; then
+    echo "Skipping the topic-labeler venv (--skip-labeler)."
+else
+    rm -rf /var/lib/topologic/labeler
+    cp -R labeler /var/lib/topologic/labeler
+    ( cd /var/lib/topologic/labeler && UV_PROJECT_ENVIRONMENT=/var/lib/topologic/topologic_labeler_env uv sync --frozen --extra "$BACKEND" )
+    sudo ln -sf /var/lib/topologic/topologic_labeler_env/bin/topologic-labeler /usr/local/bin/topologic-labeler
+fi
 
 # Install the topologic script
 sudo cp topologic /usr/local/bin/
