@@ -20,7 +20,7 @@ dependencies = [
     "uvloop",
     "httptools",
     "annoy",
-    "duckdb>=1.1",
+    "duckdb>=1.5.5",
     "lz4",
     "multiprocess",
     "text_preprocessing",
