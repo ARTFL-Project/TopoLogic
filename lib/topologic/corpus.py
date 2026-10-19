@@ -351,11 +351,16 @@ class Corpus:
         # Kept for preprocessed_chunk_texts, which must group on the same cap.
         self.embedding_chunk_cap = cap
 
+        # Models trained with task prefixes (EmbeddingGemma) ship a "Clustering"
+        # prompt, which is exactly this use; others have none and are unaffected.
+        prompt_name = "Clustering" if "Clustering" in (getattr(embedder, "prompts", None) or {}) else None
+
         safe_name = re.sub(r"[^A-Za-z0-9._-]", "_", model_name)
         # v3: one row per chunk, so the mapping travels with it. Keyed on the
-        # cap too, since changing it changes the chunking.
+        # cap too, since changing it changes the chunking, and on the prompt.
+        prompt_suffix = f"_p{prompt_name}" if prompt_name else ""
         cache_path = os.path.join(
-            self.texts_to_vectorize.text_path, f"embeddings_v3_{safe_name}_c{cap}.npz"
+            self.texts_to_vectorize.text_path, f"embeddings_v3_{safe_name}_c{cap}{prompt_suffix}.npz"
         )
         if os.path.exists(cache_path):
             cached = np.load(cache_path)
@@ -371,6 +376,7 @@ class Corpus:
         print(f"Embedding {len(texts)} chunks across {self.size} docs...", flush=True)
         embeddings = embedder.encode(
             texts,
+            prompt_name=prompt_name,
             batch_size=batch_size,
             show_progress_bar=True,
             convert_to_numpy=True,
