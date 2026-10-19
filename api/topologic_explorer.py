@@ -319,7 +319,7 @@ def get_doc_data(table, philo_db, philo_id):
 
 
 @app.get("/get_word_data/{table}/{word}")
-def get_word_data(table, word, word_limit=20):
+def get_word_data(table, word, word_limit: int = 20):
     config = read_model_config(table)
     with DBSearch(_db_path(table), config["object_level"]) as db:
         word_data = db.get_word_data(word)
