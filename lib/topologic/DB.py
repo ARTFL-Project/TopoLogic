@@ -25,6 +25,12 @@ from tqdm import tqdm, trange
 
 VALID_IDENTIFIER_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 
+# Neighbours stored per word in similar_words_by_topic/_by_cooc. The API serves
+# the top 20 (`word_limit`); storing the full ranking instead, one entry per
+# vocabulary term, grows with the square of the vocabulary and made these two
+# columns 99% of the database (30 GB of 30.4 at 18.5k terms).
+SIMILAR_WORDS_STORED = 100
+
 # Shared saturation/lightness for the per-topic palette. Matches what looks
 # readable on both white card backgrounds and as a thin legend swatch.
 _PALETTE_SATURATION = 0.62
@@ -271,7 +277,8 @@ class DBHandler:
         N = cls.model.corpus.size
 
         def _rank_similar(sim_array):
-            order = np.argsort(sim_array)[::-1]
+            # +1: the word itself ranks first, and the API skips it.
+            order = np.argsort(sim_array)[::-1][: SIMILAR_WORDS_STORED + 1]
             return [{"word": feature_names[i], "weight": float(sim_array[i])} for i in order]
 
         # Column-oriented view: each column is one word's (doc_id, weight) list
