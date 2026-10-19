@@ -1,0 +1,49 @@
+# TopoLogic — the serve-only dependency set.
+#
+# This is NOT lib/pyproject.toml's dependency list, and the difference is the point of the
+# deployment image. Serving a model needs none of the machinery that *builds* one: the API
+# reads a DuckDB file and returns JSON. Verified against the running workers' memory maps
+# and by import-testing the chain api -> topologic -> topologic.DB, which contains no
+# module-level import of any of the following:
+#
+#   torch, cupy               ~4.8 GB, and this host has no GPU at all
+#   spacy, spacy-transformers  preprocessing, only used while training
+#   bertopic, sentence-transformers   `from bertopic import BERTopic` is inside a method
+#   text_preprocessing         pulls torch
+#   philologic                 only topologic.text_parser and __main__ import it, and the
+#                              built model carries pre-rendered HTML so the API never
+#                              reaches for PhiloLogic at runtime
+#   lz4                        only topologic.chunking, imported lazily by save_doc_chunks
+#
+# Models are built elsewhere and copied in, so none of that belongs in a container that is
+# rebuilt and scanned every Sunday. If the API ever grows an import from one of them, the
+# import test in the migration plan's T2 is what will catch it.
+
+# Pinned to the versions this deployment was verified against on 2026-10-19, with the
+# haitiallrecorpgnolem model built from TopoLogic c41c985a. Transitive dependencies are
+# left to resolve, so the weekly rebuild keeps patching them; these direct pins are the
+# ones where a change could alter what the API returns, and moving them is a reviewed
+# change proved in staging rather than something a Sunday cron does unattended.
+
+# The web layer.
+fastapi==0.148.0
+gunicorn==26.2.0
+uvicorn==0.54.0
+uvloop==0.23.0
+httptools==0.9.0
+
+# The model file.
+duckdb==1.5.6
+
+# What topologic.DB and the topologic package's __init__ chain actually need. numpy and
+# scikit-learn are here for a single cosine_similarity call in get_topic_data; annoy,
+# scipy, matplotlib, joblib, multiprocess and tqdm come in because __init__.py imports
+# corpus, topic_model and topic_num_evaluator eagerly whether or not a caller wants them.
+numpy==2.5.4
+scipy==1.18.1
+scikit-learn==1.9.1
+annoy==1.17.3
+matplotlib==3.11.2
+joblib==1.6.0
+multiprocess==0.70.19
+tqdm==4.70.1
