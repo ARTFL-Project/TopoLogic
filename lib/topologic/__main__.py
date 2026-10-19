@@ -44,6 +44,25 @@ def _create_lz4_tarball(out_path, source_dir):
             tar.add(source_dir, arcname=os.path.basename(source_dir.rstrip(os.sep)))
 
 
+def _relative_link_filter(member, dest_path):
+    """filter="data", after re-pointing an absolute symlink into the archive's
+    own tree at the same place, relatively.
+
+    Tarballs written before the inference link was made relative carry one
+    (inference/<db> -> /abs/<data_output>/training/<db>), which filter="data"
+    refuses outright, so none of them would extract. A link pointing anywhere
+    else is left for filter="data" to refuse.
+    """
+    import tarfile
+    if member.issym() and os.path.isabs(member.linkname):
+        root = member.name.split("/", 1)[0]
+        parts = member.linkname.split("/")
+        if root in parts:
+            inside = "/".join(parts[len(parts) - 1 - parts[::-1].index(root):])
+            member = member.replace(linkname=os.path.relpath(inside, os.path.dirname(member.name)), deep=False)
+    return tarfile.data_filter(member, dest_path)
+
+
 def _extract_preprocessed_tarball(tarball_path, out_dir):
     """Extract a preprocessed-data tarball into `out_dir`.
 
@@ -52,15 +71,16 @@ def _extract_preprocessed_tarball(tarball_path, out_dir):
     """
     import tarfile
     name = tarball_path.lower()
-    # filter="data" blocks extraction outside the destination and setuid bits.
+    # filter="data" blocks extraction outside the destination and setuid bits;
+    # _relative_link_filter applies it, after fixing up older tarballs.
     if name.endswith(".lz4"):
         import lz4.frame
         with lz4.frame.open(tarball_path, "rb") as compressed_fp:
             with tarfile.open(fileobj=compressed_fp, mode="r|") as tar:
-                tar.extractall(path=out_dir, filter="data")
+                tar.extractall(path=out_dir, filter=_relative_link_filter)
     elif name.endswith((".gz", ".tgz")):
         with tarfile.open(tarball_path, "r:gz") as tar:
-            tar.extractall(path=out_dir, filter="data")
+            tar.extractall(path=out_dir, filter=_relative_link_filter)
     else:
         raise ValueError(
             f"Unrecognized tarball extension on {tarball_path!r}; "
@@ -416,8 +436,10 @@ def prepare_data(
         count += 1
         if db_name in training_config["databases"]:
             if db_config["text_object_level"] == training_config["databases"][db_name]["text_object_level"]:
+                # Relative, so the tarball extracts: filter="data" refuses
+                # links to absolute paths.
                 os.symlink(
-                    os.path.join(os.path.abspath(training_texts_path), db_name),
+                    os.path.relpath(os.path.join(training_texts_path, db_name), inference_texts_path),
                     os.path.join(inference_texts_path, db_name),
                 )
                 continue
