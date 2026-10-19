@@ -256,11 +256,19 @@ def ensure_parsed_dbs(data_config, parsed_root, workers, debug):
         db_config["db_path"] = parsed_dir
 
 
-def get_file_list(data_path, metadata_filters, object_level, word_length):
+def get_file_list(data_path, metadata_filters, object_level):
+    """Files and text-object ids matching the metadata filters.
+
+    A metadata-only query: a word query here (formerly a regex matching every
+    word) returns no hits on current PhiloLogic databases, which silently
+    filtered out the whole corpus. PhiloLogic returns matching objects at the
+    level of the filtered fields, which may sit above or below `object_level`,
+    so ids are truncated to it and stripped of zero padding;
+    `matches_metadata_filter` accepts a text object any of them prefixes.
+    """
     philo_db = DB(data_path)
-    query_string = "." * word_length + "+"
     hits = philo_db.query(
-        qs=query_string,
+        qs="",
         method="",
         method_arg="",
         limit="",
@@ -269,9 +277,20 @@ def get_file_list(data_path, metadata_filters, object_level, word_length):
         **metadata_filters,
     )
     hits.finish()
-    philo_ids = {" ".join(map(str, hit[: OBJECT_LEVELS[object_level]])) for hit in hits}
-    file_list = {os.path.join(data_path, f"words_and_philo_ids/{hit.split()[0]}.lz4") for hit in philo_ids}
+    philo_ids = set()
+    for hit in hits:
+        parts = [str(part) for part in hit[: OBJECT_LEVELS[object_level]]]
+        while parts and parts[-1] == "0":
+            parts.pop()
+        if parts:
+            philo_ids.add(" ".join(parts))
+    file_list = {os.path.join(data_path, f"words_and_philo_ids/{philo_id.split()[0]}.lz4") for philo_id in philo_ids}
     return file_list, philo_ids
+
+
+def matches_metadata_filter(philo_id, philo_ids):
+    parts = str(philo_id).split()
+    return any(" ".join(parts[:depth]) in philo_ids for depth in range(1, len(parts) + 1))
 
 
 def dictionary_filter(dictionary_file: str, preprocessor: PreProcessor):
@@ -321,7 +340,6 @@ def prepare_data(
                 os.path.join(db_config["db_path"], "data"),
                 metadata_filters,
                 db_config["text_object_level"],
-                prep_config["minimum_word_length"],
             )
             file_count = len(file_list)
         else:
@@ -347,7 +365,7 @@ def prepare_data(
             if (
                 training_config["min_tokens_per_doc"] > len(text)
                 or metadata_filters
-                and text.metadata[f"philo_{db_config['text_object_level']}_id"] not in philo_ids
+                and not matches_metadata_filter(text.metadata[f"philo_{db_config['text_object_level']}_id"], philo_ids)
             ):
                 continue
             with open(
@@ -428,7 +446,6 @@ def prepare_data(
                 os.path.join(db_config["db_path"], "data"),
                 metadata_filters,
                 db_config["text_object_level"],
-                prep_config["minimum_word_length"],
             )
             file_count = len(philo_ids)
         else:
@@ -448,7 +465,7 @@ def prepare_data(
             if (
                 inference_config["min_tokens_per_doc"] > len(text)
                 or metadata_filters
-                and text.metadata[f"philo_{db_config['text_object_level']}_id"] not in philo_ids
+                and not matches_metadata_filter(text.metadata[f"philo_{db_config['text_object_level']}_id"], philo_ids)
             ):
                 continue
             with open(
