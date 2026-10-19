@@ -123,20 +123,22 @@ class savedTexts:
 
             # Group on raw words so the cap means the same everywhere, then
             # emit the preprocessed tokens falling in each group.
+            #
+            # A chunk is kept on its RAW text being non-empty, matching
+            # build_chunks exactly: BERTopic scores these rows against the
+            # chunks it embedded, so the two must agree row for row. A chunk
+            # whose content is entirely stopwords stays as an empty row.
             raw_groups = group_by_counts(
                 [len(p["text"].split()) for p in paragraphs], max_chunk_size
             )
             per_paragraph = assign_preproc_tokens(paragraphs, tokens_obj)
-            emitted = False
-            for group in raw_groups:
-                text = " ".join(tok for i in group for tok in per_paragraph[i])
-                if text.strip():
-                    emitted = True
-                    yield text
-            if not emitted:
-                # Everything was stopworded away; keep the row so the corpus
-                # size still matches.
+            kept = [g for g in raw_groups
+                    if " ".join(paragraphs[i]["text"] for i in g).strip()]
+            if not kept:
                 yield ""
+                continue
+            for group in kept:
+                yield " ".join(tok for i in group for tok in per_paragraph[i])
 
         if degraded == total_docs:
             # Misconfiguration, not degradation: the run would otherwise
@@ -292,6 +294,17 @@ class Corpus:
             )
         return texts, np.asarray(doc_index, dtype=np.int64), np.asarray(tokens, dtype=np.int64)
 
+    def preprocessed_chunk_texts(self, n_chunks):
+        """Preprocessed text of each chunk from the last compute_or_load_embeddings.
+
+        Row for row with its ChunkedCorpus: both group raw paragraphs at the
+        same cap and keep the same chunks. Returns None if the counts disagree
+        (a doc with raw paragraphs but no tokens pickle), so callers can fall
+        back to the raw text rather than misalign.
+        """
+        texts = list(self.texts_to_vectorize.iter_chunk_texts(self.embedding_chunk_cap))
+        return texts if len(texts) == n_chunks else None
+
     def compute_or_load_embeddings(self, model_name, batch_size=32, max_chunk_size=None):
         """Embed every chunk of every document. No pooling.
 
@@ -335,6 +348,8 @@ class Corpus:
         )
 
         texts, doc_index, tokens = self.build_chunks(cap)
+        # Kept for preprocessed_chunk_texts, which must group on the same cap.
+        self.embedding_chunk_cap = cap
 
         safe_name = re.sub(r"[^A-Za-z0-9._-]", "_", model_name)
         # v3: one row per chunk, so the mapping travels with it. Keyed on the

@@ -218,8 +218,20 @@ class BERTopicModel(TopicModel):
             batch_size=self.batch_size,
             max_chunk_size=self.max_chunk_size,
         )
-        docs = chunked.texts
         embeddings = chunked.embeddings
+        # c-TF-IDF counts the preprocessed tokens of each chunk, not its raw
+        # text. Counting raw text against the pinned vocabulary bypasses
+        # stopwords, POS filtering and lemmatization: a word tagged NOUN in a
+        # handful of documents enters the vocabulary, then every raw "et" or
+        # "les" in the corpus is counted. The embeddings still see raw text.
+        docs = self.corpus.preprocessed_chunk_texts(len(chunked.texts))
+        if docs is None:
+            print(
+                "Warning: preprocessed chunks do not line up with the embedded chunks; "
+                "c-TF-IDF falls back to raw chunk text.",
+                flush=True,
+            )
+            docs = chunked.texts
 
         # BERTopic refits its vectorizer on per-topic concatenated docs, which
         # would reset the vocabulary and break word_id alignment with
