@@ -48,9 +48,13 @@ ENV DEBIAN_FRONTEND=noninteractive LANG=C.UTF-8
 
 # Busted weekly by the build arg so that a weekly rebuild actually applies security updates
 # instead of reusing a cached layer (CONTAINER_UPDATE_PLAN.md 5.1).
+# apt-get upgrade sits in this same layer, never a later one: a separate layer would keep every
+# replaced file in the image twice. Without it, base-image packages that nothing reinstalls
+# move only when Canonical rebuilds ubuntu:26.04.
 ARG REBUILD_DATE=unset
 RUN echo "rebuild: $REBUILD_DATE" \
  && apt-get update \
+ && apt-get upgrade -y \
  && apt-get install -y --no-install-recommends ca-certificates \
  && rm -rf /var/lib/apt/lists/* \
  # Canonical's base image ships /usr/bin/pebble, their service manager for OCI images.
