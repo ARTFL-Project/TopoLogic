@@ -17,8 +17,19 @@
 # stay here, and the runtime stage below copies only the finished interpreter and venv.
 FROM ubuntu:26.04 AS build
 ENV DEBIAN_FRONTEND=noninteractive LANG=C.UTF-8
+# apt spreads its downloads over these mirrors and moves on when one fails. On 2026-11-11
+# Canonical's DNS went down and every Ubuntu build failed at apt-get update. All mirrors
+# serve the same archive, checked against Canonical's signature.
 ARG REBUILD_DATE=unset
 RUN echo "rebuild: $REBUILD_DATE" \
+ && mkdir -p /etc/apt/mirrors \
+ && printf '%s\n' http://archive.ubuntu.com/ubuntu http://mirrors.edge.kernel.org/ubuntu http://mirrors.mit.edu/ubuntu \
+      > /etc/apt/mirrors/ubuntu.list \
+ && printf '%s\n' http://security.ubuntu.com/ubuntu http://mirrors.edge.kernel.org/ubuntu http://mirrors.mit.edu/ubuntu \
+      > /etc/apt/mirrors/ubuntu-security.list \
+ && sed -i -e 's|^URIs: http://archive.ubuntu.com/ubuntu/$|URIs: mirror+file:/etc/apt/mirrors/ubuntu.list|' \
+           -e 's|^URIs: http://security.ubuntu.com/ubuntu/$|URIs: mirror+file:/etc/apt/mirrors/ubuntu-security.list|' \
+      /etc/apt/sources.list.d/ubuntu.sources \
  && apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates g++ \
  && rm -rf /var/lib/apt/lists/*
@@ -51,8 +62,17 @@ ENV DEBIAN_FRONTEND=noninteractive LANG=C.UTF-8
 # apt-get upgrade sits in this same layer, never a later one: a separate layer would keep every
 # replaced file in the image twice. Without it, base-image packages that nothing reinstalls
 # move only when Canonical rebuilds ubuntu:26.04.
+# The same apt mirror lists as above.
 ARG REBUILD_DATE=unset
 RUN echo "rebuild: $REBUILD_DATE" \
+ && mkdir -p /etc/apt/mirrors \
+ && printf '%s\n' http://archive.ubuntu.com/ubuntu http://mirrors.edge.kernel.org/ubuntu http://mirrors.mit.edu/ubuntu \
+      > /etc/apt/mirrors/ubuntu.list \
+ && printf '%s\n' http://security.ubuntu.com/ubuntu http://mirrors.edge.kernel.org/ubuntu http://mirrors.mit.edu/ubuntu \
+      > /etc/apt/mirrors/ubuntu-security.list \
+ && sed -i -e 's|^URIs: http://archive.ubuntu.com/ubuntu/$|URIs: mirror+file:/etc/apt/mirrors/ubuntu.list|' \
+           -e 's|^URIs: http://security.ubuntu.com/ubuntu/$|URIs: mirror+file:/etc/apt/mirrors/ubuntu-security.list|' \
+      /etc/apt/sources.list.d/ubuntu.sources \
  && apt-get update \
  && apt-get upgrade -y \
  && apt-get install -y --no-install-recommends ca-certificates \
